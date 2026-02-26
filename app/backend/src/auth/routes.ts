@@ -66,17 +66,23 @@ router.post('/auth/login', async (req, res) => {
     // Check if this npub is the owner
     const ownerNpub = await getOwnerNpub();
     if (!ownerNpub) {
-      return res.status(500).json({ error: 'System not initialized. Owner npub not found at /app/.relaykit/owner-npub' });
+      return res.status(503).json({
+        code: 'RELAYKIT_NOT_CONFIGURED',
+        error: 'This RelayKit instance is not set up yet. The owner must run the install script with OWNER_NPUB=your_npub, or set owner-npub manually.',
+      });
     }
-    
+
     if (npub !== ownerNpub) {
-      return res.status(403).json({ error: 'Unauthorized. Only the owner can access this RelayKit instance.' });
+      return res.status(403).json({ error: 'Only the owner can access this RelayKit instance.' });
     }
 
     // Verify bootstrap key exists
     const bootstrapKey = await getBootstrapKey();
     if (!bootstrapKey) {
-      return res.status(500).json({ error: 'System not initialized. Bootstrap key not found at /app/.relaykit/bootstrap-key' });
+      return res.status(503).json({
+        code: 'RELAYKIT_NOT_CONFIGURED',
+        error: 'This RelayKit instance is not set up yet. The owner must run the install/setup script to configure the Dokploy API key.',
+      });
     }
 
     // Generate RelayKit JWT

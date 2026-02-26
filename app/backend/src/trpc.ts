@@ -1,4 +1,4 @@
-import { initTRPC } from '@trpc/server'
+import { initTRPC, TRPCError } from '@trpc/server'
 import { z } from 'zod'
 import fs from 'fs/promises'
 import path from 'path'
@@ -83,9 +83,11 @@ const registerDomain = async (composeId: string, host: string, presetData: { int
 const dokployFetch = async (endpoint: string, options: RequestInit = {}) => {
   const url = `${DOKPLOY_URL}${endpoint}`
   const key = await getBootstrapKey()
-  
   if (!key) {
-    throw new Error('Bootstrap key not set. Run setup script first.')
+    throw new TRPCError({
+      code: 'PRECONDITION_FAILED',
+      message: 'RelayKit is not configured. Run the install/setup script (see README).',
+    })
   }
 
   const response = await fetch(url, {
@@ -98,15 +100,27 @@ const dokployFetch = async (endpoint: string, options: RequestInit = {}) => {
   })
 
   const text = await response.text()
-  
+
   if (!response.ok) {
-    throw new Error(`Dokploy API error (${response.status}): ${text.substring(0, 500)}`)
+    if (response.status === 401) {
+      throw new TRPCError({
+        code: 'UNAUTHORIZED',
+        message: 'Dokploy API key is invalid or expired. Update the bootstrap key (see README).',
+      })
+    }
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: `Dokploy API error (${response.status}): ${text.substring(0, 200)}`,
+    })
   }
 
   try {
     return JSON.parse(text)
   } catch (e) {
-    throw new Error(`Invalid JSON response from Dokploy: ${text.substring(0, 200)}`)
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: `Invalid JSON from Dokploy: ${text.substring(0, 100)}`,
+    })
   }
 }
 
@@ -239,18 +253,25 @@ export const appRouter = router({
       return { success: true, message: 'Domain updated and service redeployed' }
     }),
 
-  // Check Dokploy connection
+  // Check Dokploy connection (safe: never throws, always returns JSON)
   checkDokploy: publicProcedure
     .input(z.void())
     .query(async () => {
-    try {
-      await fetch(`${DOKPLOY_URL}/`)
-      const hasApiKey = !!(await getBootstrapKey())
-      return { reachable: true, url: DOKPLOY_URL, hasApiKey }
-    } catch (error: any) {
-      return { reachable: false, error: error.message, url: DOKPLOY_URL, hasApiKey: false }
-    }
-  }),
+      try {
+        const hasApiKey = !!(await getBootstrapKey())
+        await fetch(`${DOKPLOY_URL}/`)
+        return { reachable: true, url: DOKPLOY_URL, hasApiKey }
+      } catch (e: any) {
+        let hasApiKey = false
+        try { hasApiKey = !!(await getBootstrapKey()) } catch { /* ignore */ }
+        return {
+          reachable: false,
+          hasApiKey,
+          url: DOKPLOY_URL,
+          error: e?.message || 'Unknown error',
+        }
+      }
+    }),
 
   // Save Dokploy API key
   saveApiKey: publicProcedure

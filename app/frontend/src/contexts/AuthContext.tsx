@@ -84,8 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!loginRes.ok) {
-        const error = await loginRes.json();
-        throw new Error(error.error || 'Login failed');
+        const data = await loginRes.json().catch(() => ({}));
+        const message = data.code === 'RELAYKIT_NOT_CONFIGURED'
+          ? 'This RelayKit instance is not set up yet. The owner needs to run the install script with their npub (see README).'
+          : (data.error || 'Login failed');
+        throw new Error(message);
       }
 
       const { token: newToken, npub: newNpub } = await loginRes.json();

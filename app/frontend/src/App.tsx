@@ -162,6 +162,7 @@ const ServiceCard = ({
 
 const ServiceList = () => {
   const { refreshTrigger } = useRefreshServices();
+  const { setDokployConnectionError, setDokployReady } = useDokploy();
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingDomain, setEditingDomain] = useState<{ composeId: string; domainId: string; currentHost: string } | null>(null);
@@ -169,11 +170,18 @@ const ServiceList = () => {
 
   const loadServices = async () => {
     setLoading(true);
+    setDokployConnectionError(null);
     try {
-      const result = await trpc.listServices.query(undefined);
+      const result = await trpc.listServices.query();
       setServices(result);
-    } catch (error) {
-      console.error('Error loading services:', error);
+      setDokployReady(true);
+    } catch (error: any) {
+      const msg = error?.message || '';
+      const isDokployKeyError = msg.includes('invalid or expired') || msg.includes('401') || msg.includes('Unauthorized') || msg.includes('bootstrap key');
+      if (isDokployKeyError) {
+        setDokployConnectionError(msg || 'Dokploy API key is invalid or expired. Update the bootstrap key (see README).');
+      }
+      setServices([]);
     } finally {
       setLoading(false);
     }
@@ -521,8 +529,29 @@ const LoginScreen = () => {
   );
 };
 
+/** Runs initial listServices when mounted so we can set dokployReady or dokployConnectionError. Renders nothing. */
+const DokployInitialCheck = () => {
+  const { setDokployConnectionError, setDokployReady } = useDokploy();
+  useEffect(() => {
+    trpc.listServices
+      .query()
+      .then(() => setDokployReady(true))
+      .catch((error: any) => {
+        const msg = error?.message || '';
+        const isKeyError =
+          msg.includes('invalid or expired') ||
+          msg.includes('401') ||
+          msg.includes('Unauthorized') ||
+          msg.includes('bootstrap key');
+        if (isKeyError) setDokployConnectionError(msg || 'Dokploy API key is invalid or expired.');
+      });
+  }, [setDokployConnectionError, setDokployReady]);
+  return null;
+};
+
 const App = () => {
   const { isAuthenticated, isLoading, npub, logout, token } = useAuth();
+  const { dokployConnectionError, dokployReady } = useDokploy();
   const [showDebug, setShowDebug] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any>(null);
 
@@ -576,8 +605,27 @@ const App = () => {
           <div><strong>Dokploy Key:</strong> {debugInfo.dokployApiKey?.slice(0, 20)}...</div>
         </div>
       )}
-      <ServiceList />
-      <DeploySection />
+      {dokployConnectionError ? (
+        <div className="p-6 bg-red-50 border border-red-200 rounded-lg" role="alert">
+          <p className="font-semibold text-red-800 m-0">Dokploy connection problem</p>
+          <p className="text-red-700 text-sm mt-2 m-0">{dokployConnectionError}</p>
+          <p className="text-red-600 text-sm mt-2 m-0">
+            To fix: run the setup script with your npub, or add a valid Dokploy API key to the bootstrap key file (see README).
+          </p>
+        </div>
+      ) : (
+        <>
+          <DokployInitialCheck />
+          {!dokployReady ? (
+            <p className="text-gray-500">Loading…</p>
+          ) : (
+            <>
+              <ServiceList />
+              <DeploySection />
+            </>
+          )}
+        </>
+      )}
     </div>
   );
 };
