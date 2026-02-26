@@ -2,99 +2,9 @@ import { useState, useEffect } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { trpc } from './trpc';
+import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
 import { useRefreshServices } from './contexts/RefreshServicesContext';
-
-const Setup = () => {
-  const { dokployStatus, checkDokploy } = useDokploy();
-  const [apiKey, setApiKey] = useState('');
-  const [setupResult, setSetupResult] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-
-  const hasApiKey = !!dokployStatus?.hasApiKey;
-
-  if (hasApiKey) {
-    return (
-      <div className="mt-8 p-6 bg-success-bg rounded-lg">
-        <h2 className="text-xl font-semibold">✓ RelayKit Configured</h2>
-        <p className="text-gray-500">API key is set</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary-hover transition-colors text-sm"
-        >
-          Reset API Key
-        </button>
-      </div>
-    );
-  }
-
-  const onSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setSetupResult(null);
-    try {
-      const result = await trpc.saveApiKey.mutate({ apiKey });
-      setSetupResult(result);
-      await checkDokploy();
-    } catch (error: any) {
-      console.error('Setup error:', error);
-      setSetupResult({ error: error.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="mt-8 p-6 bg-gray-50 rounded-lg">
-      <h2 className="text-xl font-semibold">Setup RelayKit</h2>
-      <div className="text-gray-500 text-sm mt-4 space-y-2">
-        <p>
-          <strong>Step 1:</strong> Create your Dokploy account at{' '}
-          <a href="http://localhost:3000" target="_blank" className="text-primary hover:underline">
-            http://localhost:3000
-          </a>
-        </p>
-        <p>
-          <strong>Step 2:</strong> Generate an API key in Dokploy at{' '}
-          <a href="http://localhost:3000/dashboard/settings/profile" target="_blank" className="text-primary hover:underline">
-            Settings → Profile
-          </a>
-        </p>
-        <p>
-          <strong>Step 3:</strong> Paste the API key below:
-        </p>
-      </div>
-      <form onSubmit={onSave} className="mt-4">
-        <div className="mb-4">
-          <label className="block mb-2">
-            <span className="text-sm font-medium">Dokploy API Key:</span>
-            <input
-              type="text"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              required
-              placeholder="paste-your-api-key-here"
-              className="block w-full px-3 py-2 mt-1 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
-            />
-          </label>
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-6 py-3 bg-primary text-white rounded hover:bg-primary-hover disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-        >
-          {loading ? 'Saving...' : 'Save API Key'}
-        </button>
-      </form>
-      {setupResult && (
-        <div className={`mt-4 p-4 rounded ${setupResult.error ? 'bg-error-bg' : 'bg-success-bg'}`}>
-          <strong>{setupResult.error ? 'Error:' : 'Success!'}</strong>
-          <pre className="mt-2 text-xs whitespace-pre-wrap">{JSON.stringify(setupResult, null, 2)}</pre>
-        </div>
-      )}
-    </div>
-  );
-};
 
 const ServiceCard = ({
   service,
@@ -538,21 +448,136 @@ const DeploySection = () => {
   );
 };
 
+const LoginScreen = () => {
+  const { login, hasNostrExtension, isLoading } = useAuth();
+  const [loggingIn, setLoggingIn] = useState(false);
+
+  const handleLogin = async () => {
+    setLoggingIn(true);
+    try {
+      await login();
+      toast.success('Logged in successfully');
+    } catch (error: any) {
+      toast.error(error.message || 'Login failed');
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-lg">
+        <h1 className="text-3xl font-bold mb-2">RelayKit</h1>
+        <p className="text-gray-600 mb-8">Nostr service deployment platform</p>
+
+        {!hasNostrExtension ? (
+          <div className="p-4 bg-warning-bg rounded-lg">
+            <p className="font-semibold mb-2">Nostr Extension Required</p>
+            <p className="text-sm text-gray-600 mb-4">
+              Please install a Nostr browser extension to continue:
+            </p>
+            <ul className="text-sm space-y-2">
+              <li>
+                <a
+                  href="https://getalby.com"
+                  target="_blank"
+                  className="text-primary hover:underline"
+                >
+                  Alby (Chrome, Firefox)
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://github.com/fiatjaf/nos2x"
+                  target="_blank"
+                  className="text-primary hover:underline"
+                >
+                  nos2x (Chrome)
+                </a>
+              </li>
+            </ul>
+          </div>
+        ) : (
+          <button
+            onClick={handleLogin}
+            disabled={loggingIn}
+            className="w-full px-6 py-3 bg-primary text-white rounded hover:bg-primary-hover disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+          >
+            {loggingIn ? 'Signing in...' : 'Sign in with Nostr'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const App = () => {
-  const { dokployStatus } = useDokploy();
-  const hasApiKey = !!dokployStatus?.hasApiKey;
+  const { isAuthenticated, isLoading, npub, logout, token } = useAuth();
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      fetch('/auth/verify', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(res => res.json())
+        .then(setDebugInfo)
+        .catch(console.error);
+    }
+  }, [isAuthenticated, token]);
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
-      <h1 className="text-4xl font-bold">RelayKit</h1>
-      <p className="text-gray-600">Nostr service deployment platform</p>
-      <Setup />
-      {hasApiKey && (
-        <>
-          <ServiceList />
-          <DeploySection />
-        </>
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h1 className="text-4xl font-bold">RelayKit</h1>
+          <p className="text-gray-600">Nostr service deployment platform</p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm text-gray-500 mb-2">
+            {npub ? `${npub.slice(0, 8)}...${npub.slice(-4)}` : ''}
+          </p>
+          <button
+            onClick={logout}
+            className="text-sm text-gray-600 hover:text-gray-900 underline"
+          >
+            Logout
+          </button>
+          <button
+            onClick={() => setShowDebug(!showDebug)}
+            className="text-xs text-gray-400 hover:text-gray-600 underline ml-2"
+          >
+            {showDebug ? 'Hide' : 'Debug'}
+          </button>
+        </div>
+      </div>
+      {showDebug && debugInfo && (
+        <div className="mb-4 p-4 bg-gray-100 rounded text-xs font-mono">
+          <div><strong>NPub:</strong> {debugInfo.npub}</div>
+          <div><strong>Dokploy Key:</strong> {debugInfo.dokployApiKey?.slice(0, 20)}...</div>
+        </div>
       )}
+      <ServiceList />
+      <DeploySection />
     </div>
   );
 };

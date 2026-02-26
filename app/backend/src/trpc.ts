@@ -2,11 +2,17 @@ import { initTRPC } from '@trpc/server'
 import { z } from 'zod'
 import fs from 'fs/promises'
 import path from 'path'
+import { createAuthContext, requireAuth, AuthContext } from './auth/middleware'
+import { getBootstrapKey } from './db'
 
-const t = initTRPC.create()
+const t = initTRPC.context<{ auth: AuthContext | null }>().create()
 
 export const router = t.router
 export const publicProcedure = t.procedure
+export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
+  const auth = requireAuth(ctx.auth)
+  return next({ ctx: { ...ctx, auth } })
+})
 
 const DOKPLOY_URL = 'http://dokploy:3000'
 const CONFIG_PATH = path.join('/app', '.dokploy-key')
@@ -74,27 +80,18 @@ const registerDomain = async (composeId: string, host: string, presetData: { int
   })
 }
 
-const getApiKey = async (): Promise<string> => {
-  try {
-    const key = await fs.readFile(CONFIG_PATH, 'utf-8')
-    return key.trim()
-  } catch (error) {
-    return ''
-  }
-}
-
 const dokployFetch = async (endpoint: string, options: RequestInit = {}) => {
   const url = `${DOKPLOY_URL}${endpoint}`
-  const apiKey = await getApiKey()
+  const key = await getBootstrapKey()
   
-  if (!apiKey) {
-    throw new Error('DOKPLOY_API_KEY not set. Please complete setup first.')
+  if (!key) {
+    throw new Error('Bootstrap key not set. Run setup script first.')
   }
 
   const response = await fetch(url, {
     ...options,
     headers: {
-      'x-api-key': apiKey,
+      'x-api-key': key,
       'Content-Type': 'application/json',
       ...options.headers,
     },
@@ -132,9 +129,9 @@ export const appRouter = router({
     return presets
   }),
 
-  listServices: publicProcedure
+  listServices: protectedProcedure
     .input(z.void())
-    .query(async () => {
+    .query(async ({ ctx }) => {
     const projects = await dokployFetch('/api/project.all')
     const services = []
     for (const project of projects) {
@@ -164,11 +161,11 @@ export const appRouter = router({
   }),
 
   // Delete a service
-  deleteService: publicProcedure
+  deleteService: protectedProcedure
     .input(z.object({
       composeId: z.string()
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       await dokployFetch('/api/compose.delete', {
         method: 'POST',
         body: JSON.stringify({
@@ -183,11 +180,11 @@ export const appRouter = router({
     }),
 
   // Stop a service
-  stopService: publicProcedure
+  stopService: protectedProcedure
     .input(z.object({
       composeId: z.string()
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       await dokployFetch('/api/compose.stop', {
         method: 'POST',
         body: JSON.stringify({
@@ -202,11 +199,11 @@ export const appRouter = router({
     }),
 
   // Start a service
-  startService: publicProcedure
+  startService: protectedProcedure
     .input(z.object({
       composeId: z.string()
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       await dokployFetch('/api/compose.start', {
         method: 'POST',
         body: JSON.stringify({
@@ -220,13 +217,13 @@ export const appRouter = router({
       }
     }),
 
-  updateServiceDomain: publicProcedure
+  updateServiceDomain: protectedProcedure
     .input(z.object({
       composeId: z.string(),
       domainId: z.string(),
       newHost: z.string()
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const compose = await dokployFetch(`/api/compose.one?composeId=${input.composeId}`)
       const presetData = await getPresetMetadata(compose.description)
       // Dokploy has no domain.update; change domain = delete old then create new
@@ -248,7 +245,7 @@ export const appRouter = router({
     .query(async () => {
     try {
       await fetch(`${DOKPLOY_URL}/`)
-      const hasApiKey = !!(await getApiKey())
+      const hasApiKey = !!(await getBootstrapKey())
       return { reachable: true, url: DOKPLOY_URL, hasApiKey }
     } catch (error: any) {
       return { reachable: false, error: error.message, url: DOKPLOY_URL, hasApiKey: false }
@@ -285,12 +282,12 @@ export const appRouter = router({
       }
     }),
 
-  deployService: publicProcedure
+  deployService: protectedProcedure
     .input(z.object({
       presetId: z.string(),
       config: z.record(z.string(), z.string())
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       try {
         const presetDir = path.join(PRESETS_DIR, input.presetId)
         const composeContent = await fs.readFile(path.join(presetDir, 'docker-compose.yml'), 'utf-8')

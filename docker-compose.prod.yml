@@ -75,8 +75,10 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=4000
+      - JWT_SECRET=${JWT_SECRET}
     volumes:
       - ./app:/app
+      - relaykit_data:/app/.relaykit
     depends_on:
       dokploy:
         condition: service_started
@@ -85,6 +87,7 @@ volumes:
   postgres_data:
   redis_data:
   dokploy_data:
+  relaykit_data:
 
 networks:
   dokploy-network:

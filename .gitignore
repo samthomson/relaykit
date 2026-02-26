@@ -11,7 +11,9 @@ dist
 
 # Environment and secrets
 .env
+.env.local
 app/.dokploy-key
+app/.relaykit/
 
 # Dev TLS (mkcert output)
 dev-certs/

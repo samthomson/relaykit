@@ -16,7 +16,7 @@ Browser → RelayKit App → Dokploy API
 - Frontend: Vite + React + tRPC client
 - Backend: Node.js + TypeScript + tRPC server (serves frontend in prod)
 - Communication: tRPC
-- Auth: Nostr (later - start without auth)
+- Auth: Nostr (NIP-07 browser extension)
 - Presets: Docker-compose templates in `/presets/` directory
 - State: PostgreSQL if needed (or just query Dokploy API)
 
@@ -51,83 +51,92 @@ relaykit-proto/
             └── metadata.json
 ```
 
-## Development vs Production
+## Install (Fresh)
 
-**Prerequisites (dev):** Docker. For local HTTPS: `brew install mkcert && mkcert -install`, then `./scripts/gen-dev-certs.sh` (creates certs + Caddyfile). Without mkcert/certs, Caddy will fail on 80/443.
+```bash
+OWNER_NPUB=your_npub ./scripts/install.sh
+```
 
-**Dev:** Everything runs in Docker
-- `docker compose up --build`
+This starts containers, creates Dokploy admin account, generates API key, and sets your npub as owner.
+
+## Development
+
+**Prerequisites:** Docker. For local HTTPS: `brew install mkcert && mkcert -install`, then `./scripts/gen-dev-certs.sh`.
+
+**Start:**
+```bash
+docker compose up --build
+```
+
+**Set owner (if not using install script):**
+```bash
+docker exec relaykit-proto-relaykit-1 sh -c "echo 'YOUR_NPUB' > /app/.relaykit/owner-npub"
+```
+
+**Access:**
 - Dokploy: http://localhost:3000
-- RelayKit Frontend: http://localhost:5173
-- RelayKit Backend: http://localhost:4000
+- RelayKit: http://localhost:5173 (sign in with Nostr extension like Alby or nos2x)
+- Backend: http://localhost:4000
 
-**First-time setup:**
-1. Create Dokploy account at http://localhost:3000 eg email@address.com/password
-2. Generate API key at http://localhost:3000/dashboard/settings/profile
-3. Paste API key in RelayKit at http://localhost:5173
+## Auth
 
-**Local HTTPS (any domain you want):** The cert covers whatever hostnames you list in `scripts/dev-domains.txt` (e.g. relay.local, myrelay.test, reallyrelay.io). Flow when adding a new relay in local dev:
+**User-facing:** Nostr-only (NIP-07 browser extension). Owner npub set at install.
 
-1. Add your chosen domain to `/etc/hosts` (e.g. `127.0.0.1 reallyrelay.io`).
-2. Add that domain to `scripts/dev-domains.txt` (copy from `scripts/dev-domains.example.txt` if you don't have one).
-3. Run `./scripts/gen-dev-certs.sh`. If compose is already running, restart it so Caddy picks up the new cert.
-4. In RelayKit, create the relay and set its domain to that hostname; choose "No SSL" for local.
+**Under the hood:** All users share one Dokploy admin account. Nostr auth controls access to RelayKit. Storage: `/app/.relaykit/owner-npub` (who can login) and `/app/.relaykit/bootstrap-key` (shared Dokploy API key).
 
-Then https://your-domain works in the browser and routes to the relay.
+**Why not per-user Dokploy accounts?** Dokploy doesn't expose APIs to create users programmatically.
 
-**Prod:** `docker compose -f docker-compose.prod.yml up -d`. No Caddy; Traefik on 80/443 with real certs. RelayKit: build frontend, backend serves static + tRPC, one port.
+## Production
 
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+No Caddy; Traefik on 80/443 with real certs. Change `dokploy_secret` in `docker-compose.prod.yml` before first run.
+
+## Local HTTPS (dev)
+
+The cert covers hostnames in `scripts/dev-domains.txt`. To add a relay with custom domain:
+
+1. Add domain to `/etc/hosts` (e.g. `127.0.0.1 reallyrelay.io`)
+2. Add to `scripts/dev-domains.txt`
+3. Run `./scripts/gen-dev-certs.sh` and restart compose
+4. Create relay in RelayKit with that domain, choose "No SSL"
 
 ## Key Technical Details
 
 **Dokploy Integration:**
-- Backend calls Dokploy's REST API (need to find API docs)
-- Dokploy runs on `http://dokploy:3000` (accessible via Docker network)
+- Backend calls Dokploy's REST API
+- Dokploy runs on `http://dokploy:3000` (Docker network)
 
-RelayKit has two domain flows: **create a service (with domain in one go)** and **change a service's domain later**.
+RelayKit has two domain flows: **create service** and **change domain**.
 
-| RelayKit action | Dokploy APIs (in order) |
-|-----------------|-------------------------|
-| **List services** | `project.all`; then for each project → each environment → each compose in that environment, we build one list entry. |
-| **Create service** (domain set at creation) | `project.all` or `project.create` → `compose.create` → `compose.update` → `domain.create` → `compose.deploy` |
-| **Change domain** (edit existing service) | `domain.delete` → `domain.create` → `compose.redeploy` |
+| RelayKit action | Dokploy APIs |
+|-----------------|--------------|
+| **List services** | `project.all` → build list from projects/environments/composes |
+| **Create service** | `project.all` or `project.create` → `compose.create` → `compose.update` → `domain.create` → `compose.deploy` |
+| **Change domain** | `domain.delete` → `domain.create` → `compose.redeploy` |
 
 **Presets:**
-- Each service has a folder in `/app/presets/`
-- `docker-compose.yml` = standard Docker Compose file using `${ENV_VAR}` syntax
-- `metadata.json` = service info (name, description, required config fields)
-- Backend collects config from user and passes as env vars to Dokploy's API
-- Users can update env vars later without redeploying
-- For routing: metadata must include `serviceName` (compose service name) and `internalPort`. Certificate type ("No SSL" for local, "Let's Encrypt" for prod) is chosen in the deploy modal and can be edited per service in the UI; editing a domain triggers redeploy.
-- For unique data per instance: use `{{DEPLOY_SUFFIX}}` in volume names in the compose file; the backend replaces it at deploy time so each deployment gets its own volumes.
+- Each service: `/app/presets/{service}/docker-compose.yml` + `metadata.json`
+- Backend passes user config as env vars to Dokploy
+- Use `{{DEPLOY_SUFFIX}}` in volume names for unique data per instance
 
-**State:**
+**State:** Query Dokploy API (no separate DB for now)
 
-- Option 1: Store deployment metadata in our own Postgres
-- Option 2: Just query Dokploy API for deployed services (simpler)
-- Decision: Start with option 2, add Postgres only if needed
-
-## todo
+## Todo
 
 - [ ] get it running the service properly
 - [ ] convey real deployment status in UI (not assumed success)
-
 - [ ] prod deployment
-
 - [ ] blossom?
 - [ ] one other relay type
-
 - [ ] dns record instructions for after adding a domain?
 - [ ] link/iframe two shakespeare apps I made
-
 - [ ] change default project group for all projects to go into
 - [ ] let user specify a project/group for projects to go into
 - [ ] tidy ui, for how we present projects
-
 - [ ] can more things be exposed from stirfry, like whitelist kinds and users (and default blacklist all). and then how to reload to get this config?
-
 - [ ] expose volumes to user so they can manage (view/delete/optional: create service from volume)
-
 - [ ] what happens if I try to create a project with a domain already in use on another project?
-
 - [ ] some high level things per service (disk space used, maybe cpu/mem usage too? network traffic?)
