@@ -529,6 +529,16 @@ const LoginScreen = () => {
   );
 };
 
+const DokployConnectionAlert = ({ message }: { message: string }) => (
+  <div className="p-6 bg-red-50 border border-red-200 rounded-lg" role="alert">
+    <p className="font-semibold text-red-800 m-0">Dokploy connection problem</p>
+    <p className="text-red-700 text-sm mt-2 m-0">{message}</p>
+    <p className="text-red-600 text-sm mt-2 m-0">
+      To fix: run the setup script with your npub, or add a valid Dokploy API key to the bootstrap key file (see README).
+    </p>
+  </div>
+);
+
 /** Runs initial listServices when mounted so we can set dokployReady or dokployConnectionError. Renders nothing. */
 const DokployInitialCheck = () => {
   const { setDokployConnectionError, setDokployReady } = useDokploy();
@@ -606,13 +616,7 @@ const App = () => {
         </div>
       )}
       {dokployConnectionError ? (
-        <div className="p-6 bg-red-50 border border-red-200 rounded-lg" role="alert">
-          <p className="font-semibold text-red-800 m-0">Dokploy connection problem</p>
-          <p className="text-red-700 text-sm mt-2 m-0">{dokployConnectionError}</p>
-          <p className="text-red-600 text-sm mt-2 m-0">
-            To fix: run the setup script with your npub, or add a valid Dokploy API key to the bootstrap key file (see README).
-          </p>
-        </div>
+        <DokployConnectionAlert message={dokployConnectionError} />
       ) : (
         <>
           <DokployInitialCheck />
