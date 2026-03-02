@@ -89,9 +89,6 @@ services:
       - JWT_SECRET=${JWT_SECRET}
     volumes:
       - ./app:/app
-      - /app/node_modules
-      - /app/backend/node_modules
-      - /app/frontend/node_modules
       - relaykit_data:/app/.relaykit
     depends_on:
       dokploy:

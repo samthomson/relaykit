@@ -61,19 +61,35 @@ relaykit-proto/
 - RelayKit Frontend: http://localhost:5173
 - RelayKit Backend: http://localhost:4000
 
-**First-time setup:**
+**Quick Start**
 
-Fresh install:
-```bash
-OWNER_NPUB=your_npub ./scripts/install.sh
-```
+Run these commands from the project directory (the folder containing `docker-compose.yml`):
 
-Existing setup (set owner):
-```bash
-docker exec relaykit-proto-relaykit-1 sh -c "echo 'YOUR_NPUB' > /app/.relaykit/owner-npub"
-```
+1. **Set JWT_SECRET**  
+   Copy the example env file and set a secret:
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` and set `JWT_SECRET` to a random string (e.g. run `openssl rand -base64 32` and paste the result).
 
-Then visit http://localhost:5173 and sign in with Nostr extension (Alby, nos2x, etc)
+2. **Start the stack**  
+   In the same project directory:
+   ```bash
+   docker compose up -d
+   ```
+   Wait until the containers are up (Dokploy at http://localhost:3000, RelayKit at http://localhost:5173).
+
+3. **Run the setup script**  
+   Still in the project directory. Replace `npub1your...` with your real Nostr public key (the same one you’ll use to log in):
+   ```bash
+   OWNER_NPUB=npub1your... ./scripts/setup-relaykit-auth.sh
+   ```
+   This creates a Dokploy admin account, gets an API key, and writes it to the RelayKit container. After it succeeds, reload http://localhost:5173 and sign in with your Nostr extension (Alby, nos2x, etc.).
+
+4. **If step 3 fails** (e.g. “Registration failed” because Dokploy already has an admin): log in to http://localhost:3000, go to Settings → Profile → API/CLI, create an API key, then in the project directory run (paste your key in place of `PASTE_THE_KEY_HERE`):
+   ```bash
+   docker compose exec relaykit sh -c 'printf "%s" "PASTE_THE_KEY_HERE" > /app/.relaykit/bootstrap-key'
+   ```
 
 **Local HTTPS (any domain you want):** The cert covers whatever hostnames you list in `scripts/dev-domains.txt` (e.g. relay.local, myrelay.test, reallyrelay.io). Flow when adding a new relay in local dev:
 

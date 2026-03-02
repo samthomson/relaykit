@@ -15,8 +15,9 @@ async function ensureDataDir() {
 
 export async function getBootstrapKey(): Promise<string | null> {
   try {
-    const key = await fs.readFile(BOOTSTRAP_KEY_FILE, 'utf-8');
-    return key.trim();
+    const raw = await fs.readFile(BOOTSTRAP_KEY_FILE, 'utf-8');
+    const key = raw.trim().split(/\r?\n/)[0]?.trim() || null;
+    return key || null;
   } catch (error) {
     return null;
   }

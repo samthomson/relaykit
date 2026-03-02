@@ -1,19 +1,34 @@
 import { Router } from 'express';
+import { nip19 } from 'nostr-tools';
 import { generateChallenge, verifyChallengeResponse, NostrEvent } from './nostr';
 import { signJWT, verifyJWT } from './jwt';
 import { getBootstrapKey, getOwnerNpub } from '../db';
 
 const router = Router();
 
-// Store active challenges (in-memory for now, could move to Redis)
+// Store active challenges by hex pubkey (frontend may send npub1 or hex)
 const challenges = new Map<string, { challenge: string; timestamp: number }>();
+
+function npubToHex(npub: string): string | null {
+  const t = npub.trim();
+  if (!t) return null;
+  if (t.startsWith('npub1')) {
+    try {
+      const d = nip19.decode(t);
+      return d.type === 'npub' ? d.data : null;
+    } catch {
+      return null;
+    }
+  }
+  return t;
+}
 
 // Cleanup old challenges every 5 minutes
 setInterval(() => {
   const now = Date.now();
-  for (const [npub, data] of challenges.entries()) {
+  for (const [key, data] of challenges.entries()) {
     if (now - data.timestamp > 5 * 60 * 1000) {
-      challenges.delete(npub);
+      challenges.delete(key);
     }
   }
 }, 5 * 60 * 1000);
@@ -26,8 +41,13 @@ router.post('/auth/challenge', (req, res) => {
     return res.status(400).json({ error: 'npub required' });
   }
 
+  const hex = npubToHex(npub);
+  if (!hex) {
+    return res.status(400).json({ error: 'Invalid npub' });
+  }
+
   const challenge = generateChallenge();
-  challenges.set(npub, { challenge, timestamp: Date.now() });
+  challenges.set(hex, { challenge, timestamp: Date.now() });
 
   res.json({ challenge });
 });
@@ -43,10 +63,8 @@ router.post('/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Invalid event' });
     }
 
-    const npub = event.pubkey;
-    const challengeData = challenges.get(npub);
-
-    console.log('Challenge data:', challengeData);
+    const npubHex = event.pubkey;
+    const challengeData = challenges.get(npubHex);
 
     if (!challengeData) {
       return res.status(400).json({ error: 'No challenge found. Request a challenge first.' });
@@ -60,10 +78,8 @@ router.post('/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid signature or expired challenge' });
     }
 
-    // Clear used challenge
-    challenges.delete(npub);
+    challenges.delete(npubHex);
 
-    // Check if this npub is the owner
     const ownerNpub = await getOwnerNpub();
     if (!ownerNpub) {
       return res.status(503).json({
@@ -72,7 +88,8 @@ router.post('/auth/login', async (req, res) => {
       });
     }
 
-    if (npub !== ownerNpub) {
+    const ownerHex = npubToHex(ownerNpub);
+    if (!ownerHex || npubHex !== ownerHex) {
       return res.status(403).json({ error: 'Only the owner can access this RelayKit instance.' });
     }
 
@@ -85,9 +102,8 @@ router.post('/auth/login', async (req, res) => {
       });
     }
 
-    // Generate RelayKit JWT
-    const token = signJWT(npub);
-    res.json({ token, npub });
+    const token = signJWT(npubHex);
+    res.json({ token, npub: npubHex });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });

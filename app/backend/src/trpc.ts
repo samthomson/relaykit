@@ -5,11 +5,17 @@ import path from 'path'
 import { createAuthContext, requireAuth, AuthContext } from './auth/middleware'
 import { getBootstrapKey } from './db'
 
-const t = initTRPC.context<{ auth: AuthContext | null }>().create()
+const t = initTRPC.context<{ auth: AuthContext | null; noBootstrapKey?: boolean }>().create()
 
 export const router = t.router
 export const publicProcedure = t.procedure
 export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
+  if (ctx.noBootstrapKey) {
+    throw new TRPCError({
+      code: 'PRECONDITION_FAILED',
+      message: 'RelayKit is not configured. Run the setup script with your npub to set the Dokploy API key (see README).',
+    })
+  }
   const auth = requireAuth(ctx.auth)
   return next({ ctx: { ...ctx, auth } })
 })
@@ -46,21 +52,29 @@ const getPresetMetadata = async (presetId: string) => {
 
 const ensureADefaultProjectExistsForServices = async (): Promise<{ projectId: string; environmentId: string }> => {
   const projects = await dokployFetch('/api/project.all')
-  let project = projects.find?.((p: { name: string }) => p.name === DEFAULT_PROJECT_NAME)
+  
+  if (!Array.isArray(projects)) {
+    throw new Error(`Expected array from project.all, got: ${typeof projects}`)
+  }
+  
+  let project = projects.find((p: { name: string }) => p.name === DEFAULT_PROJECT_NAME)
   if (project) {
     const envId = project.environments?.[0]?.environmentId
     if (!envId) throw new Error(`No environment in project ${project.projectId}`)
     return { projectId: project.projectId, environmentId: envId }
   }
+  
   const created = await dokployFetch('/api/project.create', {
     method: 'POST',
     body: JSON.stringify({ name: DEFAULT_PROJECT_NAME, description: 'Ungrouped services deployed via RelayKit' }),
   })
-  // Refetch: create returns projectId but we need environmentId; project.all gives full project with environments
+  
   const all = await dokployFetch('/api/project.all')
   project = all.find((p: { projectId: string }) => p.projectId === created.projectId)
   const environmentId = project?.environments?.[0]?.environmentId
-  if (!environmentId) throw new Error('No environment after project create')
+  if (!environmentId) {
+    throw new Error(`No environment after project create. Project: ${JSON.stringify(project)}`)
+  }
   return { projectId: created.projectId, environmentId }
 }
 
@@ -329,8 +343,7 @@ export const appRouter = router({
             sourceType: 'raw',
             composeFile,
             env: envString,
-            environmentId,
-            serverId: null // use default server (where Dokploy is running)
+            environmentId
           })
         })
         await dokployFetch('/api/compose.update', {

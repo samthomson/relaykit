@@ -163,6 +163,7 @@ const ServiceCard = ({
 const ServiceList = () => {
   const { refreshTrigger } = useRefreshServices();
   const { setDokployConnectionError, setDokployReady } = useDokploy();
+  const { logout } = useAuth();
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingDomain, setEditingDomain] = useState<{ composeId: string; domainId: string; currentHost: string } | null>(null);
@@ -176,11 +177,13 @@ const ServiceList = () => {
       setServices(result);
       setDokployReady(true);
     } catch (error: any) {
+      const code = error?.data?.code;
       const msg = error?.message || '';
-      const isDokployKeyError = msg.includes('invalid or expired') || msg.includes('401') || msg.includes('Unauthorized') || msg.includes('bootstrap key');
-      if (isDokployKeyError) {
-        setDokployConnectionError(msg || 'Dokploy API key is invalid or expired. Update the bootstrap key (see README).');
+      if (code === 'UNAUTHORIZED' && msg.includes('Authentication required')) {
+        logout();
+        return;
       }
+      setDokployConnectionError(msg || 'Could not load services. Run the setup script (see README).');
       setServices([]);
     } finally {
       setLoading(false);
@@ -539,23 +542,29 @@ const DokployConnectionAlert = ({ message }: { message: string }) => (
   </div>
 );
 
-/** Runs initial listServices when mounted so we can set dokployReady or dokployConnectionError. Renders nothing. */
+/** Runs initial listServices when mounted; sets dokployReady, or handles errors so we never hang on loading. */
 const DokployInitialCheck = () => {
   const { setDokployConnectionError, setDokployReady } = useDokploy();
+  const { logout } = useAuth();
   useEffect(() => {
     trpc.listServices
       .query()
       .then(() => setDokployReady(true))
       .catch((error: any) => {
+        const code = error?.data?.code;
         const msg = error?.message || '';
-        const isKeyError =
+        if (code === 'UNAUTHORIZED' && msg.includes('Authentication required')) {
+          logout();
+          return;
+        }
+        const isConfigError =
+          code === 'PRECONDITION_FAILED' ||
+          msg.includes('not configured') ||
           msg.includes('invalid or expired') ||
-          msg.includes('401') ||
-          msg.includes('Unauthorized') ||
           msg.includes('bootstrap key');
-        if (isKeyError) setDokployConnectionError(msg || 'Dokploy API key is invalid or expired.');
+        setDokployConnectionError(msg || 'Could not load services. Run the setup script (see README).');
       });
-  }, [setDokployConnectionError, setDokployReady]);
+  }, [setDokployConnectionError, setDokployReady, logout]);
   return null;
 };
 

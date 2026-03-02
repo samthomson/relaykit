@@ -1,4 +1,5 @@
 import { TRPCError } from '@trpc/server';
+import { nip19 } from 'nostr-tools';
 import { verifyJWT } from './jwt';
 import { getBootstrapKey, getOwnerNpub } from '../db';
 
@@ -7,7 +8,25 @@ export interface AuthContext {
   dokployApiKey: string;
 }
 
-export async function createAuthContext({ req }: { req: any }): Promise<{ auth: AuthContext | null }> {
+/** Normalize npub to hex for comparison (owner file may be npub1..., JWT has hex from event.pubkey). */
+function ownerNpubToHex(ownerNpub: string): string | null {
+  const trimmed = ownerNpub.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('npub1')) {
+    try {
+      const decoded = nip19.decode(trimmed);
+      if (decoded.type === 'npub') return decoded.data;
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  return trimmed;
+}
+
+export type AuthContextResult = { auth: AuthContext | null; noBootstrapKey?: boolean };
+
+export async function createAuthContext({ req }: { req: any }): Promise<AuthContextResult> {
   const authHeader = req?.headers?.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -21,16 +40,16 @@ export async function createAuthContext({ req }: { req: any }): Promise<{ auth: 
     return { auth: null };
   }
 
-  // Verify this is the owner
   const ownerNpub = await getOwnerNpub();
-  if (!ownerNpub || payload.npub !== ownerNpub) {
+  const ownerHex = ownerNpub ? ownerNpubToHex(ownerNpub) : null;
+  const payloadHex = payload.npub;
+  if (!ownerHex || payloadHex !== ownerHex) {
     return { auth: null };
   }
 
-  // Get bootstrap key (shared Dokploy key)
   const bootstrapKey = await getBootstrapKey();
   if (!bootstrapKey) {
-    return { auth: null };
+    return { auth: null, noBootstrapKey: true };
   }
 
   return {

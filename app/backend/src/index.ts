@@ -28,7 +28,7 @@ app.get('/', (req, res) => {
   res.send('<h1>RelayKit</h1><p>Backend running</p>');
 });
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`RelayKit backend running on port ${PORT}`);
 });
 
