@@ -78,7 +78,7 @@ services:
   relaykit:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "4000:4000"
