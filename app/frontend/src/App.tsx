@@ -6,6 +6,31 @@ import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
 import { useRefreshServices } from './contexts/RefreshServicesContext';
 
+const RelayExplorerModal = ({ relayUrl, onClose }: { relayUrl: string; onClose: () => void }) => {
+  const explorerUrl = `https://relay-explorer.shakespeare.wtf/?relay=${encodeURIComponent(relayUrl)}`;
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg w-[90vw] h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center p-4 border-b border-gray-200">
+          <h2 className="text-xl font-bold m-0">Relay Explorer</h2>
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 bg-gray-600 text-white rounded hover:opacity-90 text-sm"
+          >
+            Close
+          </button>
+        </div>
+        <iframe
+          src={explorerUrl}
+          className="flex-1 w-full border-0"
+          title="Relay Explorer"
+        />
+      </div>
+    </div>
+  );
+};
+
 const ServiceCard = ({
   service,
   editingDomain,
@@ -31,6 +56,7 @@ const ServiceCard = ({
   onStop: (composeId: string) => void;
   onDelete: (composeId: string, name: string) => void;
 }) => {
+  const [showExplorer, setShowExplorer] = useState(false);
   const domain = service.domains?.[0];
   const isEditing = editingDomain?.domainId === domain?.domainId;
   const createdAt = new Date(service.createdAt);
@@ -43,60 +69,70 @@ const ServiceCard = ({
     service.status === 'running' ? 'bg-green-100 text-green-800' :
     service.status === 'error' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-700';
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-      <div className="flex justify-between items-start gap-4">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold m-0 text-gray-900 truncate">
-            {domain ? domain.host : service.name}
-          </h3>
-          <ul className="mt-3 pl-4 space-y-1.5 text-sm text-gray-600 list-none border-l-2 border-gray-200 ml-1">
-            <li className="flex items-center gap-2">
-              <span className="text-gray-400 font-medium w-20 shrink-0">ID</span>
-              <span className="font-mono text-xs truncate" title={service.name}>{service.name}</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-gray-400 font-medium w-20 shrink-0">Service</span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-block">
-                {service.serviceType}
-              </span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-gray-400 font-medium w-20 shrink-0">Deployment</span>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium inline-block ${deploymentPillColor}`}>
-                {service.status}
-              </span>
-            </li>
-            {domain && (
-              <>
-                <li className="flex items-center gap-2 flex-wrap">
-                  <span className="text-gray-400 font-medium w-20 shrink-0">HTTPS</span>
-                  <a
-                    href={httpsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline truncate"
-                  >
-                    {httpsUrl} ↗
-                  </a>
-                  <button
-                    onClick={() => onCopy(httpsUrl)}
-                    className="shrink-0 px-2 py-0.5 text-xs rounded border border-gray-200 bg-white hover:bg-gray-50 text-gray-600"
-                  >
-                    Copy
-                  </button>
-                </li>
-                <li className="flex items-center gap-2 flex-wrap">
-                  <span className="text-gray-400 font-medium w-20 shrink-0">WSS</span>
-                  <span className="font-mono text-xs truncate">{wssUrl}</span>
-                  <button
-                    onClick={() => onCopy(wssUrl)}
-                    className="shrink-0 px-2 py-0.5 text-xs rounded border border-gray-200 bg-white hover:bg-gray-50 text-gray-600"
-                  >
-                    Copy
-                  </button>
-                </li>
-              </>
-            )}
+    <>
+      {showExplorer && domain && (
+        <RelayExplorerModal relayUrl={domain.host} onClose={() => setShowExplorer(false)} />
+      )}
+      <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+        <div className="flex justify-between items-start gap-4">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold m-0 text-gray-900 truncate">
+              {domain ? domain.host : service.name}
+            </h3>
+            <ul className="mt-3 pl-4 space-y-1.5 text-sm text-gray-600 list-none border-l-2 border-gray-200 ml-1">
+              <li className="flex items-center gap-2">
+                <span className="text-gray-400 font-medium w-20 shrink-0">ID</span>
+                <span className="font-mono text-xs truncate" title={service.name}>{service.name}</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-gray-400 font-medium w-20 shrink-0">Service</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-block">
+                  {service.serviceType}
+                </span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-gray-400 font-medium w-20 shrink-0">Deployment</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium inline-block ${deploymentPillColor}`}>
+                  {service.status}
+                </span>
+              </li>
+              {domain && (
+                <>
+                  <li className="flex items-center gap-2 flex-wrap">
+                    <span className="text-gray-400 font-medium w-20 shrink-0">HTTPS</span>
+                    <a
+                      href={httpsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline truncate"
+                    >
+                      {httpsUrl} ↗
+                    </a>
+                    <button
+                      onClick={() => onCopy(httpsUrl)}
+                      className="shrink-0 px-2 py-0.5 text-xs rounded border border-gray-200 bg-white hover:bg-gray-50 text-gray-600"
+                    >
+                      Copy
+                    </button>
+                  </li>
+                  <li className="flex items-center gap-2 flex-wrap">
+                    <span className="text-gray-400 font-medium w-20 shrink-0">WSS</span>
+                    <span className="font-mono text-xs truncate">{wssUrl}</span>
+                    <button
+                      onClick={() => onCopy(wssUrl)}
+                      className="shrink-0 px-2 py-0.5 text-xs rounded border border-gray-200 bg-white hover:bg-gray-50 text-gray-600"
+                    >
+                      Copy
+                    </button>
+                    <button
+                      onClick={() => setShowExplorer(true)}
+                      className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-white hover:bg-primary/5 text-primary"
+                    >
+                      Explore
+                    </button>
+                  </li>
+                </>
+              )}
             {isEditing && domain && (
               <li className="flex items-center gap-2 pt-1">
                 <span className="text-gray-400 font-medium w-20 shrink-0">Host</span>
@@ -156,7 +192,8 @@ const ServiceCard = ({
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 
