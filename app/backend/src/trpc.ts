@@ -116,6 +116,11 @@ const dokployFetch = async (endpoint: string, options: RequestInit = {}) => {
   const text = await response.text()
 
   if (!response.ok) {
+    console.error(`Dokploy API error on ${endpoint}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      body: text.substring(0, 500)
+    })
     if (response.status === 401) {
       throw new TRPCError({
         code: 'UNAUTHORIZED',
@@ -170,11 +175,14 @@ export const appRouter = router({
           const presetData = await getPresetMetadata(presetId)
           if (!presetData.label) throw new Error(`Preset ${presetId} has no label`)
           const envVars = parseServiceEnvVarsString(compose.env)
+          
+          const runtimeStatus = compose.composeStatus === 'done' ? 'running' : compose.composeStatus
+          
           services.push({
             composeId: compose.composeId,
             name: compose.name,
             serviceType: presetData.label,
-            status: compose.composeStatus,
+            status: runtimeStatus,
             createdAt: compose.createdAt,
             hostname: envVars.RELAY_HOST || 'No hostname configured',
             domains: compose.domains || [],
@@ -358,10 +366,6 @@ export const appRouter = router({
         }
 
         await dokployFetch('/api/compose.deploy', {
-          method: 'POST',
-          body: JSON.stringify({ composeId: createCompose.composeId })
-        })
-        await dokployFetch('/api/compose.start', {
           method: 'POST',
           body: JSON.stringify({ composeId: createCompose.composeId })
         })
