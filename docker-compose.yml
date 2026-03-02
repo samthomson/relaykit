@@ -54,8 +54,10 @@ services:
     volumes:
       - dokploy_data:/etc/dokploy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik-override.yml:/etc/traefik/traefik.yml:ro
-    command: --configFile=/etc/traefik/traefik.yml
+      - ./traefik-override.yml:/etc/traefik/override.yml:ro
+    command:
+      - --configFile=/etc/dokploy/traefik/traefik.yml
+      - --configFile=/etc/traefik/override.yml
     depends_on:
       - dokploy
     networks:
