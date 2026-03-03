@@ -7,7 +7,14 @@ echo "==================="
 # Get owner npub
 if [ -z "$OWNER_NPUB" ]; then
   echo "Error: OWNER_NPUB environment variable not set"
-  echo "Usage: OWNER_NPUB=your_nostr_pubkey ./scripts/setup-relaykit-auth.sh"
+  echo "Usage: OWNER_NPUB=your_nostr_pubkey ADMIN_PASSWORD=your_password ./scripts/setup-relaykit-auth.sh"
+  exit 1
+fi
+
+# Get admin password
+if [ -z "$ADMIN_PASSWORD" ]; then
+  echo "Error: ADMIN_PASSWORD environment variable not set"
+  echo "Usage: OWNER_NPUB=your_nostr_pubkey ADMIN_PASSWORD=your_password ./scripts/setup-relaykit-auth.sh"
   exit 1
 fi
 
@@ -21,9 +28,9 @@ until curl -sf http://localhost:3000/ > /dev/null 2>&1; do
 done
 echo "✓ Dokploy is ready"
 
-# Generate system credentials
+# Use provided credentials
 SYSTEM_EMAIL="system@relaykit.local"
-SYSTEM_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
+SYSTEM_PASSWORD="$ADMIN_PASSWORD"
 
 echo "Creating RelayKit system account in Dokploy..."
 
