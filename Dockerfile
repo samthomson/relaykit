@@ -22,6 +22,9 @@ RUN yarn install
 COPY app/backend/package.json app/backend/yarn.lock* ./backend/
 RUN cd backend && yarn install
 
+# Install tsx globally so it's available even with volume mounts
+RUN yarn global add tsx
+
 # Install frontend dependencies
 COPY app/frontend/package.json app/frontend/yarn.lock* ./frontend/
 RUN cd frontend && yarn install
