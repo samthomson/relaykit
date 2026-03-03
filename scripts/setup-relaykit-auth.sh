@@ -51,4 +51,15 @@ echo "✓ User promoted to admin"
 # Run browser automation to generate API key
 echo ""
 echo "Automating API key generation via browser..."
-docker compose exec -T -e SYSTEM_EMAIL="$SYSTEM_EMAIL" -e SYSTEM_PASSWORD="$SYSTEM_PASSWORD" -e OWNER_NPUB="$OWNER_NPUB" relaykit-prod node /app/scripts/automate-dokploy-setup.js
+# Try to detect which relaykit service is running
+if docker compose ps relaykit-prod >/dev/null 2>&1; then
+  RELAYKIT_SERVICE="relaykit-prod"
+elif docker compose ps relaykit-dev >/dev/null 2>&1; then
+  RELAYKIT_SERVICE="relaykit-dev"
+else
+  echo "Error: No relaykit service found running"
+  exit 1
+fi
+
+echo "Using service: $RELAYKIT_SERVICE"
+docker compose exec -T -e SYSTEM_EMAIL="$SYSTEM_EMAIL" -e SYSTEM_PASSWORD="$SYSTEM_PASSWORD" -e OWNER_NPUB="$OWNER_NPUB" "$RELAYKIT_SERVICE" node /app/scripts/automate-dokploy-setup.js

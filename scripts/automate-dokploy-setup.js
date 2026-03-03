@@ -44,16 +44,29 @@ async function setupDokploy() {
     } else if (url.includes('/login') || await page.locator('text=Login').first().isVisible({ timeout: 2000 }).catch(() => false)) {
       console.log('Logging in...');
       
+      // Debug: Check what form fields are available
+      const emailField = await page.locator('input[name="email"]').first();
+      const passwordField = await page.locator('input[name="password"]').first();
+      const submitButton = await page.locator('button[type="submit"]').first();
+      
+      console.log('Email field visible:', await emailField.isVisible().catch(() => false));
+      console.log('Password field visible:', await passwordField.isVisible().catch(() => false));
+      console.log('Submit button visible:', await submitButton.isVisible().catch(() => false));
+      
       await page.fill('input[name="email"]', email);
       await page.fill('input[name="password"]', password);
       await page.click('button[type="submit"]');
       await page.waitForTimeout(3000);
       
       const currentUrl = page.url();
+      console.log('URL after login attempt:', currentUrl);
+      
       if (currentUrl.includes('/dashboard')) {
         console.log('✓ Login successful');
       } else {
         console.error('Login failed - not redirected to dashboard');
+        console.log('Page title:', await page.title());
+        console.log('Page content preview:', (await page.textContent('body')).substring(0, 200));
         await page.screenshot({ path: '/tmp/login-error.png' });
         process.exit(1);
       }
