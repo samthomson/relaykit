@@ -6,6 +6,14 @@ import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
 import { useRefreshServices } from './contexts/RefreshServicesContext';
 
+const dnsRecordNameForHost = (host: string): { zone: string; name: string } => {
+  const parts = host.toLowerCase().trim().split('.');
+  if (parts.length < 2) return { zone: host, name: '@' };
+  const zone = parts.slice(-2).join('.');
+  const name = host.toLowerCase() === zone ? '@' : host.toLowerCase().slice(0, -(zone.length + 1));
+  return { zone, name };
+};
+
 const RelayExplorerModal = ({ relayUrl, onClose }: { relayUrl: string; onClose: () => void }) => {
   const explorerUrl = `https://relay-explorer.shakespeare.wtf/?relay=${encodeURIComponent(relayUrl)}`;
   
@@ -33,6 +41,7 @@ const RelayExplorerModal = ({ relayUrl, onClose }: { relayUrl: string; onClose: 
 
 const ServiceCard = ({
   service,
+  serverIp,
   editingDomain,
   newDomainHost,
   setNewDomainHost,
@@ -42,9 +51,10 @@ const ServiceCard = ({
   onCopy,
   onStart,
   onStop,
-  onDelete
+  onDelete,
 }: {
   service: any;
+  serverIp: string | null;
   editingDomain: { composeId: string; domainId: string; currentHost: string } | null;
   newDomainHost: string;
   setNewDomainHost: (v: string) => void;
@@ -58,6 +68,7 @@ const ServiceCard = ({
 }) => {
   const [showExplorer, setShowExplorer] = useState(false);
   const domain = service.domains?.[0];
+
   const isEditing = editingDomain?.domainId === domain?.domainId;
   const createdAt = new Date(service.createdAt);
   const createdStr = format(createdAt, 'd MMM yyyy, h:mm a');
@@ -133,6 +144,25 @@ const ServiceCard = ({
                   </li>
                 </>
               )}
+            {domain && serverIp && (
+              <li className="flex flex-col gap-2 pt-2 mt-2 border-t border-gray-100">
+                <span className="text-gray-400 font-medium text-xs uppercase tracking-wide">DNS Setup</span>
+                <p className="text-sm text-gray-600 m-0">
+                  Add this A record to <strong>{dnsRecordNameForHost(domain.host).zone}</strong>:
+                </p>
+                <div className="bg-gray-50 rounded px-3 py-2 text-sm font-mono flex items-center justify-between">
+                  <span><strong>{dnsRecordNameForHost(domain.host).name}</strong> → {serverIp}</span>
+                  <button
+                    type="button"
+                    onClick={() => onCopy(serverIp)}
+                    className="ml-2 p-1 text-gray-500 hover:text-gray-700"
+                    title="Copy IP address"
+                  >
+                    📋
+                  </button>
+                </div>
+              </li>
+            )}
             {isEditing && domain && (
               <li className="flex items-center gap-2 pt-1">
                 <span className="text-gray-400 font-medium w-20 shrink-0">Host</span>
@@ -203,6 +233,8 @@ const ServiceList = () => {
   const { logout } = useAuth();
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [serverIp, setServerIp] = useState<string | null>(null);
+
   const [editingDomain, setEditingDomain] = useState<{ composeId: string; domainId: string; currentHost: string } | null>(null);
   const [newDomainHost, setNewDomainHost] = useState('');
 
@@ -210,8 +242,12 @@ const ServiceList = () => {
     setLoading(true);
     setDokployConnectionError(null);
     try {
-      const result = await trpc.listServices.query();
+      const [result, ipResult] = await Promise.all([
+        trpc.listServices.query(),
+        trpc.getServerIp.query().catch(() => null),
+      ]);
       setServices(result);
+      setServerIp(ipResult?.ip ?? null);
       setDokployReady(true);
     } catch (error: any) {
       const code = error?.data?.code;
@@ -309,6 +345,7 @@ const ServiceList = () => {
             <ServiceCard
               key={service.composeId}
               service={service}
+              serverIp={serverIp}
               editingDomain={editingDomain}
               newDomainHost={newDomainHost}
               setNewDomainHost={setNewDomainHost}

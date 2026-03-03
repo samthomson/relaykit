@@ -336,6 +336,25 @@ export const appRouter = router({
       }
     }),
 
+  getServerIp: protectedProcedure
+    .input(z.void())
+    .query(async () => {
+      try {
+        const result = await dokployFetch('/api/settings.getIp')
+        const ip = typeof result === 'string' ? result : (result?.ip ?? result?.data?.ip)
+        if (ip) return { ip: String(ip) }
+      } catch (_e) {
+        // fallback to env if Dokploy doesn't expose IP
+      }
+      const envIp = process.env.RELAYKIT_PUBLIC_IP
+      if (envIp) return { ip: envIp }
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Could not determine server IP. Set RELAYKIT_PUBLIC_IP or ensure Dokploy settings.getIp is available.',
+      })
+    }),
+
+
   deployService: protectedProcedure
     .input(z.object({
       presetId: z.string(),
