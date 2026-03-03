@@ -6,3 +6,4 @@
 - Stack: Vite/React frontend, Node + tRPC backend, Dokploy. Presets under `app/presets/`.
 - Edit existing code over adding files. One shared reverse proxy for the stack, not per-container.
 - Style: define functions as const arrow, e.g. `const fn = async (x: T) => { ... }` not `async function fn(x: T) { ... }`.
+- Do not plan for failure: build features that work. No conditionals or fallback UIs for "when X fails". If something cannot be made to work, say so and we will change direction.
