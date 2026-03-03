@@ -21,9 +21,6 @@ async function setupDokploy() {
   const context = await browser.newContext();
   const page = await context.newPage();
   
-  // Log console messages and errors
-  page.on('console', msg => console.log('Browser console:', msg.text()));
-  page.on('pageerror', err => console.log('Browser error:', err.message));
 
   try {
     // Navigate to Dokploy (use dokploy hostname from inside container)
@@ -34,6 +31,7 @@ async function setupDokploy() {
     // Check if we're on the register page or login page
     const url = page.url();
     console.log(`Current URL: ${url}`);
+    
 
     if (url.includes('/register') || await page.locator('text=Register').first().isVisible({ timeout: 2000 }).catch(() => false)) {
       console.log('On register page, filling registration form...');
@@ -48,36 +46,25 @@ async function setupDokploy() {
     } else if (url.includes('/login') || await page.locator('text=Login').first().isVisible({ timeout: 2000 }).catch(() => false)) {
       console.log('Logging in...');
       
-      // Debug: Check what form fields are available
-      const emailField = await page.locator('input[name="email"]').first();
-      const passwordField = await page.locator('input[name="password"]').first();
-      const submitButton = await page.locator('button[type="submit"]').first();
+      // Wait a bit for the page to fully load
+      await page.waitForTimeout(2000);
       
-      console.log('Email field visible:', await emailField.isVisible().catch(() => false));
-      console.log('Password field visible:', await passwordField.isVisible().catch(() => false));
-      console.log('Submit button visible:', await submitButton.isVisible().catch(() => false));
       
       await page.fill('input[name="email"]', email);
-      console.log('Filled email field');
       await page.fill('input[name="password"]', password);
-      console.log('Filled password field');
       
       // Wait for any network requests to complete after clicking submit
       await Promise.all([
         page.waitForLoadState('networkidle'),
         page.click('button[type="submit"]')
       ]);
-      console.log('Clicked submit button and waited for network idle');
       
       const currentUrl = page.url();
-      console.log('URL after login attempt:', currentUrl);
       
       if (currentUrl.includes('/dashboard')) {
         console.log('✓ Login successful');
       } else {
         console.error('Login failed - not redirected to dashboard');
-        console.log('Page title:', await page.title());
-        console.log('Page content preview:', (await page.textContent('body')).substring(0, 200));
         await page.screenshot({ path: '/tmp/login-error.png' });
         process.exit(1);
       }
@@ -157,7 +144,7 @@ async function setupDokploy() {
           console.log('✓ API key generated and saved');
           console.log('✓ Owner npub saved');
           console.log('');
-          console.log('✓ Setup complete! Access RelayKit at http://localhost:5173');
+          console.log('✓ Setup complete! Access RelayKit at http://your-server-ip:4000');
         } else {
           console.error('Could not extract API key from modal');
           process.exit(1);
