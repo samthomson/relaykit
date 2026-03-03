@@ -133,7 +133,6 @@ services:
       - PORT=4000
       - JWT_SECRET=${JWT_SECRET}
     volumes:
-      - ./app:/app
       - relaykit_data:/app/.relaykit
     depends_on:
       dokploy:
