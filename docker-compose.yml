@@ -74,7 +74,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - dokploy_data:/etc/dokploy:ro
+      - dokploy_data:/etc/dokploy
       - /var/run/docker.sock:/var/run/docker.sock:ro
     command: --configFile=/etc/dokploy/traefik/traefik.yml
     depends_on:

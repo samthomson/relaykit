@@ -80,18 +80,29 @@ const ensureADefaultProjectExistsForServices = async (): Promise<{ projectId: st
 
 const registerDomain = async (composeId: string, host: string, presetData: { internalPort: number; serviceName: string }) => {
   const certificateType = getCertificateType()
-  await dokployFetch('/api/domain.create', {
-    method: 'POST',
-    body: JSON.stringify({
-      composeId,
-      host,
-      https: certificateType !== CertificateType.None,
-      path: '/',
-      port: presetData.internalPort,
-      certificateType,
-      serviceName: presetData.serviceName,
-    }),
-  })
+  const domainPayload = {
+    composeId,
+    host,
+    https: certificateType !== CertificateType.None,
+    path: '/',
+    port: presetData.internalPort,
+    certificateType,
+    serviceName: presetData.serviceName,
+  }
+  
+  console.log('Creating domain with payload:', JSON.stringify(domainPayload, null, 2))
+  
+  try {
+    const response = await dokployFetch('/api/domain.create', {
+      method: 'POST',
+      body: JSON.stringify(domainPayload),
+    })
+    console.log('Domain creation successful:', JSON.stringify(response, null, 2))
+    return response
+  } catch (error) {
+    console.error('Domain creation failed:', error)
+    throw error
+  }
 }
 
 const dokployFetch = async (endpoint: string, options: RequestInit = {}) => {
