@@ -1,11 +1,12 @@
 import { initTRPC, TRPCError } from '@trpc/server'
 import { z } from 'zod'
+import dns from 'dns/promises'
 import fs from 'fs/promises'
 import path from 'path'
 import { createAuthContext, requireAuth, AuthContext } from './auth/middleware'
 import { getBootstrapKey } from './db'
 
-const t = initTRPC.context<{ auth: AuthContext | null; noBootstrapKey?: boolean }>().create()
+const t = initTRPC.context<{ auth: AuthContext | null; noBootstrapKey?: boolean; host?: string }>().create()
 
 export const router = t.router
 export const publicProcedure = t.procedure
@@ -338,20 +339,15 @@ export const appRouter = router({
 
   getServerIp: protectedProcedure
     .input(z.void())
-    .query(async () => {
-      try {
-        const result = await dokployFetch('/api/settings.getIp')
-        const ip = typeof result === 'string' ? result : (result?.ip ?? result?.data?.ip)
-        if (ip) return { ip: String(ip) }
-      } catch (_e) {
-        // fallback to env if Dokploy doesn't expose IP
-      }
-      const envIp = process.env.RELAYKIT_PUBLIC_IP
-      if (envIp) return { ip: envIp }
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Could not determine server IP. Set RELAYKIT_PUBLIC_IP or ensure Dokploy settings.getIp is available.',
-      })
+    .query(async ({ ctx }) => {
+      const host = ctx.host?.trim()
+      if (!host) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Could not get server IP (no Host header).' })
+      const isV4 = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)
+      if (isV4) return { ip: host }
+      const addrs = await dns.resolve4(host)
+      const ip = addrs?.[0]
+      if (!ip) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Could not resolve server IP.' })
+      return { ip }
     }),
 
 

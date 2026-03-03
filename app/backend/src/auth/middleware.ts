@@ -24,9 +24,10 @@ function ownerNpubToHex(ownerNpub: string): string | null {
   return trimmed;
 }
 
-export type AuthContextResult = { auth: AuthContext | null; noBootstrapKey?: boolean };
+export type AuthContextResult = { auth: AuthContext | null; noBootstrapKey?: boolean; host?: string };
 
 export async function createAuthContext({ req }: { req: any }): Promise<AuthContextResult> {
+  const host = req?.headers?.host?.split(':')[0] ?? undefined
   const authHeader = req?.headers?.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -57,6 +58,7 @@ export async function createAuthContext({ req }: { req: any }): Promise<AuthCont
       npub: payload.npub,
       dokployApiKey: bootstrapKey,
     },
+    host,
   };
 }
 
