@@ -20,6 +20,10 @@ async function setupDokploy() {
   });
   const context = await browser.newContext();
   const page = await context.newPage();
+  
+  // Log console messages and errors
+  page.on('console', msg => console.log('Browser console:', msg.text()));
+  page.on('pageerror', err => console.log('Browser error:', err.message));
 
   try {
     // Navigate to Dokploy (use dokploy hostname from inside container)
@@ -54,9 +58,16 @@ async function setupDokploy() {
       console.log('Submit button visible:', await submitButton.isVisible().catch(() => false));
       
       await page.fill('input[name="email"]', email);
+      console.log('Filled email field');
       await page.fill('input[name="password"]', password);
-      await page.click('button[type="submit"]');
-      await page.waitForTimeout(3000);
+      console.log('Filled password field');
+      
+      // Wait for any network requests to complete after clicking submit
+      await Promise.all([
+        page.waitForLoadState('networkidle'),
+        page.click('button[type="submit"]')
+      ]);
+      console.log('Clicked submit button and waited for network idle');
       
       const currentUrl = page.url();
       console.log('URL after login attempt:', currentUrl);
