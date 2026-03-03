@@ -82,7 +82,7 @@ Run these commands from the project directory (the folder containing `docker-com
 3. **Run the setup script**  
    Still in the project directory. Replace `npub1your...` with your real Nostr public key (the same one you’ll use to log in):
    ```bash
-   OWNER_NPUB=npub1your... ./scripts/setup-relaykit-auth.sh
+   OWNER_NPUB=npub1your... ADMIN_PASSWORD=your_secure_password ./scripts/setup-relaykit-auth.sh
    ```
    This creates a Dokploy admin account, gets an API key, and writes it to the RelayKit container. After it succeeds, reload http://localhost:5173 and sign in with your Nostr extension (Alby, nos2x, etc.).
 
