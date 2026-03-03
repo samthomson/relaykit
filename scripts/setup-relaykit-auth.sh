@@ -51,4 +51,4 @@ echo "✓ User promoted to admin"
 # Run browser automation to generate API key
 echo ""
 echo "Automating API key generation via browser..."
-docker compose exec -T -e SYSTEM_EMAIL="$SYSTEM_EMAIL" -e SYSTEM_PASSWORD="$SYSTEM_PASSWORD" -e OWNER_NPUB="$OWNER_NPUB" relaykit node /app/scripts/automate-dokploy-setup.js
+docker compose exec -T -e SYSTEM_EMAIL="$SYSTEM_EMAIL" -e SYSTEM_PASSWORD="$SYSTEM_PASSWORD" -e OWNER_NPUB="$OWNER_NPUB" relaykit-prod node /app/scripts/automate-dokploy-setup.js

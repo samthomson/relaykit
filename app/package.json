@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"cd backend && yarn dev\" \"cd frontend && yarn dev --host\""
+    "dev": "concurrently \"cd backend && yarn dev\" \"cd frontend && yarn dev --host\"",
+    "start": "cd backend && yarn start"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
