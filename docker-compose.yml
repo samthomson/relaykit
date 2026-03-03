@@ -127,7 +127,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "4000:4000"
+      - "8080:4000"
     environment:
       - NODE_ENV=production
       - PORT=4000
