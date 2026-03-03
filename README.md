@@ -56,7 +56,7 @@ relaykit-proto/
 **Prerequisites (dev):** Docker. For local HTTPS: `brew install mkcert && mkcert -install`, then `./scripts/gen-dev-certs.sh` (creates certs + Caddyfile). Without mkcert/certs, Caddy will fail on 80/443.
 
 **Dev:** Everything runs in Docker
-- `docker compose up --build`
+- `docker compose --profile dev up --build`
 - Dokploy: http://localhost:3000
 - RelayKit Frontend: http://localhost:5173
 - RelayKit Backend: http://localhost:4000
@@ -75,7 +75,7 @@ Run these commands from the project directory (the folder containing `docker-com
 2. **Start the stack**  
    In the same project directory:
    ```bash
-   docker compose up -d
+   docker compose --profile dev up -d
    ```
    Wait until the containers are up (Dokploy at http://localhost:3000, RelayKit at http://localhost:5173).
 
@@ -100,7 +100,7 @@ Run these commands from the project directory (the folder containing `docker-com
 
 Then https://your-domain works in the browser and routes to the relay.
 
-**Prod:** `docker compose -f docker-compose.prod.yml up -d`. No Caddy; Traefik on 80/443 with real certs. RelayKit: build frontend, backend serves static + tRPC, one port.
+**Prod:** `docker compose --profile prod up -d`. No Caddy; Traefik on 80/443 with real certs. RelayKit: build frontend, backend serves static + tRPC, one port.
 
 
 ## Key Technical Details

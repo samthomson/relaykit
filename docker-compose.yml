@@ -1,5 +1,8 @@
-# Dev: one stack. Caddy on 80/443 (run ./scripts/gen-dev-certs.sh for HTTPS). Traefik behind for routing.
+# Usage:
+# Dev:  docker compose --profile dev up -d
+# Prod: docker compose --profile prod up -d
 services:
+  # Common services (always included)
   dokploy-postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -48,23 +51,41 @@ services:
       dokploy-redis:
         condition: service_healthy
 
-  dokploy-traefik:
+  # Traefik - different config per environment
+  dokploy-traefik-dev:
+    profiles: ["dev"]
     image: traefik:v3.6.7
     restart: unless-stopped
     volumes:
       - dokploy_data:/etc/dokploy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik-override.yml:/etc/traefik/override.yml:ro
-    command:
-      - --configFile=/etc/dokploy/traefik/traefik.yml
-      - --configFile=/etc/traefik/override.yml
+    command: --configFile=/etc/dokploy/traefik/traefik.yml
     depends_on:
       - dokploy
     networks:
       - default
       - dokploy-network
 
+  dokploy-traefik-prod:
+    profiles: ["prod"]
+    image: traefik:v3.6.7
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - dokploy_data:/etc/dokploy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: --configFile=/etc/dokploy/traefik/traefik.yml
+    depends_on:
+      - dokploy
+    networks:
+      - default
+      - dokploy-network
+
+  # Caddy - dev only (HTTPS termination with local certs)
   caddy:
+    profiles: ["dev"]
     image: caddy:alpine
     restart: unless-stopped
     ports:
@@ -74,11 +95,13 @@ services:
       - ./dev-certs:/certs:ro
       - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
     depends_on:
-      - dokploy-traefik
+      - dokploy-traefik-dev
     networks:
       - default
 
-  relaykit:
+  # RelayKit - different config per environment
+  relaykit-dev:
+    profiles: ["dev"]
     build:
       context: .
       dockerfile: Dockerfile
@@ -88,6 +111,25 @@ services:
       - "5173:5173"
     environment:
       - NODE_ENV=development
+      - PORT=4000
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - ./app:/app
+      - relaykit_data:/app/.relaykit
+    depends_on:
+      dokploy:
+        condition: service_started
+
+  relaykit-prod:
+    profiles: ["prod"]
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
       - PORT=4000
       - JWT_SECRET=${JWT_SECRET}
     volumes:
