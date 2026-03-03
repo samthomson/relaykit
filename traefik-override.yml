@@ -1,4 +1,0 @@
-providers:
-  swarm:
-    exposedByDefault: false
-    watch: false
