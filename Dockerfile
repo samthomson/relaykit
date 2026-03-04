@@ -25,12 +25,9 @@ RUN cd backend && yarn install
 # Install tsx globally so it's available even with volume mounts
 RUN yarn global add tsx
 
-# Install frontend dependencies
-COPY app/frontend/package.json app/frontend/yarn.lock* ./frontend/
-RUN cd frontend && yarn install
-
-# Copy everything
+# Copy app then install frontend deps (vite etc.) so build works in prod
 COPY app .
+RUN cd frontend && yarn install
 
 # Copy scripts
 COPY scripts/automate-dokploy-setup.js /app/scripts/
