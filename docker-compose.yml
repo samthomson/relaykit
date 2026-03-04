@@ -126,15 +126,22 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "80:4000"
-      - "443:4000"
     environment:
       - NODE_ENV=production
       - PORT=4000
       - JWT_SECRET=${JWT_SECRET}
     volumes:
       - relaykit_data:/app/.relaykit
+    networks:
+      - default
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      # Low priority so Dokploy's per-service routes (e.g. relay.brainrot.rehab) win; fallback for IP or unknown host
+      - "traefik.http.routers.relaykit.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.relaykit.priority=1"
+      - "traefik.http.routers.relaykit.entrypoints=web,websecure"
+      - "traefik.http.services.relaykit.loadbalancer.server.port=4000"
     depends_on:
       dokploy:
         condition: service_started
