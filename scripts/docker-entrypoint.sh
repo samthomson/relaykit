@@ -1,7 +1,9 @@
 #!/bin/sh
 set -e
-# Install deps so anonymous volumes (node_modules) match host package.json
-cd /app && yarn install
-cd /app/backend && yarn install
-cd /app/frontend && yarn install
+# In prod the image is already built; installing again with NODE_ENV=production drops devDeps (e.g. vite)
+if [ "$NODE_ENV" != "production" ]; then
+  cd /app && yarn install
+  cd /app/backend && yarn install
+  cd /app/frontend && yarn install
+fi
 cd /app && exec "$@"
