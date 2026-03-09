@@ -5,6 +5,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import { createAuthContext, requireAuth, AuthContext } from './auth/middleware'
 import { getBootstrapKey } from './db'
+import { DOKPLOY_URL, CONFIG_PATH, PRESETS_DIR, DEFAULT_PROJECT_NAME } from './constants'
 
 const t = initTRPC.context<{ auth: AuthContext | null; noBootstrapKey?: boolean; host?: string }>().create()
 
@@ -20,11 +21,6 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   const auth = requireAuth(ctx.auth)
   return next({ ctx: { ...ctx, auth } })
 })
-
-const DOKPLOY_URL = 'http://dokploy:3000'
-const CONFIG_PATH = path.join('/app', '.dokploy-key')
-const PRESETS_DIR = path.join('/app', 'presets')
-const DEFAULT_PROJECT_NAME = 'relaykit.ungrouped'
 
 // Dokploy domain.create expects these; dev = no Traefik cert (Caddy/mkcert), prod = Let's Encrypt
 enum CertificateType {
