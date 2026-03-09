@@ -1,0 +1,44 @@
+{
+  "id": "blossom",
+  "name": "Blossom Server",
+  "label": "Blossom",
+  "description": "A Blossom media server for Nostr",
+  "version": "1.0.0",
+  "type": "blossom",
+  "serviceName": "blossom",
+  "internalPort": 3000,
+  "domainConfigKey": "BLOSSOM_HOST",
+  "requiredConfig": [
+    {
+      "id": "BLOSSOM_HOST",
+      "name": "Blossom Domain",
+      "type": "string",
+      "required": true,
+      "description": "The domain for your Blossom server (e.g., media.example.com)",
+      "placeholder": "media.example.com"
+    },
+    {
+      "id": "DASHBOARD_PASS",
+      "name": "Dashboard Password",
+      "type": "string",
+      "required": true,
+      "description": "Admin dashboard password",
+      "placeholder": "your-secure-password"
+    },
+    {
+      "id": "DASHBOARD_USER",
+      "name": "Dashboard Username",
+      "type": "string",
+      "required": false,
+      "default": "admin",
+      "description": "Admin dashboard username"
+    },
+    {
+      "id": "ALLOWED_PUBKEYS",
+      "name": "Allowed Pubkeys (hex)",
+      "type": "string",
+      "required": false,
+      "description": "Comma-separated hex pubkeys allowed to upload. Empty = any authenticated user"
+    }
+  ]
+}

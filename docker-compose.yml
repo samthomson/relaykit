@@ -44,7 +44,7 @@ services:
       - dokploy_data:/etc/dokploy
     networks:
       - default
-      - dokploy-network
+      - relaykit-network
     depends_on:
       dokploy-postgres:
         condition: service_healthy
@@ -64,7 +64,7 @@ services:
       - dokploy
     networks:
       - default
-      - dokploy-network
+      - relaykit-network
 
   dokploy-traefik-prod:
     profiles: ["prod"]
@@ -81,7 +81,7 @@ services:
       - dokploy
     networks:
       - default
-      - dokploy-network
+      - relaykit-network
 
   # Caddy - dev only (HTTPS termination with local certs)
   caddy:
@@ -134,7 +134,7 @@ services:
       - relaykit_data:/app/.relaykit
     networks:
       - default
-      - dokploy-network
+      - relaykit-network
     labels:
       - "traefik.enable=true"
       # Low priority so Dokploy's per-service routes (e.g. relay.brainrot.rehab) win; fallback for IP or unknown host
@@ -154,6 +154,6 @@ volumes:
   relaykit_data:
 
 networks:
-  dokploy-network:
-    name: dokploy-network
+  relaykit-network:
+    name: relaykit-network
     driver: bridge

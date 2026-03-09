@@ -1,0 +1,24 @@
+# Build from bs-dokploy repo; service must be on relaykit-network for Traefik routing
+services:
+  blossom:
+    build: https://github.com/samthomson/bs-dokploy.git#master
+    restart: unless-stopped
+    environment:
+      DASHBOARD_USER: ${DASHBOARD_USER:-admin}
+      DASHBOARD_PASS: ${DASHBOARD_PASS}
+      ALLOWED_PUBKEYS: ${ALLOWED_PUBKEYS:-}
+      REQUIRE_UPLOAD_AUTH: ${REQUIRE_UPLOAD_AUTH:-true}
+      REQUIRE_MEDIA_AUTH: ${REQUIRE_MEDIA_AUTH:-false}
+    volumes:
+      - blossom_data_{{DEPLOY_SUFFIX}}:/app/data
+    expose:
+      - "3000"
+    networks:
+      - relaykit-network
+
+volumes:
+  blossom_data_{{DEPLOY_SUFFIX}}:
+
+networks:
+  relaykit-network:
+    external: true

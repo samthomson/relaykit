@@ -4,6 +4,7 @@
   "label": "Strfry",
   "description": "A high-performance Nostr relay written in C++",
   "version": "1.0.0",
+  "type": "relay",
   "serviceName": "strfry",
   "internalPort": 7777,
   "requiredConfig": [

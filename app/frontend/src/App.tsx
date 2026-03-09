@@ -16,24 +16,29 @@ const dnsRecordNameForHost = (host: string): { zone: string; name: string } => {
 
 const RelayExplorerModal = ({ relayUrl, onClose }: { relayUrl: string; onClose: () => void }) => {
   const explorerUrl = `https://relay-explorer.shakespeare.wtf/?relay=${encodeURIComponent(relayUrl)}`;
-  
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-lg w-[90vw] h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center p-4 border-b border-gray-200">
           <h2 className="text-xl font-bold m-0">Relay Explorer</h2>
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 bg-gray-600 text-white rounded hover:opacity-90 text-sm"
-          >
-            Close
-          </button>
+          <button onClick={onClose} className="px-3 py-1.5 bg-gray-600 text-white rounded hover:opacity-90 text-sm">Close</button>
         </div>
-        <iframe
-          src={explorerUrl}
-          className="flex-1 w-full border-0"
-          title="Relay Explorer"
-        />
+        <iframe src={explorerUrl} className="flex-1 w-full border-0" title="Relay Explorer" />
+      </div>
+    </div>
+  );
+};
+
+const BlossomExplorerModal = ({ serverUrl, onClose }: { serverUrl: string; onClose: () => void }) => {
+  const explorerUrl = `https://blossom-explorer.shakespeare.wtf/?server=${encodeURIComponent(serverUrl)}`;
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg w-[90vw] h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center p-4 border-b border-gray-200">
+          <h2 className="text-xl font-bold m-0">Blossom Explorer</h2>
+          <button onClick={onClose} className="px-3 py-1.5 bg-gray-600 text-white rounded hover:opacity-90 text-sm">Close</button>
+        </div>
+        <iframe src={explorerUrl} className="flex-1 w-full border-0" title="Blossom Explorer" />
       </div>
     </div>
   );
@@ -67,6 +72,7 @@ const ServiceCard = ({
   onDelete: (composeId: string, name: string) => void;
 }) => {
   const [showExplorer, setShowExplorer] = useState(false);
+  const [showBlossomExplorer, setShowBlossomExplorer] = useState(false);
   const domain = service.domains?.[0];
 
   const isEditing = editingDomain?.domainId === domain?.domainId;
@@ -83,6 +89,9 @@ const ServiceCard = ({
     <>
       {showExplorer && domain && (
         <RelayExplorerModal relayUrl={domain.host} onClose={() => setShowExplorer(false)} />
+      )}
+      {showBlossomExplorer && domain && (
+        <BlossomExplorerModal serverUrl={httpsUrl} onClose={() => setShowBlossomExplorer(false)} />
       )}
       <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
         <div className="flex justify-between items-start gap-4">
@@ -125,23 +134,33 @@ const ServiceCard = ({
                     >
                       Copy
                     </button>
+                    {service.type === 'blossom' && (
+                      <button
+                        onClick={() => setShowBlossomExplorer(true)}
+                        className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-white hover:bg-primary/5 text-primary"
+                      >
+                        Explore
+                      </button>
+                    )}
                   </li>
-                  <li className="flex items-center gap-2 flex-wrap">
-                    <span className="text-gray-400 font-medium w-20 shrink-0">WSS</span>
-                    <span className="font-mono text-xs truncate">{wssUrl}</span>
-                    <button
-                      onClick={() => onCopy(wssUrl)}
-                      className="shrink-0 px-2 py-0.5 text-xs rounded border border-gray-200 bg-white hover:bg-gray-50 text-gray-600"
-                    >
-                      Copy
-                    </button>
-                    <button
-                      onClick={() => setShowExplorer(true)}
-                      className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-white hover:bg-primary/5 text-primary"
-                    >
-                      Explore
-                    </button>
-                  </li>
+                  {service.type === 'relay' && (
+                    <li className="flex items-center gap-2 flex-wrap">
+                      <span className="text-gray-400 font-medium w-20 shrink-0">WSS</span>
+                      <span className="font-mono text-xs truncate">{wssUrl}</span>
+                      <button
+                        onClick={() => onCopy(wssUrl)}
+                        className="shrink-0 px-2 py-0.5 text-xs rounded border border-gray-200 bg-white hover:bg-gray-50 text-gray-600"
+                      >
+                        Copy
+                      </button>
+                      <button
+                        onClick={() => setShowExplorer(true)}
+                        className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-white hover:bg-primary/5 text-primary"
+                      >
+                        Explore
+                      </button>
+                    </li>
+                  )}
                 </>
               )}
             {domain && serverIp && (

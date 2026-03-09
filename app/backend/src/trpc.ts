@@ -190,16 +190,18 @@ export const appRouter = router({
           
           const runtimeStatus = compose.composeStatus === 'done' ? 'running' : compose.composeStatus
           
+          const domainKey = presetData.domainConfigKey ?? 'RELAY_HOST'
           services.push({
             composeId: compose.composeId,
             name: compose.name,
             serviceType: presetData.label,
             status: runtimeStatus,
             createdAt: compose.createdAt,
-            hostname: envVars.RELAY_HOST || 'No hostname configured',
+            hostname: envVars[domainKey] || 'No hostname configured',
             domains: compose.domains || [],
             projectName: project.name,
             environmentName: environment.name,
+            type: presetData.type ?? null,
           })
         }
       }
@@ -386,7 +388,8 @@ export const appRouter = router({
         })
 
         const presetData = await getPresetMetadata(input.presetId)
-        const hostname = input.config.RELAY_HOST
+        const domainKey = presetData.domainConfigKey ?? 'RELAY_HOST'
+        const hostname = input.config[domainKey]
         if (hostname && presetData.serviceName) {
           await registerDomain(createCompose.composeId, hostname, presetData)
         }
