@@ -1,5 +1,5 @@
 # Routing is configured via Dokploy's Domains API (domain.create), not Traefik labels in this file.
-# Service must be on relaykit-network so Traefik can reach it.
+# Service must be on dokploy-network so Traefik can reach it (Dokploy requirement).
 # Use {{DEPLOY_SUFFIX}} in volume names so each deployment gets its own volume (replaced at deploy time).
 services:
   strfry:
@@ -21,12 +21,12 @@ services:
     expose:
       - "7777"
     networks:
-      - relaykit-network
+      - dokploy-network
 
 volumes:
   strfry_data_{{DEPLOY_SUFFIX}}:
 
 networks:
-  relaykit-network:
+  dokploy-network:
     external: true
 

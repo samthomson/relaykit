@@ -65,6 +65,7 @@ services:
     networks:
       - default
       - relaykit-network
+      - dokploy-network
 
   dokploy-traefik-prod:
     profiles: ["prod"]
@@ -82,6 +83,7 @@ services:
     networks:
       - default
       - relaykit-network
+      - dokploy-network
 
   # Caddy - dev only (HTTPS termination with local certs)
   caddy:
@@ -157,3 +159,5 @@ networks:
   relaykit-network:
     name: relaykit-network
     driver: bridge
+  dokploy-network:
+    external: true

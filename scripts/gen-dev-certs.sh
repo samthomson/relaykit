@@ -42,7 +42,7 @@ cat > "$CADDYFILE_DEV" << EOF
 # Edit dev-domains.txt and re-run the script to add/remove domains.
 $CADDY_HOSTS {
   tls /certs/cert.pem /certs/key.pem
-  reverse_proxy dokploy-traefik:80
+  reverse_proxy dokploy-traefik-dev:80
 }
 EOF
 echo "Caddyfile.dev updated for: ${DOMAINS[*]}"
