@@ -137,16 +137,9 @@ RelayKit has two domain flows: **create a service (with domain in one go)** and 
 
 ## todo
 
-- [ ] get it running the service properly
-- [ ] convey real deployment status in UI (not assumed success)
+- [ ] convey real deployment status in UI (not assumed success) - especially as it starts up, to know when it's "ready"
 
-- [ ] prod deployment
-
-- [ ] blossom?
 - [ ] one other relay type
-
-- [ ] dns record instructions for after adding a domain?
-- [ ] link/iframe two shakespeare apps I made
 
 - [ ] change default project group for all projects to go into
 - [ ] let user specify a project/group for projects to go into
