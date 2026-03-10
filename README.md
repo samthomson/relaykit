@@ -102,6 +102,9 @@ Then https://your-domain works in the browser and routes to the relay.
 
 **Prod:** `docker compose --profile prod up -d`. No Caddy; Traefik on 80/443 with real certs. RelayKit: build frontend, backend serves static + tRPC, one port.
 
+## Deploy
+
+Set `DEPLOY_HOST` (e.g. `root@1.2.3.4` or an SSH alias) and `DEPLOY_PATH` (repo path on server) in `.env`. Then: `./scripts/deploy.sh` or `./scripts/deploy.sh --rebuild`.
 
 ## Key Technical Details
 
