@@ -214,12 +214,42 @@ export const appRouter = router({
       return { environmentId: created.environmentId }
     }),
 
+  renameProject: protectedProcedure
+    .input(z.object({ projectId: z.string(), name: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      await dokployFetch('/api/project.update', {
+        method: 'POST',
+        body: JSON.stringify({ projectId: input.projectId, name: input.name }),
+      })
+      return { success: true }
+    }),
+
   renameEnvironment: protectedProcedure
     .input(z.object({ environmentId: z.string(), name: z.string().min(1) }))
     .mutation(async ({ input }) => {
       await dokployFetch('/api/environment.update', {
         method: 'POST',
         body: JSON.stringify({ environmentId: input.environmentId, name: input.name }),
+      })
+      return { success: true }
+    }),
+
+  deleteProject: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .mutation(async ({ input }) => {
+      await dokployFetch('/api/project.remove', {
+        method: 'POST',
+        body: JSON.stringify({ projectId: input.projectId }),
+      })
+      return { success: true }
+    }),
+
+  deleteEnvironment: protectedProcedure
+    .input(z.object({ environmentId: z.string() }))
+    .mutation(async ({ input }) => {
+      await dokployFetch('/api/environment.remove', {
+        method: 'POST',
+        body: JSON.stringify({ environmentId: input.environmentId }),
       })
       return { success: true }
     }),

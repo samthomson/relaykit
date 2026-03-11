@@ -1,10 +1,234 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { trpc } from './trpc';
 import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
 import { useRefreshServices } from './contexts/RefreshServicesContext';
+
+const CogMenu = ({ items }: { items: { label: string; onClick: () => void; danger?: boolean }[] }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="text-ink-subtle/40 hover:text-ink-muted transition-colors p-1 text-lg leading-none"
+        title="Options"
+      >
+        ⋮
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-paper-elevated border border-border rounded shadow-lg z-[100] min-w-[140px] py-1">
+          {items.map((item, i) => (
+            <button
+              key={i}
+              onClick={() => { setOpen(false); item.onClick(); }}
+              className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-border-soft transition-colors ${item.danger ? 'text-error' : 'text-ink'}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ConfirmModal = ({
+  title,
+  message,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+  danger = false,
+}: {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  danger?: boolean;
+}) => (
+  <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50" onClick={onCancel}>
+    <div
+      className="bg-paper-elevated rounded-lg p-6 max-w-sm w-full border border-border shadow-lg"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h3 className="text-lg font-semibold text-ink m-0 mb-2">{title}</h3>
+      <p className="text-ink-muted text-sm m-0 mb-6">{message}</p>
+      <div className="flex gap-3 justify-end">
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 border border-border rounded bg-paper-elevated text-ink-muted hover:bg-border-soft text-sm"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onConfirm}
+          className={`px-4 py-2 rounded text-sm ${danger ? 'bg-error text-paper-elevated hover:opacity-90' : 'bg-primary text-paper-elevated hover:bg-primary-hover'}`}
+        >
+          {confirmLabel}
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironmentId?: string }) => {
+  const { triggerRefresh } = useRefreshServices();
+  const [presets, setPresets] = useState<any[]>([]);
+  const [environments, setEnvironments] = useState<{ environmentId: string; label: string }[]>([]);
+  const [deployModalOpen, setDeployModalOpen] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<any>(null);
+  const [selectedEnvironmentId, setSelectedEnvironmentId] = useState('');
+  const [deployConfig, setDeployConfig] = useState<Record<string, string>>({});
+  const [deployResult, setDeployResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const loadData = async () => {
+    try {
+      const [presetsResult, projectsResult] = await Promise.all([
+        trpc.listPresets.query(undefined),
+        trpc.listProjects.query(),
+      ]);
+      setPresets(presetsResult);
+      setEnvironments(
+        projectsResult.flatMap((p: any) =>
+          p.environments.map((e: any) => ({ environmentId: e.environmentId, label: `${p.name} → ${e.name}` }))
+        )
+      );
+    } catch (error) {
+      console.error('Error loading deploy data:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useLayoutEffect(() => {
+    if (open && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setDropdownPosition({ top: rect.bottom + 4, left: rect.left });
+    } else {
+      setDropdownPosition(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (ref.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const handleSelectPreset = (preset: any) => {
+    setOpen(false);
+    loadData();
+    setSelectedPreset(preset);
+    const defaults: Record<string, string> = {};
+    preset.requiredConfig.forEach((field: any) => {
+      if (field.default) defaults[field.id] = field.default;
+    });
+    setDeployConfig(defaults);
+    setDeployResult(null);
+    setSelectedEnvironmentId(preselectedEnvironmentId ?? '');
+    setDeployModalOpen(true);
+  };
+
+  const handleDeploy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setDeployResult(null);
+    try {
+      await trpc.deployService.mutate({
+        presetId: selectedPreset.id,
+        config: deployConfig,
+        environmentId: selectedEnvironmentId || undefined,
+      });
+      toast.success('Service deployment started!');
+      setDeployModalOpen(false);
+      triggerRefresh();
+    } catch (error: any) {
+      console.error('Deploy error:', error);
+      setDeployResult({ error: error.message });
+      toast.error(`Deploy failed: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 px-3 py-2 border border-primary/40 rounded-lg bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/60 transition-colors text-sm font-medium"
+      >
+        + Add Service
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={`w-4 h-4 transition-transform shrink-0 ${open ? 'rotate-180' : ''}`}>
+          <path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+        </svg>
+      </button>
+      {open && presets.length > 0 && dropdownPosition &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            className="fixed min-w-[240px] bg-paper-elevated border border-border rounded-lg shadow-lg py-1 z-[100]"
+            style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+          >
+            {presets.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => handleSelectPreset(preset)}
+                className="block w-full text-left px-4 py-2.5 hover:bg-border-soft transition-colors border-b border-border-soft last:border-b-0"
+              >
+                <span className="text-sm font-medium text-primary">{preset.name}</span>
+                {preset.description && (
+                  <p className="text-xs text-ink-muted m-0 mt-0.5">{preset.description}</p>
+                )}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
+      {deployModalOpen && selectedPreset && (
+        <DeployModal
+          preset={selectedPreset}
+          deployConfig={deployConfig}
+          setDeployConfig={setDeployConfig}
+          loading={loading}
+          deployResult={deployResult}
+          onSubmit={handleDeploy}
+          onClose={() => setDeployModalOpen(false)}
+          environments={environments}
+          selectedEnvironmentId={selectedEnvironmentId}
+          setSelectedEnvironmentId={setSelectedEnvironmentId}
+        />
+      )}
+    </div>
+  );
+};
 
 const dnsRecordNameForHost = (host: string): { zone: string; name: string } => {
   const parts = host.toLowerCase().trim().split('.');
@@ -284,6 +508,9 @@ const ServiceList = () => {
   const [newEnvName, setNewEnvName] = useState('');
   const [renamingEnvId, setRenamingEnvId] = useState<string | null>(null);
   const [renameEnvValue, setRenameEnvValue] = useState('');
+  const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
+  const [renameProjectValue, setRenameProjectValue] = useState('');
+  const [confirmModal, setConfirmModal] = useState<{ type: 'deleteGroup'; projectId: string; name: string } | { type: 'deleteEnv'; environmentId: string; name: string } | null>(null);
 
   const allEnvironments: { environmentId: string; label: string }[] = projects.flatMap((p: any) =>
     p.environments.map((e: any) => ({ environmentId: e.environmentId, label: `${p.name} → ${e.name}` }))
@@ -430,6 +657,49 @@ const ServiceList = () => {
     }
   };
 
+  const openDeleteGroupConfirm = (projectId: string, projectName: string) => {
+    setConfirmModal({ type: 'deleteGroup', projectId, name: projectName });
+  };
+
+  const openDeleteEnvConfirm = (environmentId: string, envName: string) => {
+    setConfirmModal({ type: 'deleteEnv', environmentId, name: envName });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmModal) return;
+    if (confirmModal.type === 'deleteGroup') {
+      try {
+        await trpc.deleteProject.mutate({ projectId: confirmModal.projectId });
+        toast.success('Group deleted');
+        await loadData();
+      } catch (error: any) {
+        toast.error(`Failed to delete group: ${error.message}`);
+      }
+    } else {
+      try {
+        await trpc.deleteEnvironment.mutate({ environmentId: confirmModal.environmentId });
+        toast.success('Environment deleted');
+        await loadData();
+      } catch (error: any) {
+        toast.error(`Failed to delete environment: ${error.message}`);
+      }
+    }
+    setConfirmModal(null);
+  };
+
+  const handleRenameProject = async (projectId: string) => {
+    if (!renameProjectValue.trim()) return;
+    try {
+      await trpc.renameProject.mutate({ projectId, name: renameProjectValue.trim() });
+      setRenamingProjectId(null);
+      setRenameProjectValue('');
+      toast.success('Group renamed');
+      await loadData();
+    } catch (error: any) {
+      toast.error(`Failed to rename group: ${error.message}`);
+    }
+  };
+
   const grouped = projects.map((project: any) => ({
     ...project,
     environments: project.environments.map((env: any) => ({
@@ -459,9 +729,36 @@ const ServiceList = () => {
         <div className="space-y-6">
           {grouped.map((project: any) => (
             <div key={project.projectId} className="border border-border rounded-lg overflow-hidden">
-              {!isDefaultProject(project.name) && (
-                <div className="bg-border-soft px-4 py-3">
-                  <h3 className="text-lg font-semibold text-ink m-0">{project.name}</h3>
+              {renamingProjectId === project.projectId ? (
+                <div className="bg-border-soft px-4 py-3 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={renameProjectValue}
+                    onChange={(e) => setRenameProjectValue(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleRenameProject(project.projectId)}
+                    className="px-3 py-1.5 border border-border rounded text-sm bg-paper-elevated text-ink flex-1 max-w-xs"
+                    autoFocus
+                  />
+                  <button onClick={() => handleRenameProject(project.projectId)} disabled={!renameProjectValue.trim()} className="px-2 py-1 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover disabled:bg-border">Save</button>
+                  <button onClick={() => { setRenamingProjectId(null); setRenameProjectValue(''); }} className="px-2 py-1 bg-ink text-paper-elevated rounded text-xs hover:opacity-90">Cancel</button>
+                </div>
+              ) : !isDefaultProject(project.name) ? (
+                <div className="bg-border-soft px-4 py-3 flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-ink m-0">{project.name}</h3>
+                    <button onClick={() => { setRenamingProjectId(project.projectId); setRenameProjectValue(project.name); }} className="text-ink-subtle/30 hover:text-primary transition-colors" title="Rename group">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" /></svg>
+                    </button>
+                  </div>
+                  <CogMenu items={[
+                    { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
+                  ]} />
+                </div>
+              ) : (
+                <div className="flex justify-end px-4 pt-2">
+                  <CogMenu items={[
+                    { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
+                  ]} />
                 </div>
               )}
               {project.environments.map((env: any) => {
@@ -506,6 +803,10 @@ const ServiceList = () => {
                             <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" />
                           </svg>
                         </button>
+                        <div className="flex-1" />
+                        <CogMenu items={[
+                          { label: 'Delete environment', onClick: () => openDeleteEnvConfirm(env.environmentId, env.name), danger: true },
+                        ]} />
                       </>
                     )}
                   </div>
@@ -534,6 +835,7 @@ const ServiceList = () => {
                         />
                       ))
                     )}
+                    <AddServiceButton preselectedEnvironmentId={env.environmentId} />
                   </div>
                 </div>
                 );
@@ -576,23 +878,42 @@ const ServiceList = () => {
         </div>
       )}
 
-      <div className="flex items-center gap-2 mt-6">
-        <input
-          type="text"
-          value={newProjectName}
-          onChange={(e) => setNewProjectName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
-          placeholder="New group name…"
-          className="px-3 py-1.5 border border-border rounded text-sm bg-paper-elevated text-ink flex-1 max-w-xs"
-        />
-        <button
-          onClick={handleCreateProject}
-          disabled={creatingProject || !newProjectName.trim()}
-          className="px-3 py-1.5 bg-primary text-paper-elevated rounded text-sm hover:bg-primary-hover disabled:bg-border disabled:cursor-not-allowed"
-        >
-          Create Group
-        </button>
+      <div className="mt-6 border border-border/60 rounded-lg overflow-hidden bg-paper-elevated/50 hover:bg-paper-elevated hover:border-border transition-colors">
+        <div className="px-4 pt-3 pb-1">
+          <h3 className="text-sm font-semibold text-ink m-0">Add a new group</h3>
+          <p className="text-xs text-ink-muted m-0 mt-0.5">Create a group to organise services within.</p>
+        </div>
+        <div className="px-4 py-3 flex items-center gap-3">
+          <input
+            type="text"
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
+            placeholder="Group name"
+            className="flex-1 min-w-0 px-3 py-2 border border-border rounded text-sm bg-paper text-ink placeholder:text-ink-subtle"
+          />
+          <button
+            onClick={handleCreateProject}
+            disabled={creatingProject || !newProjectName.trim()}
+            className="px-4 py-2 bg-primary text-paper-elevated rounded text-sm font-medium hover:bg-primary-hover disabled:bg-border disabled:cursor-not-allowed shrink-0"
+          >
+            Add group
+          </button>
+        </div>
       </div>
+
+      {confirmModal && (
+        <ConfirmModal
+          title={confirmModal.type === 'deleteGroup' ? 'Delete group?' : 'Delete environment?'}
+          message={confirmModal.type === 'deleteGroup'
+            ? `Delete group "${confirmModal.name}" and all its environments and services?`
+            : `Delete environment "${confirmModal.name}" and all its services?`}
+          confirmLabel={confirmModal.type === 'deleteGroup' ? 'Delete group' : 'Delete environment'}
+          danger
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
     </div>
   );
 };
@@ -619,7 +940,16 @@ const DeployModal = ({
   environments: { environmentId: string; label: string }[];
   selectedEnvironmentId: string;
   setSelectedEnvironmentId: (id: string) => void;
-}) => (
+}) => {
+  const byGroup = environments.reduce<Record<string, { environmentId: string; label: string }[]>>((acc, env) => {
+    const [groupName, envName] = env.label.includes(' → ') ? env.label.split(' → ') : [env.label, ''];
+    if (!acc[groupName]) acc[groupName] = [];
+    acc[groupName].push({ environmentId: env.environmentId, label: envName || env.label });
+    return acc;
+  }, {});
+  const groupNames = Object.keys(byGroup);
+
+  return (
   <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50">
     <div className="bg-paper-elevated rounded-lg p-8 max-w-lg w-full max-h-[80vh] overflow-auto border border-border shadow-lg">
       <h2 className="text-2xl font-bold mt-0 text-ink">Deploy {preset.name}</h2>
@@ -635,8 +965,14 @@ const DeployModal = ({
               className="block w-full px-3 py-2 mt-1 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary bg-paper-elevated text-ink"
             >
               <option value="">Select environment…</option>
-              {environments.map((env) => (
-                <option key={env.environmentId} value={env.environmentId}>{env.label}</option>
+              {groupNames.map((groupName) => (
+                <optgroup key={groupName} label={groupName}>
+                  {byGroup[groupName].map((env) => (
+                    <option key={env.environmentId} value={env.environmentId}>
+                      {env.label}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </label>
@@ -698,112 +1034,16 @@ const DeployModal = ({
       </form>
     </div>
   </div>
-);
-
-const DeploySection = () => {
-  const { triggerRefresh } = useRefreshServices();
-  const [presets, setPresets] = useState<any[]>([]);
-  const [environments, setEnvironments] = useState<{ environmentId: string; label: string }[]>([]);
-  const [deployModalOpen, setDeployModalOpen] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<any>(null);
-  const [selectedEnvironmentId, setSelectedEnvironmentId] = useState('');
-  const [deployConfig, setDeployConfig] = useState<Record<string, string>>({});
-  const [deployResult, setDeployResult] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-
-  const loadData = async () => {
-    try {
-      const [presetsResult, projectsResult] = await Promise.all([
-        trpc.listPresets.query(undefined),
-        trpc.listProjects.query(),
-      ]);
-      setPresets(presetsResult);
-      setEnvironments(
-        projectsResult.flatMap((p: any) =>
-          p.environments.map((e: any) => ({ environmentId: e.environmentId, label: `${p.name} → ${e.name}` }))
-        )
-      );
-    } catch (error) {
-      console.error('Error loading deploy data:', error);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleDeployClick = (preset: any) => {
-    loadData();
-    setSelectedPreset(preset);
-    const defaults: Record<string, string> = {};
-    preset.requiredConfig.forEach((field: any) => {
-      if (field.default) defaults[field.id] = field.default;
-    });
-    setDeployConfig(defaults);
-    setDeployResult(null);
-    setSelectedEnvironmentId('');
-    setDeployModalOpen(true);
-  };
-
-  const handleDeploy = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setDeployResult(null);
-    try {
-      await trpc.deployService.mutate({
-        presetId: selectedPreset.id,
-        config: deployConfig,
-        environmentId: selectedEnvironmentId || undefined,
-      });
-      toast.success('Service deployment started!');
-      setDeployModalOpen(false);
-      triggerRefresh();
-    } catch (error: any) {
-      console.error('Deploy error:', error);
-      setDeployResult({ error: error.message });
-      toast.error(`Deploy failed: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="mt-12">
-      <h2 className="text-2xl font-bold text-ink">Deploy a Service</h2>
-      <p className="text-ink-muted">Choose a Nostr service to deploy:</p>
-      <div className="mt-4 grid gap-4 grid-cols-[repeat(auto-fill,minmax(250px,1fr))]">
-        {presets.map((preset) => (
-          <div key={preset.id} className="p-6 border border-border rounded-lg bg-paper-elevated">
-            <h3 className="text-lg font-semibold m-0 mb-2 text-ink">{preset.name}</h3>
-            <p className="text-ink-muted text-sm m-0 mb-4">{preset.description}</p>
-            <button
-              onClick={() => handleDeployClick(preset)}
-              className="w-full px-4 py-3 bg-success text-paper-elevated rounded hover:opacity-90 text-sm font-medium"
-            >
-              Deploy {preset.name}
-            </button>
-          </div>
-        ))}
-      </div>
-      {presets.length === 0 && <p className="text-ink-subtle italic">No services available yet.</p>}
-      {deployModalOpen && selectedPreset && (
-        <DeployModal
-          preset={selectedPreset}
-          deployConfig={deployConfig}
-          setDeployConfig={setDeployConfig}
-          loading={loading}
-          deployResult={deployResult}
-          onSubmit={handleDeploy}
-          onClose={() => setDeployModalOpen(false)}
-          environments={environments}
-          selectedEnvironmentId={selectedEnvironmentId}
-          setSelectedEnvironmentId={setSelectedEnvironmentId}
-        />
-      )}
-    </div>
   );
 };
+
+const DeploySection = () => (
+  <div className="mt-12">
+    <h2 className="text-2xl font-bold text-ink mb-1">Add service</h2>
+    <p className="text-ink-muted text-sm m-0 mb-4">Deploy a relay or media server into a group.</p>
+    <AddServiceButton />
+  </div>
+);
 
 const LoginScreen = () => {
   const { login, hasNostrExtension, isLoading } = useAuth();
