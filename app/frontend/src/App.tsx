@@ -510,7 +510,7 @@ const ServiceList = () => {
   const [renameEnvValue, setRenameEnvValue] = useState('');
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameProjectValue, setRenameProjectValue] = useState('');
-  const [confirmModal, setConfirmModal] = useState<{ type: 'deleteGroup'; projectId: string; name: string } | { type: 'deleteEnv'; environmentId: string; name: string } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ type: 'deleteGroup'; projectId: string; name: string } | { type: 'deleteEnv'; environmentId: string; name: string } | { type: 'deleteService'; composeId: string; name: string } | null>(null);
 
   const allEnvironments: { environmentId: string; label: string }[] = projects.flatMap((p: any) =>
     p.environments.map((e: any) => ({ environmentId: e.environmentId, label: `${p.name} → ${e.name}` }))
@@ -554,15 +554,8 @@ const ServiceList = () => {
     toast.success('Copied to clipboard!');
   };
 
-  const handleDeleteService = async (composeId: string, serviceName: string) => {
-    if (!confirm(`Are you sure you want to delete ${serviceName}?`)) return;
-    try {
-      await trpc.deleteService.mutate({ composeId });
-      toast.success('Service deleted successfully');
-      await loadData();
-    } catch (error: any) {
-      toast.error(`Failed to delete service: ${error.message}`);
-    }
+  const openDeleteServiceConfirm = (composeId: string, serviceName: string) => {
+    setConfirmModal({ type: 'deleteService', composeId, name: serviceName });
   };
 
   const handleStopService = async (composeId: string) => {
@@ -675,13 +668,21 @@ const ServiceList = () => {
       } catch (error: any) {
         toast.error(`Failed to delete group: ${error.message}`);
       }
-    } else {
+    } else if (confirmModal.type === 'deleteEnv') {
       try {
         await trpc.deleteEnvironment.mutate({ environmentId: confirmModal.environmentId });
         toast.success('Environment deleted');
         await loadData();
       } catch (error: any) {
         toast.error(`Failed to delete environment: ${error.message}`);
+      }
+    } else {
+      try {
+        await trpc.deleteService.mutate({ composeId: confirmModal.composeId });
+        toast.success('Service deleted');
+        await loadData();
+      } catch (error: any) {
+        toast.error(`Failed to delete service: ${error.message}`);
       }
     }
     setConfirmModal(null);
@@ -829,7 +830,7 @@ const ServiceList = () => {
                           onCopy={copyToClipboard}
                           onStart={handleStartService}
                           onStop={handleStopService}
-                          onDelete={handleDeleteService}
+                          onDelete={openDeleteServiceConfirm}
                           onMove={handleMoveService}
                           allEnvironments={allEnvironments}
                         />
@@ -904,11 +905,13 @@ const ServiceList = () => {
 
       {confirmModal && (
         <ConfirmModal
-          title={confirmModal.type === 'deleteGroup' ? 'Delete group?' : 'Delete environment?'}
+          title={confirmModal.type === 'deleteGroup' ? 'Delete group?' : confirmModal.type === 'deleteEnv' ? 'Delete environment?' : 'Delete service?'}
           message={confirmModal.type === 'deleteGroup'
             ? `Delete group "${confirmModal.name}" and all its environments and services?`
-            : `Delete environment "${confirmModal.name}" and all its services?`}
-          confirmLabel={confirmModal.type === 'deleteGroup' ? 'Delete group' : 'Delete environment'}
+            : confirmModal.type === 'deleteEnv'
+              ? `Delete environment "${confirmModal.name}" and all its services?`
+              : `Delete service "${confirmModal.name}"?`}
+          confirmLabel={confirmModal.type === 'deleteGroup' ? 'Delete group' : confirmModal.type === 'deleteEnv' ? 'Delete environment' : 'Delete service'}
           danger
           onConfirm={handleConfirmDelete}
           onCancel={() => setConfirmModal(null)}
