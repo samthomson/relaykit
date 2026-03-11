@@ -57,6 +57,8 @@ const ServiceCard = ({
   onStart,
   onStop,
   onDelete,
+  onMove,
+  allEnvironments,
 }: {
   service: any;
   serverIp: string | null;
@@ -70,6 +72,8 @@ const ServiceCard = ({
   onStart: (composeId: string) => void;
   onStop: (composeId: string) => void;
   onDelete: (composeId: string, name: string) => void;
+  onMove: (composeId: string, targetEnvironmentId: string) => void;
+  allEnvironments: { environmentId: string; label: string }[];
 }) => {
   const [showExplorer, setShowExplorer] = useState(false);
   const [showBlossomExplorer, setShowBlossomExplorer] = useState(false);
@@ -209,36 +213,52 @@ const ServiceCard = ({
             <p className="mt-2 pl-5 text-ink-subtle text-xs italic">No domain configured</p>
           )}
         </div>
-        <div className="flex gap-2 shrink-0">
-          {domain && !isEditing && (
+        <div className="flex flex-col gap-2 shrink-0 items-end">
+          <div className="flex gap-2">
+            {domain && !isEditing && (
+              <button
+                onClick={() => onEditDomain(service.composeId, domain)}
+                className="px-2 py-1.5 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover"
+              >
+                Edit
+              </button>
+            )}
+            {service.status === 'running' ? (
+              <button
+                onClick={() => onStop(service.composeId)}
+                className="px-4 py-2 bg-warning text-warning-text rounded hover:opacity-90 text-sm"
+              >
+                Stop
+              </button>
+            ) : (
+              <button
+                onClick={() => onStart(service.composeId)}
+                className="px-4 py-2 bg-success text-paper-elevated rounded hover:opacity-90 text-sm"
+              >
+                Start
+              </button>
+            )}
             <button
-              onClick={() => onEditDomain(service.composeId, domain)}
-              className="px-2 py-1.5 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover"
+              onClick={() => onDelete(service.composeId, service.name)}
+              className="px-4 py-2 bg-error text-paper-elevated rounded hover:opacity-90 text-sm"
             >
-              Edit
+              Delete
             </button>
+          </div>
+          {allEnvironments.length > 1 && (
+            <select
+              value=""
+              onChange={(e) => { if (e.target.value) onMove(service.composeId, e.target.value); }}
+              className="text-xs border border-border rounded px-2 py-1 bg-paper-elevated text-ink-muted"
+            >
+              <option value="">Move to…</option>
+              {allEnvironments
+                .filter((env) => env.environmentId !== service.environmentId)
+                .map((env) => (
+                  <option key={env.environmentId} value={env.environmentId}>{env.label}</option>
+                ))}
+            </select>
           )}
-          {service.status === 'running' ? (
-            <button
-              onClick={() => onStop(service.composeId)}
-              className="px-4 py-2 bg-warning text-warning-text rounded hover:opacity-90 text-sm"
-            >
-              Stop
-            </button>
-          ) : (
-            <button
-              onClick={() => onStart(service.composeId)}
-              className="px-4 py-2 bg-success text-paper-elevated rounded hover:opacity-90 text-sm"
-            >
-              Start
-            </button>
-          )}
-          <button
-            onClick={() => onDelete(service.composeId, service.name)}
-            className="px-4 py-2 bg-error text-paper-elevated rounded hover:opacity-90 text-sm"
-          >
-            Delete
-          </button>
         </div>
       </div>
       </div>
@@ -251,21 +271,33 @@ const ServiceList = () => {
   const { setDokployConnectionError, setDokployReady } = useDokploy();
   const { logout } = useAuth();
   const [services, setServices] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [serverIp, setServerIp] = useState<string | null>(null);
 
   const [editingDomain, setEditingDomain] = useState<{ composeId: string; domainId: string; currentHost: string } | null>(null);
   const [newDomainHost, setNewDomainHost] = useState('');
 
-  const loadServices = async () => {
+  const [newProjectName, setNewProjectName] = useState('');
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [newEnvTarget, setNewEnvTarget] = useState<string | null>(null);
+  const [newEnvName, setNewEnvName] = useState('');
+
+  const allEnvironments: { environmentId: string; label: string }[] = projects.flatMap((p: any) =>
+    p.environments.map((e: any) => ({ environmentId: e.environmentId, label: `${p.name} → ${e.name}` }))
+  );
+
+  const loadData = async () => {
     setLoading(true);
     setDokployConnectionError(null);
     try {
-      const [result, ipResult] = await Promise.all([
+      const [svcResult, projResult, ipResult] = await Promise.all([
         trpc.listServices.query(),
+        trpc.listProjects.query(),
         trpc.getServerIp.query().catch(() => null),
       ]);
-      setServices(result);
+      setServices(svcResult);
+      setProjects(projResult);
       setServerIp(ipResult?.ip ?? null);
       setDokployReady(true);
     } catch (error: any) {
@@ -277,13 +309,14 @@ const ServiceList = () => {
       }
       setDokployConnectionError(msg || 'Could not load services. Run the setup script (see README).');
       setServices([]);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadServices();
+    loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
@@ -297,7 +330,7 @@ const ServiceList = () => {
     try {
       await trpc.deleteService.mutate({ composeId });
       toast.success('Service deleted successfully');
-      await loadServices();
+      await loadData();
     } catch (error: any) {
       toast.error(`Failed to delete service: ${error.message}`);
     }
@@ -306,7 +339,7 @@ const ServiceList = () => {
   const handleStopService = async (composeId: string) => {
     try {
       await trpc.stopService.mutate({ composeId });
-      await loadServices();
+      await loadData();
       toast.success('Service stopped');
     } catch (error: any) {
       toast.error(`Failed to stop service: ${error.message}`);
@@ -316,10 +349,20 @@ const ServiceList = () => {
   const handleStartService = async (composeId: string) => {
     try {
       await trpc.startService.mutate({ composeId });
-      await loadServices();
+      await loadData();
       toast.success('Service started');
     } catch (error: any) {
       toast.error(`Failed to start service: ${error.message}`);
+    }
+  };
+
+  const handleMoveService = async (composeId: string, targetEnvironmentId: string) => {
+    try {
+      await trpc.moveService.mutate({ composeId, targetEnvironmentId });
+      toast.success('Service moved');
+      await loadData();
+    } catch (error: any) {
+      toast.error(`Failed to move service: ${error.message}`);
     }
   };
 
@@ -337,45 +380,155 @@ const ServiceList = () => {
         newHost: newDomainHost
       });
       setEditingDomain(null);
-      await loadServices();
+      await loadData();
       toast.success('Domain updated successfully');
     } catch (error: any) {
       toast.error(`Failed to update domain: ${error.message}`);
     }
   };
 
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) return;
+    setCreatingProject(true);
+    try {
+      await trpc.createProject.mutate({ name: newProjectName.trim() });
+      setNewProjectName('');
+      toast.success('Project created');
+      await loadData();
+    } catch (error: any) {
+      toast.error(`Failed to create project: ${error.message}`);
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+
+  const handleCreateEnvironment = async (projectId: string) => {
+    if (!newEnvName.trim()) return;
+    try {
+      await trpc.createEnvironment.mutate({ projectId, name: newEnvName.trim() });
+      setNewEnvTarget(null);
+      setNewEnvName('');
+      toast.success('Environment created');
+      await loadData();
+    } catch (error: any) {
+      toast.error(`Failed to create environment: ${error.message}`);
+    }
+  };
+
+  const grouped = projects.map((project: any) => ({
+    ...project,
+    environments: project.environments.map((env: any) => ({
+      ...env,
+      services: services.filter((s: any) => s.environmentId === env.environmentId),
+    })),
+  }));
+
   return (
     <div className="mt-12">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold m-0 text-ink">Deployed Services</h2>
+        <h2 className="text-2xl font-bold m-0 text-ink">Services</h2>
         <button
-          onClick={loadServices}
+          onClick={loadData}
           disabled={loading}
           className="px-4 py-2 bg-primary text-paper-elevated rounded hover:bg-primary-hover disabled:bg-border disabled:cursor-not-allowed text-sm"
         >
           {loading ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
-      {services.length === 0 ? (
-        <p className="text-ink-muted italic">No services deployed yet. Deploy your first service below!</p>
+
+      <div className="flex items-center gap-2 mb-6">
+        <input
+          type="text"
+          value={newProjectName}
+          onChange={(e) => setNewProjectName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
+          placeholder="New project name…"
+          className="px-3 py-1.5 border border-border rounded text-sm bg-paper-elevated text-ink flex-1 max-w-xs"
+        />
+        <button
+          onClick={handleCreateProject}
+          disabled={creatingProject || !newProjectName.trim()}
+          className="px-3 py-1.5 bg-primary text-paper-elevated rounded text-sm hover:bg-primary-hover disabled:bg-border disabled:cursor-not-allowed"
+        >
+          Create Project
+        </button>
+      </div>
+
+      {grouped.length === 0 ? (
+        <p className="text-ink-muted italic">No projects yet.</p>
       ) : (
-        <div className="space-y-4">
-          {services.map((service) => (
-            <ServiceCard
-              key={service.composeId}
-              service={service}
-              serverIp={serverIp}
-              editingDomain={editingDomain}
-              newDomainHost={newDomainHost}
-              setNewDomainHost={setNewDomainHost}
-              onEditDomain={handleEditDomain}
-              onSaveDomain={handleSaveDomain}
-              onCancelEdit={() => setEditingDomain(null)}
-              onCopy={copyToClipboard}
-              onStart={handleStartService}
-              onStop={handleStopService}
-              onDelete={handleDeleteService}
-            />
+        <div className="space-y-6">
+          {grouped.map((project: any) => (
+            <div key={project.projectId} className="border border-border rounded-lg overflow-hidden">
+              <div className="bg-border-soft px-4 py-3 flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-ink m-0">{project.name}</h3>
+                {newEnvTarget === project.projectId ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newEnvName}
+                      onChange={(e) => setNewEnvName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleCreateEnvironment(project.projectId)}
+                      placeholder="Environment name…"
+                      className="px-2 py-1 border border-border rounded text-xs bg-paper-elevated text-ink"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => handleCreateEnvironment(project.projectId)}
+                      disabled={!newEnvName.trim()}
+                      className="px-2 py-1 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover disabled:bg-border"
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}
+                      className="px-2 py-1 bg-ink text-paper-elevated rounded text-xs hover:opacity-90"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setNewEnvTarget(project.projectId)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    + Environment
+                  </button>
+                )}
+              </div>
+              {project.environments.map((env: any) => (
+                <div key={env.environmentId} className="border-t border-border">
+                  <div className="px-4 py-2 bg-paper">
+                    <span className="text-sm font-medium text-ink-muted">{env.name}</span>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {env.services.length === 0 ? (
+                      <p className="text-ink-subtle text-sm italic">No services in this environment.</p>
+                    ) : (
+                      env.services.map((service: any) => (
+                        <ServiceCard
+                          key={service.composeId}
+                          service={service}
+                          serverIp={serverIp}
+                          editingDomain={editingDomain}
+                          newDomainHost={newDomainHost}
+                          setNewDomainHost={setNewDomainHost}
+                          onEditDomain={handleEditDomain}
+                          onSaveDomain={handleSaveDomain}
+                          onCancelEdit={() => setEditingDomain(null)}
+                          onCopy={copyToClipboard}
+                          onStart={handleStartService}
+                          onStop={handleStopService}
+                          onDelete={handleDeleteService}
+                          onMove={handleMoveService}
+                          allEnvironments={allEnvironments}
+                        />
+                      ))
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           ))}
         </div>
       )}
@@ -390,7 +543,10 @@ const DeployModal = ({
   loading,
   deployResult,
   onSubmit,
-  onClose
+  onClose,
+  environments,
+  selectedEnvironmentId,
+  setSelectedEnvironmentId,
 }: {
   preset: any;
   deployConfig: Record<string, string>;
@@ -399,12 +555,31 @@ const DeployModal = ({
   deployResult: any;
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
+  environments: { environmentId: string; label: string }[];
+  selectedEnvironmentId: string;
+  setSelectedEnvironmentId: (id: string) => void;
 }) => (
   <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50">
     <div className="bg-paper-elevated rounded-lg p-8 max-w-lg w-full max-h-[80vh] overflow-auto border border-border shadow-lg">
       <h2 className="text-2xl font-bold mt-0 text-ink">Deploy {preset.name}</h2>
       <p className="text-ink-muted">{preset.description}</p>
       <form onSubmit={onSubmit}>
+        <div className="mb-4">
+          <label className="block mb-2 font-medium text-ink">
+            Deploy into:
+            <select
+              value={selectedEnvironmentId}
+              onChange={(e) => setSelectedEnvironmentId(e.target.value)}
+              required
+              className="block w-full px-3 py-2 mt-1 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary bg-paper-elevated text-ink"
+            >
+              <option value="">Select environment…</option>
+              {environments.map((env) => (
+                <option key={env.environmentId} value={env.environmentId}>{env.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
         {preset.requiredConfig.map((field: any) => (
           <div key={field.id} className="mb-4">
             <label className="block mb-2 font-medium text-ink">
@@ -445,7 +620,7 @@ const DeployModal = ({
         <div className="flex gap-4 mt-6">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !selectedEnvironmentId}
             className="flex-1 px-4 py-3 bg-success text-paper-elevated rounded hover:opacity-90 disabled:bg-border disabled:cursor-not-allowed"
           >
             {loading ? 'Deploying...' : 'Deploy'}
@@ -467,26 +642,38 @@ const DeployModal = ({
 const DeploySection = () => {
   const { triggerRefresh } = useRefreshServices();
   const [presets, setPresets] = useState<any[]>([]);
+  const [environments, setEnvironments] = useState<{ environmentId: string; label: string }[]>([]);
   const [deployModalOpen, setDeployModalOpen] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<any>(null);
+  const [selectedEnvironmentId, setSelectedEnvironmentId] = useState('');
   const [deployConfig, setDeployConfig] = useState<Record<string, string>>({});
   const [deployResult, setDeployResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
+  const loadData = async () => {
+    try {
+      const [presetsResult, projectsResult] = await Promise.all([
+        trpc.listPresets.query(undefined),
+        trpc.listProjects.query(),
+      ]);
+      setPresets(presetsResult);
+      setEnvironments(
+        projectsResult.flatMap((p: any) =>
+          p.environments.map((e: any) => ({ environmentId: e.environmentId, label: `${p.name} → ${e.name}` }))
+        )
+      );
+    } catch (error) {
+      console.error('Error loading deploy data:', error);
+    }
+  };
+
   useEffect(() => {
-    const loadPresets = async () => {
-      try {
-        const result = await trpc.listPresets.query(undefined);
-        setPresets(result);
-      } catch (error) {
-        console.error('Error loading presets:', error);
-      }
-    };
-    loadPresets();
+    loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDeployClick = (preset: any) => {
+    loadData();
     setSelectedPreset(preset);
     const defaults: Record<string, string> = {};
     preset.requiredConfig.forEach((field: any) => {
@@ -494,6 +681,7 @@ const DeploySection = () => {
     });
     setDeployConfig(defaults);
     setDeployResult(null);
+    setSelectedEnvironmentId('');
     setDeployModalOpen(true);
   };
 
@@ -504,7 +692,8 @@ const DeploySection = () => {
     try {
       await trpc.deployService.mutate({
         presetId: selectedPreset.id,
-        config: deployConfig
+        config: deployConfig,
+        environmentId: selectedEnvironmentId || undefined,
       });
       toast.success('Service deployment started!');
       setDeployModalOpen(false);
@@ -546,6 +735,9 @@ const DeploySection = () => {
           deployResult={deployResult}
           onSubmit={handleDeploy}
           onClose={() => setDeployModalOpen(false)}
+          environments={environments}
+          selectedEnvironmentId={selectedEnvironmentId}
+          setSelectedEnvironmentId={setSelectedEnvironmentId}
         />
       )}
     </div>

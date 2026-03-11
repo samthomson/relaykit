@@ -170,6 +170,55 @@ export const appRouter = router({
     return presets
   }),
 
+  listProjects: protectedProcedure
+    .input(z.void())
+    .query(async () => {
+      const projects = await dokployFetch('/api/project.all')
+      return (projects as any[]).map((p) => ({
+        projectId: p.projectId,
+        name: p.name,
+        description: p.description ?? '',
+        environments: (p.environments || []).map((e: any) => ({
+          environmentId: e.environmentId,
+          name: e.name,
+        })),
+      }))
+    }),
+
+  createProject: protectedProcedure
+    .input(z.object({ name: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const created = await dokployFetch('/api/project.create', {
+        method: 'POST',
+        body: JSON.stringify({ name: input.name, description: '' }),
+      })
+      const all = await dokployFetch('/api/project.all')
+      const project = all.find((p: any) => p.projectId === created.projectId)
+      const env = project?.environments?.[0]
+      if (!env) throw new Error('No default environment after project creation')
+      return { projectId: created.projectId, environmentId: env.environmentId }
+    }),
+
+  createEnvironment: protectedProcedure
+    .input(z.object({ projectId: z.string(), name: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const created = await dokployFetch('/api/environment.create', {
+        method: 'POST',
+        body: JSON.stringify({ projectId: input.projectId, name: input.name }),
+      })
+      return { environmentId: created.environmentId }
+    }),
+
+  moveService: protectedProcedure
+    .input(z.object({ composeId: z.string(), targetEnvironmentId: z.string() }))
+    .mutation(async ({ input }) => {
+      await dokployFetch('/api/compose.move', {
+        method: 'POST',
+        body: JSON.stringify({ composeId: input.composeId, targetEnvironmentId: input.targetEnvironmentId }),
+      })
+      return { success: true }
+    }),
+
   listServices: protectedProcedure
     .input(z.void())
     .query(async ({ ctx }) => {
@@ -195,7 +244,9 @@ export const appRouter = router({
             createdAt: compose.createdAt,
             hostname: envVars[domainKey] || 'No hostname configured',
             domains: compose.domains || [],
+            projectId: project.projectId,
             projectName: project.name,
+            environmentId: environment.environmentId,
             environmentName: environment.name,
             type: presetData.type ?? null,
           })
@@ -352,14 +403,15 @@ export const appRouter = router({
   deployService: protectedProcedure
     .input(z.object({
       presetId: z.string(),
-      config: z.record(z.string(), z.string())
+      config: z.record(z.string(), z.string()),
+      environmentId: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       try {
         const presetDir = path.join(PRESETS_DIR, input.presetId)
         const composeContent = await fs.readFile(path.join(presetDir, 'docker-compose.yml'), 'utf-8')
         const envString = Object.entries(input.config).map(([k, v]) => `${k}=${v}`).join('\n')
-        const { environmentId } = await ensureADefaultProjectExistsForServices()
+        const environmentId = input.environmentId ?? (await ensureADefaultProjectExistsForServices()).environmentId
 
         const uniqueSuffix = Date.now()
         const composeName = `${input.presetId}-${uniqueSuffix}`
