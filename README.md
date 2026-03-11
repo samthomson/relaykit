@@ -141,10 +141,6 @@ RelayKit has two domain flows: **create a service (with domain in one go)** and 
 
 - [ ] one other relay type
 
-- [ ] change default project group for all projects to go into
-- [ ] let user specify a project/group for projects to go into
-- [ ] tidy ui, for how we present projects
-
 - [ ] can more things be exposed from stirfry, like whitelist kinds and users (and default blacklist all). and then how to reload to get this config?
 
 - [ ] expose volumes to user so they can manage (view/delete/optional: create service from volume)
