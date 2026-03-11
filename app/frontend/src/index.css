@@ -1,24 +1,34 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #007bff;
-  --color-primary-hover: #0056b3;
-  --color-success: #28a745;
-  --color-success-bg: #e8f5e9;
-  --color-success-text: #155724;
-  --color-error: #dc3545;
-  --color-error-bg: #ffebee;
-  --color-error-text: #721c24;
-  --color-warning: #ffc107;
-  --color-warning-text: #856404;
-  --color-gray-50: #f9f9f9;
-  --color-gray-100: #f0f0f0;
-  --color-gray-200: #ddd;
-  --color-gray-300: #ccc;
-  --color-gray-400: #999;
-  --color-gray-500: #666;
-  --color-gray-600: #555;
-  --color-gray-700: #444;
-  --color-gray-800: #333;
-  --color-gray-900: #222;
+  /* Paper & earth palette */
+  --color-paper: #f5f0e8;
+  --color-paper-elevated: #fdfbf7;
+  --color-ink: #3d3630;
+  --color-ink-muted: #6b6258;
+  --color-ink-subtle: #8a8178;
+  --color-border: #e5dfd5;
+  --color-border-soft: #ebe7df;
+
+  /* Primary: terracotta / clay */
+  --color-primary: #b87333;
+  --color-primary-hover: #9d6230;
+
+  /* Semantic (muted earth tones) */
+  --color-success: #5a7d5a;
+  --color-success-bg: #eef4ee;
+  --color-success-text: #2d4a2d;
+  --color-error: #a65d5d;
+  --color-error-bg: #f8ecec;
+  --color-error-text: #6b3d3d;
+  --color-warning: #c9a227;
+  --color-warning-bg: #faf6e8;
+  --color-warning-text: #6b5a1a;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+  }
 }

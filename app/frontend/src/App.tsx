@@ -17,11 +17,11 @@ const dnsRecordNameForHost = (host: string): { zone: string; name: string } => {
 const RelayExplorerModal = ({ relayUrl, onClose }: { relayUrl: string; onClose: () => void }) => {
   const explorerUrl = `https://relay-explorer.shakespeare.wtf/?relay=${encodeURIComponent(relayUrl)}`;
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg w-[90vw] h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center p-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold m-0">Relay Explorer</h2>
-          <button onClick={onClose} className="px-3 py-1.5 bg-gray-600 text-white rounded hover:opacity-90 text-sm">Close</button>
+    <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-paper-elevated rounded-lg w-[90vw] h-[90vh] flex flex-col border border-border shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center p-4 border-b border-border">
+          <h2 className="text-xl font-bold m-0 text-ink">Relay Explorer</h2>
+          <button onClick={onClose} className="px-3 py-1.5 bg-ink text-paper-elevated rounded hover:opacity-90 text-sm">Close</button>
         </div>
         <iframe src={explorerUrl} className="flex-1 w-full border-0" title="Relay Explorer" />
       </div>
@@ -32,11 +32,11 @@ const RelayExplorerModal = ({ relayUrl, onClose }: { relayUrl: string; onClose: 
 const BlossomExplorerModal = ({ serverUrl, onClose }: { serverUrl: string; onClose: () => void }) => {
   const explorerUrl = `https://blossom-explorer.shakespeare.wtf/?server=${encodeURIComponent(serverUrl)}`;
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg w-[90vw] h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center p-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold m-0">Blossom Explorer</h2>
-          <button onClick={onClose} className="px-3 py-1.5 bg-gray-600 text-white rounded hover:opacity-90 text-sm">Close</button>
+    <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-paper-elevated rounded-lg w-[90vw] h-[90vh] flex flex-col border border-border shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center p-4 border-b border-border">
+          <h2 className="text-xl font-bold m-0 text-ink">Blossom Explorer</h2>
+          <button onClick={onClose} className="px-3 py-1.5 bg-ink text-paper-elevated rounded hover:opacity-90 text-sm">Close</button>
         </div>
         <iframe src={explorerUrl} className="flex-1 w-full border-0" title="Blossom Explorer" />
       </div>
@@ -83,8 +83,8 @@ const ServiceCard = ({
   const wssUrl = domain ? `wss://${domain.host}` : '';
 
   const deploymentPillColor =
-    service.status === 'running' ? 'bg-green-100 text-green-800' :
-    service.status === 'error' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-700';
+    service.status === 'running' ? 'bg-success-bg text-success-text' :
+    service.status === 'error' ? 'bg-error-bg text-error-text' : 'bg-border-soft text-ink-muted';
   return (
     <>
       {showExplorer && domain && (
@@ -93,25 +93,25 @@ const ServiceCard = ({
       {showBlossomExplorer && domain && (
         <BlossomExplorerModal serverUrl={httpsUrl} onClose={() => setShowBlossomExplorer(false)} />
       )}
-      <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+      <div className="bg-paper-elevated border border-border rounded-lg p-4 shadow-sm">
         <div className="flex justify-between items-start gap-4">
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold m-0 text-gray-900 truncate">
+            <h3 className="text-lg font-semibold m-0 text-ink truncate">
               {domain ? domain.host : service.name}
             </h3>
-            <ul className="mt-3 pl-4 space-y-1.5 text-sm text-gray-600 list-none border-l-2 border-gray-200 ml-1">
+            <ul className="mt-3 pl-4 space-y-1.5 text-sm text-ink-muted list-none border-l-2 border-border ml-1">
               <li className="flex items-center gap-2">
-                <span className="text-gray-400 font-medium w-20 shrink-0">ID</span>
+                <span className="text-ink-subtle font-medium w-20 shrink-0">ID</span>
                 <span className="font-mono text-xs truncate" title={service.name}>{service.name}</span>
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-gray-400 font-medium w-20 shrink-0">Service</span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 inline-block">
+                <span className="text-ink-subtle font-medium w-20 shrink-0">Service</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary inline-block">
                   {service.serviceType}
                 </span>
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-gray-400 font-medium w-20 shrink-0">Deployment</span>
+                <span className="text-ink-subtle font-medium w-20 shrink-0">Deployment</span>
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium inline-block ${deploymentPillColor}`}>
                   {service.status}
                 </span>
@@ -119,7 +119,7 @@ const ServiceCard = ({
               {domain && (
                 <>
                   <li className="flex items-center gap-2 flex-wrap">
-                    <span className="text-gray-400 font-medium w-20 shrink-0">HTTPS</span>
+                    <span className="text-ink-subtle font-medium w-20 shrink-0">HTTPS</span>
                     <a
                       href={httpsUrl}
                       target="_blank"
@@ -130,14 +130,14 @@ const ServiceCard = ({
                     </a>
                     <button
                       onClick={() => onCopy(httpsUrl)}
-                      className="shrink-0 px-2 py-0.5 text-xs rounded border border-gray-200 bg-white hover:bg-gray-50 text-gray-600"
+                      className="shrink-0 px-2 py-0.5 text-xs rounded border border-border bg-paper-elevated hover:bg-border-soft text-ink-muted"
                     >
                       Copy
                     </button>
                     {service.type === 'blossom' && (
                       <button
                         onClick={() => setShowBlossomExplorer(true)}
-                        className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-white hover:bg-primary/5 text-primary"
+                        className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary"
                       >
                         Explore
                       </button>
@@ -145,17 +145,17 @@ const ServiceCard = ({
                   </li>
                   {service.type === 'relay' && (
                     <li className="flex items-center gap-2 flex-wrap">
-                      <span className="text-gray-400 font-medium w-20 shrink-0">WSS</span>
+                      <span className="text-ink-subtle font-medium w-20 shrink-0">WSS</span>
                       <span className="font-mono text-xs truncate">{wssUrl}</span>
                       <button
                         onClick={() => onCopy(wssUrl)}
-                        className="shrink-0 px-2 py-0.5 text-xs rounded border border-gray-200 bg-white hover:bg-gray-50 text-gray-600"
+                        className="shrink-0 px-2 py-0.5 text-xs rounded border border-border bg-paper-elevated hover:bg-border-soft text-ink-muted"
                       >
                         Copy
                       </button>
                       <button
                         onClick={() => setShowExplorer(true)}
-                        className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-white hover:bg-primary/5 text-primary"
+                        className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary"
                       >
                         Explore
                       </button>
@@ -164,17 +164,17 @@ const ServiceCard = ({
                 </>
               )}
             {domain && serverIp && (
-              <li className="flex flex-col gap-2 pt-2 mt-2 border-t border-gray-100">
-                <span className="text-gray-400 font-medium text-xs uppercase tracking-wide">DNS Setup</span>
-                <p className="text-sm text-gray-600 m-0">
+              <li className="flex flex-col gap-2 pt-2 mt-2 border-t border-border-soft">
+                <span className="text-ink-subtle font-medium text-xs uppercase tracking-wide">DNS Setup</span>
+                <p className="text-sm text-ink-muted m-0">
                   Add this A record to <strong>{dnsRecordNameForHost(domain.host).zone}</strong>:
                 </p>
-                <div className="bg-gray-50 rounded px-3 py-2 text-sm font-mono flex items-center justify-between">
-                  <span><strong>{dnsRecordNameForHost(domain.host).name}</strong> → {serverIp}</span>
+                <div className="bg-paper rounded px-3 py-2 text-sm font-mono flex items-center justify-between text-ink-muted">
+                  <span><strong className="text-ink">{dnsRecordNameForHost(domain.host).name}</strong> → {serverIp}</span>
                   <button
                     type="button"
                     onClick={() => onCopy(serverIp)}
-                    className="ml-2 p-1 text-gray-500 hover:text-gray-700"
+                    className="ml-2 p-1 text-ink-subtle hover:text-ink"
                     title="Copy IP address"
                   >
                     📋
@@ -184,36 +184,36 @@ const ServiceCard = ({
             )}
             {isEditing && domain && (
               <li className="flex items-center gap-2 pt-1">
-                <span className="text-gray-400 font-medium w-20 shrink-0">Host</span>
+                <span className="text-ink-subtle font-medium w-20 shrink-0">Host</span>
                 <input
                   type="text"
                   value={newDomainHost}
                   onChange={(e) => setNewDomainHost(e.target.value)}
-                  className="px-2 py-1 border border-gray-200 rounded text-xs flex-1 max-w-xs"
+                  className="px-2 py-1 border border-border rounded text-xs flex-1 max-w-xs bg-paper-elevated text-ink"
                 />
-                <button onClick={onSaveDomain} className="px-2 py-1 bg-success text-white rounded text-xs hover:opacity-90 shrink-0">
+                <button onClick={onSaveDomain} className="px-2 py-1 bg-success text-paper-elevated rounded text-xs hover:opacity-90 shrink-0">
                   Save
                 </button>
-                <button onClick={onCancelEdit} className="px-2 py-1 bg-gray-600 text-white rounded text-xs hover:opacity-90 shrink-0">
+                <button onClick={onCancelEdit} className="px-2 py-1 bg-ink text-paper-elevated rounded text-xs hover:opacity-90 shrink-0">
                   Cancel
                 </button>
               </li>
             )}
             <li className="flex items-center gap-2">
-              <span className="text-gray-400 font-medium w-20 shrink-0">Created</span>
+              <span className="text-ink-subtle font-medium w-20 shrink-0">Created</span>
               <span>{createdStr}</span>
-              <span className="text-gray-400">({createdAgo})</span>
+              <span className="text-ink-subtle">({createdAgo})</span>
             </li>
           </ul>
           {!domain && (
-            <p className="mt-2 pl-5 text-gray-400 text-xs italic">No domain configured</p>
+            <p className="mt-2 pl-5 text-ink-subtle text-xs italic">No domain configured</p>
           )}
         </div>
         <div className="flex gap-2 shrink-0">
           {domain && !isEditing && (
             <button
               onClick={() => onEditDomain(service.composeId, domain)}
-              className="px-2 py-1.5 bg-primary text-white rounded text-xs hover:bg-primary-hover"
+              className="px-2 py-1.5 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover"
             >
               Edit
             </button>
@@ -221,21 +221,21 @@ const ServiceCard = ({
           {service.status === 'running' ? (
             <button
               onClick={() => onStop(service.composeId)}
-              className="px-4 py-2 bg-warning text-black rounded hover:opacity-90 text-sm"
+              className="px-4 py-2 bg-warning text-warning-text rounded hover:opacity-90 text-sm"
             >
               Stop
             </button>
           ) : (
             <button
               onClick={() => onStart(service.composeId)}
-              className="px-4 py-2 bg-success text-white rounded hover:opacity-90 text-sm"
+              className="px-4 py-2 bg-success text-paper-elevated rounded hover:opacity-90 text-sm"
             >
               Start
             </button>
           )}
           <button
             onClick={() => onDelete(service.composeId, service.name)}
-            className="px-4 py-2 bg-error text-white rounded hover:opacity-90 text-sm"
+            className="px-4 py-2 bg-error text-paper-elevated rounded hover:opacity-90 text-sm"
           >
             Delete
           </button>
@@ -347,17 +347,17 @@ const ServiceList = () => {
   return (
     <div className="mt-12">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold m-0">Deployed Services</h2>
+        <h2 className="text-2xl font-bold m-0 text-ink">Deployed Services</h2>
         <button
           onClick={loadServices}
           disabled={loading}
-          className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-hover disabled:bg-gray-300 disabled:cursor-not-allowed text-sm"
+          className="px-4 py-2 bg-primary text-paper-elevated rounded hover:bg-primary-hover disabled:bg-border disabled:cursor-not-allowed text-sm"
         >
           {loading ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
       {services.length === 0 ? (
-        <p className="text-gray-500 italic">No services deployed yet. Deploy your first service below!</p>
+        <p className="text-ink-muted italic">No services deployed yet. Deploy your first service below!</p>
       ) : (
         <div className="space-y-4">
           {services.map((service) => (
@@ -400,21 +400,21 @@ const DeployModal = ({
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
 }) => (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg p-8 max-w-lg w-full max-h-[80vh] overflow-auto">
-      <h2 className="text-2xl font-bold mt-0">Deploy {preset.name}</h2>
-      <p className="text-gray-500">{preset.description}</p>
+  <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50">
+    <div className="bg-paper-elevated rounded-lg p-8 max-w-lg w-full max-h-[80vh] overflow-auto border border-border shadow-lg">
+      <h2 className="text-2xl font-bold mt-0 text-ink">Deploy {preset.name}</h2>
+      <p className="text-ink-muted">{preset.description}</p>
       <form onSubmit={onSubmit}>
         {preset.requiredConfig.map((field: any) => (
           <div key={field.id} className="mb-4">
-            <label className="block mb-2 font-medium">
+            <label className="block mb-2 font-medium text-ink">
               {field.name}:
               {field.type === 'select' ? (
                 <select
                   value={deployConfig[field.id] || field.default || ''}
                   onChange={(e) => setDeployConfig({ ...deployConfig, [field.id]: e.target.value })}
                   required={field.required}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="block w-full px-3 py-2 mt-1 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary bg-paper-elevated text-ink"
                 >
                   {field.options?.map((option: any) => (
                     <option key={option.value} value={option.value}>
@@ -429,15 +429,15 @@ const DeployModal = ({
                   onChange={(e) => setDeployConfig({ ...deployConfig, [field.id]: e.target.value })}
                   required={field.required}
                   placeholder={field.placeholder || field.description}
-                  className="block w-full px-3 py-2 mt-1 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="block w-full px-3 py-2 mt-1 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary bg-paper-elevated text-ink"
                 />
               )}
             </label>
-            {field.description && <small className="text-gray-500 text-xs">{field.description}</small>}
+            {field.description && <small className="text-ink-muted text-xs">{field.description}</small>}
           </div>
         ))}
         {deployResult && (
-          <div className={`mb-4 p-4 rounded ${deployResult.error ? 'bg-error-bg' : 'bg-success-bg'}`}>
+          <div className={`mb-4 p-4 rounded ${deployResult.error ? 'bg-error-bg text-error-text' : 'bg-success-bg text-success-text'}`}>
             <strong>{deployResult.error ? 'Error:' : 'Success!'}</strong>
             <pre className="mt-2 text-xs whitespace-pre-wrap">{JSON.stringify(deployResult, null, 2)}</pre>
           </div>
@@ -446,7 +446,7 @@ const DeployModal = ({
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 px-4 py-3 bg-success text-white rounded hover:opacity-90 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 bg-success text-paper-elevated rounded hover:opacity-90 disabled:bg-border disabled:cursor-not-allowed"
           >
             {loading ? 'Deploying...' : 'Deploy'}
           </button>
@@ -454,7 +454,7 @@ const DeployModal = ({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="flex-1 px-4 py-3 bg-gray-600 text-white rounded hover:opacity-90 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 bg-ink text-paper-elevated rounded hover:opacity-90 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
@@ -520,23 +520,23 @@ const DeploySection = () => {
 
   return (
     <div className="mt-12">
-      <h2 className="text-2xl font-bold">Deploy a Service</h2>
-      <p className="text-gray-500">Choose a Nostr service to deploy:</p>
+      <h2 className="text-2xl font-bold text-ink">Deploy a Service</h2>
+      <p className="text-ink-muted">Choose a Nostr service to deploy:</p>
       <div className="mt-4 grid gap-4 grid-cols-[repeat(auto-fill,minmax(250px,1fr))]">
         {presets.map((preset) => (
-          <div key={preset.id} className="p-6 border border-gray-200 rounded-lg bg-white">
-            <h3 className="text-lg font-semibold m-0 mb-2">{preset.name}</h3>
-            <p className="text-gray-500 text-sm m-0 mb-4">{preset.description}</p>
+          <div key={preset.id} className="p-6 border border-border rounded-lg bg-paper-elevated">
+            <h3 className="text-lg font-semibold m-0 mb-2 text-ink">{preset.name}</h3>
+            <p className="text-ink-muted text-sm m-0 mb-4">{preset.description}</p>
             <button
               onClick={() => handleDeployClick(preset)}
-              className="w-full px-4 py-3 bg-success text-white rounded hover:opacity-90 text-sm font-medium"
+              className="w-full px-4 py-3 bg-success text-paper-elevated rounded hover:opacity-90 text-sm font-medium"
             >
               Deploy {preset.name}
             </button>
           </div>
         ))}
       </div>
-      {presets.length === 0 && <p className="text-gray-400 italic">No services available yet.</p>}
+      {presets.length === 0 && <p className="text-ink-subtle italic">No services available yet.</p>}
       {deployModalOpen && selectedPreset && (
         <DeployModal
           preset={selectedPreset}
@@ -579,15 +579,15 @@ const LoginScreen = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold mb-2">RelayKit</h1>
-        <p className="text-gray-600 mb-8">Nostr service deployment platform</p>
+    <div className="min-h-screen flex items-center justify-center bg-paper">
+      <div className="max-w-md w-full p-8 bg-paper-elevated rounded-lg shadow-lg border border-border">
+        <h1 className="text-3xl font-bold mb-2 text-ink">RelayKit</h1>
+        <p className="text-ink-muted mb-8">Nostr service deployment platform</p>
 
         {!hasNostrExtension ? (
-          <div className="p-4 bg-warning-bg rounded-lg">
-            <p className="font-semibold mb-2">Nostr Extension Required</p>
-            <p className="text-sm text-gray-600 mb-4">
+          <div className="p-4 bg-warning-bg rounded-lg border border-warning/30">
+            <p className="font-semibold mb-2 text-warning-text">Nostr Extension Required</p>
+            <p className="text-sm text-ink-muted mb-4">
               Please install a Nostr browser extension to continue:
             </p>
             <ul className="text-sm space-y-2">
@@ -615,7 +615,7 @@ const LoginScreen = () => {
           <button
             onClick={handleLogin}
             disabled={loggingIn}
-            className="w-full px-6 py-3 bg-primary text-white rounded hover:bg-primary-hover disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+            className="w-full px-6 py-3 bg-primary text-paper-elevated rounded hover:bg-primary-hover disabled:bg-border disabled:cursor-not-allowed transition-colors font-medium"
           >
             {loggingIn ? 'Signing in...' : 'Sign in with Nostr'}
           </button>
@@ -626,10 +626,10 @@ const LoginScreen = () => {
 };
 
 const DokployConnectionAlert = ({ message }: { message: string }) => (
-  <div className="p-6 bg-red-50 border border-red-200 rounded-lg" role="alert">
-    <p className="font-semibold text-red-800 m-0">Dokploy connection problem</p>
-    <p className="text-red-700 text-sm mt-2 m-0">{message}</p>
-    <p className="text-red-600 text-sm mt-2 m-0">
+  <div className="p-6 bg-error-bg border border-error/40 rounded-lg" role="alert">
+    <p className="font-semibold text-error-text m-0">Dokploy connection problem</p>
+    <p className="text-error-text text-sm mt-2 m-0">{message}</p>
+    <p className="text-error-text/90 text-sm mt-2 m-0">
       To fix: run the setup script with your npub, or add a valid Dokploy API key to the bootstrap key file (see README).
     </p>
   </div>
@@ -687,34 +687,34 @@ const App = () => {
   }
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="p-8 max-w-3xl mx-auto min-h-screen">
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h1 className="text-4xl font-bold">RelayKit</h1>
-          <p className="text-gray-600">Nostr service deployment platform</p>
+          <h1 className="text-4xl font-bold text-ink">RelayKit</h1>
+          <p className="text-ink-muted">Nostr service deployment platform</p>
         </div>
         <div className="text-right">
-          <p className="text-sm text-gray-500 mb-2">
+          <p className="text-sm text-ink-subtle mb-2">
             {npub ? `${npub.slice(0, 8)}...${npub.slice(-4)}` : ''}
           </p>
           <button
             onClick={logout}
-            className="text-sm text-gray-600 hover:text-gray-900 underline"
+            className="text-sm text-ink-muted hover:text-ink underline"
           >
             Logout
           </button>
           <button
             onClick={() => setShowDebug(!showDebug)}
-            className="text-xs text-gray-400 hover:text-gray-600 underline ml-2"
+            className="text-xs text-ink-subtle hover:text-ink-muted underline ml-2"
           >
             {showDebug ? 'Hide' : 'Debug'}
           </button>
         </div>
       </div>
       {showDebug && debugInfo && (
-        <div className="mb-4 p-4 bg-gray-100 rounded text-xs font-mono">
-          <div><strong>NPub:</strong> {debugInfo.npub}</div>
-          <div><strong>Dokploy Key:</strong> {debugInfo.dokployApiKey?.slice(0, 20)}...</div>
+        <div className="mb-4 p-4 bg-border-soft rounded text-xs font-mono text-ink-muted">
+          <div><strong className="text-ink">NPub:</strong> {debugInfo.npub}</div>
+          <div><strong className="text-ink">Dokploy Key:</strong> {debugInfo.dokployApiKey?.slice(0, 20)}...</div>
         </div>
       )}
       {dokployConnectionError ? (
@@ -723,7 +723,7 @@ const App = () => {
         <>
           <DokployInitialCheck />
           {!dokployReady ? (
-            <p className="text-gray-500">Loading…</p>
+            <p className="text-ink-muted">Loading…</p>
           ) : (
             <>
               <ServiceList />
