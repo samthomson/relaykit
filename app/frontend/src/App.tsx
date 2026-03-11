@@ -395,10 +395,10 @@ const ServiceList = () => {
     try {
       await trpc.createProject.mutate({ name: newProjectName.trim() });
       setNewProjectName('');
-      toast.success('Project created');
+      toast.success('Group created');
       await loadData();
     } catch (error: any) {
-      toast.error(`Failed to create project: ${error.message}`);
+      toast.error(`Failed to create group: ${error.message}`);
     } finally {
       setCreatingProject(false);
     }
@@ -438,6 +438,8 @@ const ServiceList = () => {
     })),
   }));
 
+  const isDefaultProject = (name: string) => name === 'relaykit.ungrouped';
+
   return (
     <div className="mt-12">
       <div className="flex justify-between items-center mb-4">
@@ -451,69 +453,23 @@ const ServiceList = () => {
         </button>
       </div>
 
-      <div className="flex items-center gap-2 mb-6">
-        <input
-          type="text"
-          value={newProjectName}
-          onChange={(e) => setNewProjectName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
-          placeholder="New project name…"
-          className="px-3 py-1.5 border border-border rounded text-sm bg-paper-elevated text-ink flex-1 max-w-xs"
-        />
-        <button
-          onClick={handleCreateProject}
-          disabled={creatingProject || !newProjectName.trim()}
-          className="px-3 py-1.5 bg-primary text-paper-elevated rounded text-sm hover:bg-primary-hover disabled:bg-border disabled:cursor-not-allowed"
-        >
-          Create Project
-        </button>
-      </div>
-
       {grouped.length === 0 ? (
-        <p className="text-ink-muted italic">No projects yet.</p>
+        <p className="text-ink-muted italic">No groups yet.</p>
       ) : (
         <div className="space-y-6">
           {grouped.map((project: any) => (
             <div key={project.projectId} className="border border-border rounded-lg overflow-hidden">
-              <div className="bg-border-soft px-4 py-3 flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-ink m-0">{project.name}</h3>
-                {newEnvTarget === project.projectId ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={newEnvName}
-                      onChange={(e) => setNewEnvName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleCreateEnvironment(project.projectId)}
-                      placeholder="Environment name…"
-                      className="px-2 py-1 border border-border rounded text-xs bg-paper-elevated text-ink"
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => handleCreateEnvironment(project.projectId)}
-                      disabled={!newEnvName.trim()}
-                      className="px-2 py-1 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover disabled:bg-border"
-                    >
-                      Add
-                    </button>
-                    <button
-                      onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}
-                      className="px-2 py-1 bg-ink text-paper-elevated rounded text-xs hover:opacity-90"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setNewEnvTarget(project.projectId)}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    + Environment
-                  </button>
-                )}
-              </div>
-              {project.environments.map((env: any) => (
+              {!isDefaultProject(project.name) && (
+                <div className="bg-border-soft px-4 py-3">
+                  <h3 className="text-lg font-semibold text-ink m-0">{project.name}</h3>
+                </div>
+              )}
+              {project.environments.map((env: any) => {
+                const isDefaultEnv = (env.name === 'default' || env.name === 'production') && project.environments.length === 1;
+                return (
                 <div key={env.environmentId} className="border-t border-border">
-                  <div className="px-4 py-2 bg-paper flex items-center gap-2">
+                  {(renamingEnvId === env.environmentId || !isDefaultEnv) && (
+                  <div className="px-4 py-2 bg-paper flex items-center gap-2 group/env">
                     {renamingEnvId === env.environmentId ? (
                       <>
                         <input
@@ -543,13 +499,17 @@ const ServiceList = () => {
                         <span className="text-sm font-medium text-ink-muted">{env.name}</span>
                         <button
                           onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }}
-                          className="text-xs text-ink-subtle hover:text-primary"
+                          className="text-ink-subtle/30 hover:text-primary transition-colors"
+                          title="Rename environment"
                         >
-                          Rename
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                            <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" />
+                          </svg>
                         </button>
                       </>
                     )}
                   </div>
+                  )}
                   <div className="p-4 space-y-3">
                     {env.services.length === 0 ? (
                       <p className="text-ink-subtle text-sm italic">No services in this environment.</p>
@@ -576,11 +536,63 @@ const ServiceList = () => {
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
+              {newEnvTarget === project.projectId ? (
+                <div className="border-t border-border px-4 py-3 flex items-center gap-2 bg-paper">
+                  <input
+                    type="text"
+                    value={newEnvName}
+                    onChange={(e) => setNewEnvName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateEnvironment(project.projectId)}
+                    placeholder="Environment name…"
+                    className="px-2 py-1 border border-border rounded text-xs bg-paper-elevated text-ink"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => handleCreateEnvironment(project.projectId)}
+                    disabled={!newEnvName.trim()}
+                    className="px-2 py-1 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover disabled:bg-border"
+                  >
+                    Add
+                  </button>
+                  <button
+                    onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}
+                    className="px-2 py-1 bg-ink text-paper-elevated rounded text-xs hover:opacity-90"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setNewEnvTarget(project.projectId)}
+                  className="w-full border-t border-border px-4 py-2.5 text-xs text-primary hover:bg-border-soft/50 transition-colors text-left"
+                >
+                  + Add an environment within this group
+                </button>
+              )}
             </div>
           ))}
         </div>
       )}
+
+      <div className="flex items-center gap-2 mt-6">
+        <input
+          type="text"
+          value={newProjectName}
+          onChange={(e) => setNewProjectName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
+          placeholder="New group name…"
+          className="px-3 py-1.5 border border-border rounded text-sm bg-paper-elevated text-ink flex-1 max-w-xs"
+        />
+        <button
+          onClick={handleCreateProject}
+          disabled={creatingProject || !newProjectName.trim()}
+          className="px-3 py-1.5 bg-primary text-paper-elevated rounded text-sm hover:bg-primary-hover disabled:bg-border disabled:cursor-not-allowed"
+        >
+          Create Group
+        </button>
+      </div>
     </div>
   );
 };

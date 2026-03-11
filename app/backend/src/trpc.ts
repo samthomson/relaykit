@@ -174,15 +174,21 @@ export const appRouter = router({
     .input(z.void())
     .query(async () => {
       const projects = await dokployFetch('/api/project.all')
-      return (projects as any[]).map((p) => ({
-        projectId: p.projectId,
-        name: p.name,
-        description: p.description ?? '',
-        environments: (p.environments || []).map((e: any) => ({
-          environmentId: e.environmentId,
-          name: e.name,
-        })),
-      }))
+      return (projects as any[])
+        .map((p) => ({
+          projectId: p.projectId,
+          name: p.name,
+          description: p.description ?? '',
+          createdAt: p.createdAt ?? null,
+          environments: (p.environments || [])
+            .map((e: any) => ({
+              environmentId: e.environmentId,
+              name: e.name,
+              createdAt: e.createdAt ?? null,
+            }))
+            .sort((a: any, b: any) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()),
+        }))
+        .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime())
     }),
 
   createProject: protectedProcedure
@@ -192,11 +198,10 @@ export const appRouter = router({
         method: 'POST',
         body: JSON.stringify({ name: input.name, description: '' }),
       })
-      const all = await dokployFetch('/api/project.all')
-      const project = all.find((p: any) => p.projectId === created.projectId)
-      const env = project?.environments?.[0]
-      if (!env) throw new Error('No default environment after project creation')
-      return { projectId: created.projectId, environmentId: env.environmentId }
+      return {
+        projectId: created.project.projectId,
+        environmentId: created.environment.environmentId,
+      }
     }),
 
   createEnvironment: protectedProcedure
