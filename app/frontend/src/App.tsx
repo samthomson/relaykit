@@ -763,9 +763,10 @@ const ServiceList = () => {
                 </div>
               )}
               {project.environments.map((env: any) => {
+                const isDefaultEnv = env.isDefault === true;
                 return (
                 <div key={env.environmentId} className="border-t border-border">
-                  <div className="px-4 py-2 bg-paper flex items-center gap-2 group/env">
+                  <div className="px-4 py-2.5 bg-paper-elevated/30 flex items-center gap-2 group/env border-l-2 border-l-primary/20">
                     {renamingEnvId === env.environmentId ? (
                       <>
                         <input
@@ -792,16 +793,18 @@ const ServiceList = () => {
                       </>
                     ) : (
                       <>
-                        <span className="text-sm font-medium text-ink-muted">{env.name}</span>
-                        <button
-                          onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }}
-                          className="text-ink-subtle/30 hover:text-primary transition-colors"
-                          title="Rename environment"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                            <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" />
-                          </svg>
-                        </button>
+                        <span className="text-sm font-medium text-ink">{env.name}</span>
+                        {!isDefaultEnv && (
+                          <button
+                            onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }}
+                            className="text-ink-subtle/30 hover:text-primary transition-colors"
+                            title="Rename environment"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                              <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" />
+                            </svg>
+                          </button>
+                        )}
                         <div className="flex-1" />
                         <CogMenu items={[
                           { label: 'Delete environment', onClick: () => openDeleteEnvConfirm(env.environmentId, env.name), danger: true },
