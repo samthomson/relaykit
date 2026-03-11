@@ -209,6 +209,16 @@ export const appRouter = router({
       return { environmentId: created.environmentId }
     }),
 
+  renameEnvironment: protectedProcedure
+    .input(z.object({ environmentId: z.string(), name: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      await dokployFetch('/api/environment.update', {
+        method: 'POST',
+        body: JSON.stringify({ environmentId: input.environmentId, name: input.name }),
+      })
+      return { success: true }
+    }),
+
   moveService: protectedProcedure
     .input(z.object({ composeId: z.string(), targetEnvironmentId: z.string() }))
     .mutation(async ({ input }) => {

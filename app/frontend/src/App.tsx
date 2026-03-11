@@ -282,6 +282,8 @@ const ServiceList = () => {
   const [creatingProject, setCreatingProject] = useState(false);
   const [newEnvTarget, setNewEnvTarget] = useState<string | null>(null);
   const [newEnvName, setNewEnvName] = useState('');
+  const [renamingEnvId, setRenamingEnvId] = useState<string | null>(null);
+  const [renameEnvValue, setRenameEnvValue] = useState('');
 
   const allEnvironments: { environmentId: string; label: string }[] = projects.flatMap((p: any) =>
     p.environments.map((e: any) => ({ environmentId: e.environmentId, label: `${p.name} → ${e.name}` }))
@@ -415,6 +417,19 @@ const ServiceList = () => {
     }
   };
 
+  const handleRenameEnvironment = async (environmentId: string) => {
+    if (!renameEnvValue.trim()) return;
+    try {
+      await trpc.renameEnvironment.mutate({ environmentId, name: renameEnvValue.trim() });
+      setRenamingEnvId(null);
+      setRenameEnvValue('');
+      toast.success('Environment renamed');
+      await loadData();
+    } catch (error: any) {
+      toast.error(`Failed to rename environment: ${error.message}`);
+    }
+  };
+
   const grouped = projects.map((project: any) => ({
     ...project,
     environments: project.environments.map((env: any) => ({
@@ -498,8 +513,42 @@ const ServiceList = () => {
               </div>
               {project.environments.map((env: any) => (
                 <div key={env.environmentId} className="border-t border-border">
-                  <div className="px-4 py-2 bg-paper">
-                    <span className="text-sm font-medium text-ink-muted">{env.name}</span>
+                  <div className="px-4 py-2 bg-paper flex items-center gap-2">
+                    {renamingEnvId === env.environmentId ? (
+                      <>
+                        <input
+                          type="text"
+                          value={renameEnvValue}
+                          onChange={(e) => setRenameEnvValue(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleRenameEnvironment(env.environmentId)}
+                          className="px-2 py-0.5 border border-border rounded text-sm bg-paper-elevated text-ink"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleRenameEnvironment(env.environmentId)}
+                          disabled={!renameEnvValue.trim()}
+                          className="px-2 py-0.5 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover disabled:bg-border"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => { setRenamingEnvId(null); setRenameEnvValue(''); }}
+                          className="px-2 py-0.5 bg-ink text-paper-elevated rounded text-xs hover:opacity-90"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-sm font-medium text-ink-muted">{env.name}</span>
+                        <button
+                          onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }}
+                          className="text-xs text-ink-subtle hover:text-primary"
+                        >
+                          Rename
+                        </button>
+                      </>
+                    )}
                   </div>
                   <div className="p-4 space-y-3">
                     {env.services.length === 0 ? (
