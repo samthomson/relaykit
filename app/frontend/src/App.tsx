@@ -763,10 +763,8 @@ const ServiceList = () => {
                 </div>
               )}
               {project.environments.map((env: any) => {
-                const isDefaultEnv = (env.name === 'default' || env.name === 'production') && project.environments.length === 1;
                 return (
                 <div key={env.environmentId} className="border-t border-border">
-                  {(renamingEnvId === env.environmentId || !isDefaultEnv) && (
                   <div className="px-4 py-2 bg-paper flex items-center gap-2 group/env">
                     {renamingEnvId === env.environmentId ? (
                       <>
@@ -811,7 +809,6 @@ const ServiceList = () => {
                       </>
                     )}
                   </div>
-                  )}
                   <div className="p-4 space-y-3">
                     {env.services.length === 0 ? (
                       <p className="text-ink-subtle text-sm italic">No services in this environment.</p>
