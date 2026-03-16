@@ -339,6 +339,10 @@ const ServiceCard = ({
   const [showExplorer, setShowExplorer] = useState(false);
   const [showBlossomExplorer, setShowBlossomExplorer] = useState(false);
   const domain = service.domains?.[0];
+  const whitelistedPubkeys: string[] = service.whitelistedPubkeys || [];
+  const whitelistedKinds: string[] = service.whitelistedKinds || [];
+  const blacklistedKinds: string[] = service.blacklistedKinds || [];
+  const requireNip42: boolean = !!service.requireNip42;
 
   const isEditing = editingDomain?.domainId === domain?.domainId;
   const createdAt = new Date(service.createdAt);
@@ -346,6 +350,32 @@ const ServiceCard = ({
   const createdAgo = formatDistanceToNow(createdAt, { addSuffix: true });
   const httpsUrl = domain ? `https://${domain.host}` : '';
   const wssUrl = domain ? `wss://${domain.host}` : '';
+
+  const ConfigPills = ({
+    label,
+    values,
+    tone,
+  }: {
+    label: string;
+    values: string[];
+    tone: 'green' | 'red';
+  }) => (
+    <li className="flex items-start gap-2 flex-wrap">
+      <span className="text-ink-subtle font-medium w-20 shrink-0">{label}</span>
+      {values.map((value, i) => (
+        <span
+          key={`${label}-${value}-${i}`}
+          className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
+            tone === 'green'
+              ? 'bg-success-bg text-success-text border-success/30'
+              : 'bg-error-bg text-error-text border-error/30'
+          }`}
+        >
+          {value}
+        </span>
+      ))}
+    </li>
+  );
 
   const deploymentPillColor =
     service.status === 'running' ? 'bg-success-bg text-success-text' :
@@ -381,6 +411,23 @@ const ServiceCard = ({
                   {service.status}
                 </span>
               </li>
+              {whitelistedKinds.length > 0 && (
+                <ConfigPills label="Kinds +" values={whitelistedKinds} tone="green" />
+              )}
+              {blacklistedKinds.length > 0 && (
+                <ConfigPills label="Kinds -" values={blacklistedKinds} tone="red" />
+              )}
+              {whitelistedPubkeys.length > 0 && (
+                <ConfigPills label="Pubkeys +" values={whitelistedPubkeys} tone="green" />
+              )}
+              {requireNip42 && (
+                <li className="flex items-center gap-2 flex-wrap">
+                  <span className="text-ink-subtle font-medium w-20 shrink-0">Auth</span>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium border bg-primary/10 text-primary border-primary/30">
+                    NIP-42 required
+                  </span>
+                </li>
+              )}
               {domain && (
                 <>
                   <li className="flex items-center gap-2 flex-wrap">

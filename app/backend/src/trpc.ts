@@ -42,6 +42,12 @@ const parseServiceEnvVarsString = (env: string | undefined): Record<string, stri
   return out
 }
 
+const parseCsvList = (value: string | undefined): string[] =>
+  (value || '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean)
+
 type PresetFieldType = 'string' | 'boolean'
 type PresetField = {
   id: string
@@ -336,6 +342,10 @@ export const appRouter = router({
             environmentName: environment.name,
             type: presetData.type ?? null,
             canEditConfig: getEditablePresetFields(presetData).length > 0,
+            whitelistedPubkeys: parseCsvList(envVars.WHITELISTED_PUBKEYS),
+            whitelistedKinds: parseCsvList(envVars.WHITELISTED_KINDS),
+            blacklistedKinds: parseCsvList(envVars.BLACKLISTED_KINDS),
+            requireNip42: (envVars.REQUIRE_NIP42 || '').toLowerCase() === 'true',
           })
         }
       }
