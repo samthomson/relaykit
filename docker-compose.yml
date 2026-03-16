@@ -35,7 +35,7 @@ services:
     image: dokploy/dokploy:latest
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3020:3000"
     environment:
       - DATABASE_URL=postgresql://dokploy:dokploy_secret@dokploy-postgres:5432/dokploy
       - REDIS_URL=redis://dokploy-redis:6379
