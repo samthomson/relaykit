@@ -7,7 +7,13 @@ import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
 import { useRefreshServices } from './contexts/RefreshServicesContext';
 
-const CogMenu = ({ items }: { items: { label: string; onClick: () => void; danger?: boolean }[] }) => {
+const CogMenu = ({
+  items,
+  label,
+}: {
+  items: { label: string; onClick: () => void; danger?: boolean }[];
+  label?: string;
+}) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -24,10 +30,23 @@ const CogMenu = ({ items }: { items: { label: string; onClick: () => void; dange
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="text-ink-subtle/40 hover:text-ink-muted transition-colors p-1 text-lg leading-none"
-        title="Options"
+        className={
+          label
+            ? "flex items-center gap-2 px-3 py-2 border border-border rounded-lg bg-paper-elevated text-ink-muted hover:bg-border-soft transition-colors text-sm"
+            : "text-ink-subtle/40 hover:text-ink-muted transition-colors p-1 text-lg leading-none"
+        }
+        title={label ? label : "Options"}
       >
-        ⋮
+        {label ? (
+          <>
+            {label}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`}>
+              <path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+            </svg>
+          </>
+        ) : (
+          "⋮"
+        )}
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 bg-paper-elevated border border-border rounded shadow-lg z-[100] min-w-[140px] py-1">
@@ -85,6 +104,106 @@ const ConfirmModal = ({
     </div>
   </div>
 );
+
+const MoveServiceModal = ({
+  serviceName,
+  currentLocation,
+  currentEnvironmentId,
+  targets,
+  onSelect,
+  onClose,
+}: {
+  serviceName: string;
+  currentLocation: string;
+  currentEnvironmentId: string;
+  targets: { environmentId: string; label: string }[];
+  onSelect: (environmentId: string) => void;
+  onClose: () => void;
+}) => {
+  const [selectedTarget, setSelectedTarget] = useState<{ environmentId: string; label: string; fullLabel: string } | null>(null);
+  const groupedTargets = targets.reduce<Record<string, { environmentId: string; label: string; fullLabel: string }[]>>((acc, target) => {
+    const [projectName, environmentName] = target.label.includes(' → ')
+      ? target.label.split(' → ')
+      : ['Other', target.label];
+    if (!acc[projectName]) acc[projectName] = [];
+    acc[projectName].push({
+      environmentId: target.environmentId,
+      label: environmentName || target.label,
+      fullLabel: target.label,
+    });
+    return acc;
+  }, {});
+
+  const groupNames = Object.keys(groupedTargets);
+
+  return (
+    <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50" onClick={onClose}>
+      <div
+        className="bg-paper-elevated rounded-lg p-6 max-w-2xl w-full border border-border shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-semibold text-ink m-0 mb-2">Move Service</h3>
+        <p className="text-ink-muted text-sm m-0 mb-4">
+          Select a target environment for <span className="font-mono">{serviceName}</span>{' '}
+          <span className="italic">(currently in {currentLocation})</span>.
+        </p>
+        <div className="space-y-3 max-h-72 overflow-auto pr-1">
+          {groupNames.map((groupName) => (
+            <div key={groupName} className="rounded-lg border border-border-soft bg-paper p-3">
+              <div className="text-xs uppercase tracking-wide text-ink-subtle font-medium mb-2">{groupName}</div>
+              <div className="flex flex-wrap gap-2">
+                {groupedTargets[groupName].map((target) => (
+                  <button
+                    key={target.environmentId}
+                    disabled={target.environmentId === currentEnvironmentId}
+                    onClick={() =>
+                      setSelectedTarget((prev) =>
+                        prev?.environmentId === target.environmentId ? null : target
+                      )
+                    }
+                    className={`px-3 py-1.5 border rounded-full text-sm transition-colors ${
+                      target.environmentId === currentEnvironmentId
+                        ? 'bg-border-soft border-border text-ink-subtle cursor-not-allowed'
+                        :
+                      selectedTarget?.environmentId === target.environmentId
+                        ? 'bg-primary/10 border-primary text-primary'
+                        : 'bg-paper-elevated border-border text-ink hover:bg-border-soft'
+                    }`}
+                  >
+                    {target.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 p-3 rounded border border-border-soft">
+          <div className="flex items-center justify-between gap-3">
+            <p className="m-0 text-sm text-ink-muted">
+              Move to environment:{' '}
+              <span className="text-ink font-medium">{selectedTarget ? selectedTarget.fullLabel : '—'}</span>
+            </p>
+            <button
+              onClick={() => selectedTarget && onSelect(selectedTarget.environmentId)}
+              disabled={!selectedTarget}
+              className="px-4 py-2 bg-primary text-paper-elevated rounded hover:bg-primary-hover text-sm disabled:bg-border disabled:cursor-not-allowed shrink-0"
+            >
+              Confirm Move
+            </button>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-ink text-paper-elevated rounded hover:opacity-90 text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironmentId?: string }) => {
   const { triggerRefresh } = useRefreshServices();
@@ -338,6 +457,7 @@ const ServiceCard = ({
 }) => {
   const [showExplorer, setShowExplorer] = useState(false);
   const [showBlossomExplorer, setShowBlossomExplorer] = useState(false);
+  const [showMoveModal, setShowMoveModal] = useState(false);
   const domain = service.domains?.[0];
   const whitelistedPubkeys: string[] = service.whitelistedPubkeys || [];
   const whitelistedKinds: string[] = service.whitelistedKinds || [];
@@ -350,6 +470,23 @@ const ServiceCard = ({
   const createdAgo = formatDistanceToNow(createdAt, { addSuffix: true });
   const httpsUrl = domain ? `https://${domain.host}` : '';
   const wssUrl = domain ? `wss://${domain.host}` : '';
+  const moveTargets = allEnvironments.filter((env) => env.environmentId !== service.environmentId);
+  const manageItems: { label: string; onClick: () => void; danger?: boolean }[] = [];
+  if (domain && !isEditing) {
+    manageItems.push({ label: 'Edit Domain', onClick: () => onEditDomain(service.composeId, domain) });
+  }
+  if (service.canEditConfig) {
+    manageItems.push({ label: 'Edit Config', onClick: () => onEditConfig(service) });
+  }
+  if (service.status === 'running') {
+    manageItems.push({ label: 'Stop', onClick: () => onStop(service.composeId) });
+  } else {
+    manageItems.push({ label: 'Start', onClick: () => onStart(service.composeId) });
+  }
+  if (moveTargets.length > 0) {
+    manageItems.push({ label: 'Move Service…', onClick: () => setShowMoveModal(true) });
+  }
+  manageItems.push({ label: 'Delete', onClick: () => onDelete(service.composeId, service.name), danger: true });
 
   const ConfigPills = ({
     label,
@@ -360,8 +497,8 @@ const ServiceCard = ({
     values: string[];
     tone: 'green' | 'red';
   }) => (
-    <li className="flex items-start gap-2 flex-wrap">
-      <span className="text-ink-subtle font-medium w-20 shrink-0">{label}</span>
+    <div className="flex items-start gap-2 flex-wrap">
+      <span className="text-ink-subtle font-medium shrink-0">{label}</span>
       {values.map((value, i) => (
         <span
           key={`${label}-${value}-${i}`}
@@ -374,7 +511,7 @@ const ServiceCard = ({
           {value}
         </span>
       ))}
-    </li>
+    </div>
   );
 
   const deploymentPillColor =
@@ -388,195 +525,149 @@ const ServiceCard = ({
       {showBlossomExplorer && domain && (
         <BlossomExplorerModal serverUrl={httpsUrl} onClose={() => setShowBlossomExplorer(false)} />
       )}
+      {showMoveModal && (
+        <MoveServiceModal
+          serviceName={service.name}
+          currentLocation={`${service.projectName} → ${service.environmentName}`}
+          currentEnvironmentId={service.environmentId}
+          targets={allEnvironments}
+          onClose={() => setShowMoveModal(false)}
+          onSelect={(environmentId) => {
+            setShowMoveModal(false);
+            onMove(service.composeId, environmentId);
+          }}
+        />
+      )}
       <div className="bg-paper-elevated border border-border rounded-lg p-4 shadow-sm">
-        <div className="flex justify-between items-start gap-4">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold m-0 text-ink truncate">
-              {domain ? domain.host : service.name}
-            </h3>
-            <ul className="mt-3 pl-4 space-y-1.5 text-sm text-ink-muted list-none border-l-2 border-border ml-1">
-              <li className="flex items-center gap-2">
-                <span className="text-ink-subtle font-medium w-20 shrink-0">ID</span>
-                <span className="font-mono text-xs truncate" title={service.name}>{service.name}</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-ink-subtle font-medium w-20 shrink-0">Service</span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary inline-block">
-                  {service.serviceType}
-                </span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-ink-subtle font-medium w-20 shrink-0">Deployment</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium inline-block ${deploymentPillColor}`}>
-                  {service.status}
-                </span>
-              </li>
-              {whitelistedKinds.length > 0 && (
-                <ConfigPills label="Kinds +" values={whitelistedKinds} tone="green" />
-              )}
-              {blacklistedKinds.length > 0 && (
-                <ConfigPills label="Kinds -" values={blacklistedKinds} tone="red" />
-              )}
-              {whitelistedPubkeys.length > 0 && (
-                <ConfigPills label="Pubkeys +" values={whitelistedPubkeys} tone="green" />
-              )}
-              {requireNip42 && (
-                <li className="flex items-center gap-2 flex-wrap">
-                  <span className="text-ink-subtle font-medium w-20 shrink-0">Auth</span>
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium border bg-primary/10 text-primary border-primary/30">
-                    NIP-42 required
-                  </span>
-                </li>
-              )}
-              {domain && (
-                <>
-                  <li className="flex items-center gap-2 flex-wrap">
-                    <span className="text-ink-subtle font-medium w-20 shrink-0">HTTPS</span>
-                    <a
-                      href={httpsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline truncate"
-                    >
-                      {httpsUrl} ↗
-                    </a>
+        <div className="min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <h3 className="text-lg font-semibold m-0 text-ink truncate">{domain ? domain.host : service.name}</h3>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary inline-block">
+                {service.serviceType}
+              </span>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium inline-block ${deploymentPillColor}`}>
+                {service.status}
+              </span>
+            </div>
+            <CogMenu label="Manage" items={manageItems} />
+          </div>
+          <p className="m-0 mt-1 text-xs font-mono text-ink-subtle truncate" title={service.name}>{service.name}</p>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3">
+          <div className="rounded border border-border-soft bg-paper p-3 space-y-2 text-sm text-ink-muted">
+            {(whitelistedKinds.length > 0 || blacklistedKinds.length > 0 || whitelistedPubkeys.length > 0 || requireNip42) && (
+              <div className="pt-2 mt-2 border-t border-border-soft space-y-1.5">
+                {whitelistedKinds.length > 0 && <ConfigPills label="Kinds +" values={whitelistedKinds} tone="green" />}
+                {blacklistedKinds.length > 0 && <ConfigPills label="Kinds -" values={blacklistedKinds} tone="red" />}
+                {whitelistedPubkeys.length > 0 && <ConfigPills label="Pubkeys +" values={whitelistedPubkeys} tone="green" />}
+                {requireNip42 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-ink-subtle font-medium shrink-0">Auth</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium border bg-primary/10 text-primary border-primary/30">
+                      NIP-42 required
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="pt-2 mt-2 border-t border-border-soft">
+              <div className="flex items-center gap-2">
+                <span className="text-ink-subtle font-medium w-24 shrink-0">Created</span>
+                <span>{createdStr}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-24 shrink-0" />
+                <span className="text-xs text-ink-subtle italic">{createdAgo}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded border border-border-soft bg-paper p-3 space-y-2 text-sm text-ink-muted">
+            {domain ? (
+              <>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-ink-subtle font-medium w-24 shrink-0">HTTPS</span>
+                  <a href={httpsUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
+                    {httpsUrl} ↗
+                  </a>
+                  <button
+                    onClick={() => onCopy(httpsUrl)}
+                    className="shrink-0 px-2 py-0.5 text-xs rounded border border-border bg-paper-elevated hover:bg-border-soft text-ink-muted"
+                  >
+                    Copy
+                  </button>
+                  {service.type === 'blossom' && (
                     <button
-                      onClick={() => onCopy(httpsUrl)}
+                      onClick={() => setShowBlossomExplorer(true)}
+                      className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary"
+                    >
+                      Explore
+                    </button>
+                  )}
+                </div>
+                {service.type === 'relay' && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-ink-subtle font-medium w-24 shrink-0">WSS</span>
+                    <span className="font-mono text-xs truncate">{wssUrl}</span>
+                    <button
+                      onClick={() => onCopy(wssUrl)}
                       className="shrink-0 px-2 py-0.5 text-xs rounded border border-border bg-paper-elevated hover:bg-border-soft text-ink-muted"
                     >
                       Copy
                     </button>
-                    {service.type === 'blossom' && (
+                    <button
+                      onClick={() => setShowExplorer(true)}
+                      className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary"
+                    >
+                      Explore
+                    </button>
+                  </div>
+                )}
+                {isEditing && (
+                  <div className="pt-2 mt-2 border-t border-border-soft flex items-center gap-2">
+                    <span className="text-ink-subtle font-medium w-24 shrink-0">Host</span>
+                    <input
+                      type="text"
+                      value={newDomainHost}
+                      onChange={(e) => setNewDomainHost(e.target.value)}
+                      className="px-2 py-1 border border-border rounded text-xs flex-1 bg-paper-elevated text-ink"
+                    />
+                    <button onClick={onSaveDomain} className="px-2 py-1 bg-success text-paper-elevated rounded text-xs hover:opacity-90 shrink-0">
+                      Save
+                    </button>
+                    <button onClick={onCancelEdit} className="px-2 py-1 bg-ink text-paper-elevated rounded text-xs hover:opacity-90 shrink-0">
+                      Cancel
+                    </button>
+                  </div>
+                )}
+                {domain && serverIp && (
+                  <div className="pt-2 mt-2 border-t border-border-soft space-y-2">
+                    <span className="text-ink-subtle font-medium text-xs uppercase tracking-wide">DNS Setup</span>
+                    <p className="text-sm text-ink-muted m-0">
+                      Add this A record to <strong>{dnsRecordNameForHost(domain.host).zone}</strong>:
+                    </p>
+                    <div className="bg-paper-elevated rounded px-3 py-2 text-sm font-mono flex items-center justify-between text-ink-muted border border-border-soft">
+                      <span><strong className="text-ink">{dnsRecordNameForHost(domain.host).name}</strong> → {serverIp}</span>
                       <button
-                        onClick={() => setShowBlossomExplorer(true)}
-                        className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary"
+                        type="button"
+                        onClick={() => onCopy(serverIp)}
+                        className="ml-2 p-1 text-ink-subtle hover:text-ink"
+                        title="Copy IP address"
                       >
-                        Explore
+                        📋
                       </button>
-                    )}
-                  </li>
-                  {service.type === 'relay' && (
-                    <li className="flex items-center gap-2 flex-wrap">
-                      <span className="text-ink-subtle font-medium w-20 shrink-0">WSS</span>
-                      <span className="font-mono text-xs truncate">{wssUrl}</span>
-                      <button
-                        onClick={() => onCopy(wssUrl)}
-                        className="shrink-0 px-2 py-0.5 text-xs rounded border border-border bg-paper-elevated hover:bg-border-soft text-ink-muted"
-                      >
-                        Copy
-                      </button>
-                      <button
-                        onClick={() => setShowExplorer(true)}
-                        className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary"
-                      >
-                        Explore
-                      </button>
-                    </li>
-                  )}
-                </>
-              )}
-            {domain && serverIp && (
-              <li className="flex flex-col gap-2 pt-2 mt-2 border-t border-border-soft">
-                <span className="text-ink-subtle font-medium text-xs uppercase tracking-wide">DNS Setup</span>
-                <p className="text-sm text-ink-muted m-0">
-                  Add this A record to <strong>{dnsRecordNameForHost(domain.host).zone}</strong>:
-                </p>
-                <div className="bg-paper rounded px-3 py-2 text-sm font-mono flex items-center justify-between text-ink-muted">
-                  <span><strong className="text-ink">{dnsRecordNameForHost(domain.host).name}</strong> → {serverIp}</span>
-                  <button
-                    type="button"
-                    onClick={() => onCopy(serverIp)}
-                    className="ml-2 p-1 text-ink-subtle hover:text-ink"
-                    title="Copy IP address"
-                  >
-                    📋
-                  </button>
-                </div>
-              </li>
-            )}
-            {isEditing && domain && (
-              <li className="flex items-center gap-2 pt-1">
-                <span className="text-ink-subtle font-medium w-20 shrink-0">Host</span>
-                <input
-                  type="text"
-                  value={newDomainHost}
-                  onChange={(e) => setNewDomainHost(e.target.value)}
-                  className="px-2 py-1 border border-border rounded text-xs flex-1 max-w-xs bg-paper-elevated text-ink"
-                />
-                <button onClick={onSaveDomain} className="px-2 py-1 bg-success text-paper-elevated rounded text-xs hover:opacity-90 shrink-0">
-                  Save
-                </button>
-                <button onClick={onCancelEdit} className="px-2 py-1 bg-ink text-paper-elevated rounded text-xs hover:opacity-90 shrink-0">
-                  Cancel
-                </button>
-              </li>
-            )}
-            <li className="flex items-center gap-2">
-              <span className="text-ink-subtle font-medium w-20 shrink-0">Created</span>
-              <span>{createdStr}</span>
-              <span className="text-ink-subtle">({createdAgo})</span>
-            </li>
-          </ul>
-          {!domain && (
-            <p className="mt-2 pl-5 text-ink-subtle text-xs italic">No domain configured</p>
-          )}
-        </div>
-        <div className="flex flex-col gap-2 shrink-0 items-end">
-          <div className="flex gap-2">
-            {domain && !isEditing && (
-              <button
-                onClick={() => onEditDomain(service.composeId, domain)}
-                className="px-2 py-1.5 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover"
-              >
-                Edit Domain
-              </button>
-            )}
-            {service.canEditConfig && (
-              <button
-                onClick={() => onEditConfig(service)}
-                className="px-2 py-1.5 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover"
-              >
-                Edit Config
-              </button>
-            )}
-            {service.status === 'running' ? (
-              <button
-                onClick={() => onStop(service.composeId)}
-                className="px-4 py-2 bg-warning text-warning-text rounded hover:opacity-90 text-sm"
-              >
-                Stop
-              </button>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
-              <button
-                onClick={() => onStart(service.composeId)}
-                className="px-4 py-2 bg-success text-paper-elevated rounded hover:opacity-90 text-sm"
-              >
-                Start
-              </button>
+              <p className="text-ink-subtle text-xs italic m-0">No domain configured</p>
             )}
-            <button
-              onClick={() => onDelete(service.composeId, service.name)}
-              className="px-4 py-2 bg-error text-paper-elevated rounded hover:opacity-90 text-sm"
-            >
-              Delete
-            </button>
           </div>
-          {allEnvironments.length > 1 && (
-            <select
-              value=""
-              onChange={(e) => { if (e.target.value) onMove(service.composeId, e.target.value); }}
-              className="text-xs border border-border rounded px-2 py-1 bg-paper-elevated text-ink-muted"
-            >
-              <option value="">Move to…</option>
-              {allEnvironments
-                .filter((env) => env.environmentId !== service.environmentId)
-                .map((env) => (
-                  <option key={env.environmentId} value={env.environmentId}>{env.label}</option>
-                ))}
-            </select>
-          )}
         </div>
-      </div>
+
       </div>
     </>
   );
