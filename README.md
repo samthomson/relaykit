@@ -72,21 +72,27 @@ Run these commands from the project directory (the folder containing `docker-com
    ```
    Edit `.env` and set `JWT_SECRET` to a random string (e.g. run `openssl rand -base64 32` and paste the result).
 
-2. **Start the stack**  
+2. **Create external Dokploy network (one-time)**
+   ```bash
+   docker network create dokploy-network
+   ```
+   If it already exists, Docker will tell you and you can continue.
+
+3. **Start the stack**  
    In the same project directory:
    ```bash
    docker compose --profile dev up -d
    ```
-   Wait until the containers are up (Dokploy at http://localhost:3000, RelayKit at http://localhost:5173).
+   Wait until the containers are up (Dokploy at http://localhost:3020, RelayKit at http://localhost:5173).
 
-3. **Run the setup script**  
+4. **Run the setup script**  
    Still in the project directory. Replace `npub1your...` with your real Nostr public key (the same one you’ll use to log in):
    ```bash
    OWNER_NPUB=npub1your... ADMIN_PASSWORD=your_secure_password ./scripts/setup-relaykit-auth.sh
    ```
-   This creates a Dokploy admin account, gets an API key, and writes it to the RelayKit container. After it succeeds, reload http://localhost:5173 and sign in with your Nostr extension (Alby, nos2x, etc.).
+   This creates a Dokploy admin account, gets an API key, and writes it to the RelayKit container. After it succeeds, reload RelayKit in your browser (default `http://localhost:5173`) and sign in with your Nostr extension (Alby, nos2x, etc.).
 
-4. **If step 3 fails** (e.g. “Registration failed” because Dokploy already has an admin): log in to http://localhost:3000, go to Settings → Profile → API/CLI, create an API key, then in the project directory run (paste your key in place of `PASTE_THE_KEY_HERE`):
+5. **If step 4 fails** (e.g. “Registration failed” because Dokploy already has an admin): log in to Dokploy, go to Settings → Profile → API/CLI, create an API key, then in the project directory run (paste your key in place of `PASTE_THE_KEY_HERE`):
    ```bash
    docker compose exec relaykit sh -c 'printf "%s" "PASTE_THE_KEY_HERE" > /app/.relaykit/bootstrap-key'
    ```
