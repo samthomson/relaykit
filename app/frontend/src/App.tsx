@@ -472,6 +472,8 @@ const ServiceCard = ({
   const wssUrl = domain ? `wss://${domain.host}` : '';
   const moveTargets = allEnvironments.filter((env) => env.environmentId !== service.environmentId);
   const labelColClass = 'text-ink-subtle font-medium w-24 shrink-0';
+  const secondaryActionBtnClass = 'shrink-0 h-7 px-2.5 text-xs rounded border border-border bg-paper-elevated hover:bg-border-soft text-ink-muted inline-flex items-center';
+  const primaryActionBtnClass = 'shrink-0 h-7 px-2.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary inline-flex items-center';
   const manageItems: { label: string; onClick: () => void; danger?: boolean }[] = [];
   if (domain && !isEditing) {
     manageItems.push({ label: 'Edit Domain', onClick: () => onEditDomain(service.composeId, domain) });
@@ -566,14 +568,14 @@ const ServiceCard = ({
                 </a>
                 <button
                   onClick={() => onCopy(httpsUrl)}
-                  className="shrink-0 px-2 py-0.5 text-xs rounded border border-border bg-paper-elevated hover:bg-border-soft text-ink-muted"
+                  className={secondaryActionBtnClass}
                 >
                   Copy
                 </button>
                 {service.type === 'blossom' && (
                   <button
                     onClick={() => setShowBlossomExplorer(true)}
-                    className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary"
+                    className={primaryActionBtnClass}
                   >
                     Explore
                   </button>
@@ -585,13 +587,13 @@ const ServiceCard = ({
                   <span className="font-mono text-xs truncate">{wssUrl}</span>
                   <button
                     onClick={() => onCopy(wssUrl)}
-                    className="shrink-0 px-2 py-0.5 text-xs rounded border border-border bg-paper-elevated hover:bg-border-soft text-ink-muted"
+                    className={secondaryActionBtnClass}
                   >
                     Copy
                   </button>
                   <button
                     onClick={() => setShowExplorer(true)}
-                    className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary"
+                    className={primaryActionBtnClass}
                   >
                     Explore
                   </button>
