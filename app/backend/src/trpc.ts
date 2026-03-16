@@ -42,9 +42,50 @@ const parseServiceEnvVarsString = (env: string | undefined): Record<string, stri
   return out
 }
 
+type PresetFieldType = 'string' | 'boolean'
+type PresetField = {
+  id: string
+  name: string
+  type?: PresetFieldType
+  required?: boolean
+  default?: string
+  description?: string
+  placeholder?: string
+}
+type PresetMetadata = {
+  id: string
+  label: string
+  description?: string
+  type?: string
+  serviceName?: string
+  internalPort: number
+  domainConfigKey?: string
+  requiredConfig: PresetField[]
+}
+
+const stringifyEnvVars = (envVars: Record<string, string>): string =>
+  Object.entries(envVars)
+    .map(([k, v]) => `${k}=${v}`)
+    .join('\n')
+
+const coerceConfigValueToString = (field: PresetField, value: unknown): string => {
+  const fieldType = field.type ?? 'string'
+  if (fieldType === 'boolean') {
+    if (typeof value === 'boolean') return value ? 'true' : 'false'
+    const str = String(value ?? '').trim().toLowerCase()
+    return str === 'true' || str === '1' || str === 'yes' ? 'true' : 'false'
+  }
+  return String(value ?? '')
+}
+
+const getEditablePresetFields = (preset: PresetMetadata): PresetField[] => {
+  const domainKey = preset.domainConfigKey ?? 'RELAY_HOST'
+  return (preset.requiredConfig || []).filter((f) => f.id !== domainKey)
+}
+
 const getPresetMetadata = async (presetId: string) => {
   const metadata = await fs.readFile(path.join(PRESETS_DIR, presetId, 'metadata.json'), 'utf-8')
-  return JSON.parse(metadata)
+  return JSON.parse(metadata) as PresetMetadata
 }
 
 const ensureADefaultProjectExistsForServices = async (): Promise<{ projectId: string; environmentId: string }> => {
@@ -294,6 +335,7 @@ export const appRouter = router({
             environmentId: environment.environmentId,
             environmentName: environment.name,
             type: presetData.type ?? null,
+            canEditConfig: getEditablePresetFields(presetData).length > 0,
           })
         }
       }
@@ -381,6 +423,58 @@ export const appRouter = router({
       return { success: true, message: 'Domain updated and service redeployed' }
     }),
 
+  getServiceConfig: protectedProcedure
+    .input(z.object({ composeId: z.string() }))
+    .query(async ({ input }) => {
+      const compose = await dokployFetch(`/api/compose.one?composeId=${input.composeId}`)
+      const preset = await getPresetMetadata(compose.description)
+      const envVars = parseServiceEnvVarsString(compose.env)
+      const editableFields = getEditablePresetFields(preset)
+      const config: Record<string, string> = {}
+      for (const field of editableFields) {
+        config[field.id] = envVars[field.id] ?? field.default ?? ''
+      }
+      return {
+        composeId: input.composeId,
+        presetId: preset.id,
+        fields: editableFields,
+        config,
+      }
+    }),
+
+  updateServiceConfig: protectedProcedure
+    .input(
+      z.object({
+        composeId: z.string(),
+        config: z.record(z.string(), z.union([z.string(), z.boolean()])),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const compose = await dokployFetch(`/api/compose.one?composeId=${input.composeId}`)
+      const preset = await getPresetMetadata(compose.description)
+      const editableFields = getEditablePresetFields(preset)
+      const editableById = Object.fromEntries(editableFields.map((f) => [f.id, f] as const))
+      const envVars = parseServiceEnvVarsString(compose.env)
+
+      for (const [key, rawValue] of Object.entries(input.config)) {
+        const field = editableById[key]
+        if (!field) continue
+        envVars[key] = coerceConfigValueToString(field, rawValue)
+      }
+
+      const env = stringifyEnvVars(envVars)
+      await dokployFetch('/api/compose.update', {
+        method: 'POST',
+        body: JSON.stringify({ composeId: input.composeId, env, sourceType: 'raw' }),
+      })
+      await dokployFetch('/api/compose.redeploy', {
+        method: 'POST',
+        body: JSON.stringify({ composeId: input.composeId }),
+      })
+
+      return { success: true, message: 'Service config updated and redeployed' }
+    }),
+
   // Check Dokploy connection (safe: never throws, always returns JSON)
   checkDokploy: publicProcedure
     .input(z.void())
@@ -455,7 +549,7 @@ export const appRouter = router({
       try {
         const presetDir = path.join(PRESETS_DIR, input.presetId)
         const composeContent = await fs.readFile(path.join(presetDir, 'docker-compose.yml'), 'utf-8')
-        const envString = Object.entries(input.config).map(([k, v]) => `${k}=${v}`).join('\n')
+        const envString = stringifyEnvVars(input.config)
         const environmentId = input.environmentId ?? (await ensureADefaultProjectExistsForServices()).environmentId
 
         const uniqueSuffix = Date.now()

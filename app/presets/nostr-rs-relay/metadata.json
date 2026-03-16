@@ -34,7 +34,7 @@
     {
       "id": "REQUIRE_NIP42",
       "name": "Require NIP-42 Auth",
-      "type": "string",
+      "type": "boolean",
       "required": false,
       "default": "false",
       "description": "Set to true to require NIP-42 authentication for publish."

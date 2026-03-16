@@ -268,6 +268,41 @@ const BlossomExplorerModal = ({ serverUrl, onClose }: { serverUrl: string; onClo
   );
 };
 
+const PresetConfigFieldInput = ({
+  field,
+  value,
+  onChange,
+}: {
+  field: any;
+  value: string;
+  onChange: (next: string) => void;
+}) => {
+  if (field.type === 'boolean') {
+    return (
+      <select
+        value={value || 'false'}
+        onChange={(e) => onChange(e.target.value)}
+        required={field.required}
+        className="block w-full px-3 py-2 mt-1 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary bg-paper-elevated text-ink"
+      >
+        <option value="true">true</option>
+        <option value="false">false</option>
+      </select>
+    );
+  }
+
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      required={field.required}
+      placeholder={field.placeholder || field.description}
+      className="block w-full px-3 py-2 mt-1 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary bg-paper-elevated text-ink"
+    />
+  );
+};
+
 const ServiceCard = ({
   service,
   serverIp,
@@ -281,6 +316,7 @@ const ServiceCard = ({
   onStart,
   onStop,
   onDelete,
+  onEditConfig,
   onMove,
   allEnvironments,
 }: {
@@ -296,6 +332,7 @@ const ServiceCard = ({
   onStart: (composeId: string) => void;
   onStop: (composeId: string) => void;
   onDelete: (composeId: string, name: string) => void;
+  onEditConfig: (service: any) => void;
   onMove: (composeId: string, targetEnvironmentId: string) => void;
   allEnvironments: { environmentId: string; label: string }[];
 }) => {
@@ -444,7 +481,15 @@ const ServiceCard = ({
                 onClick={() => onEditDomain(service.composeId, domain)}
                 className="px-2 py-1.5 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover"
               >
-                Edit
+                Edit Domain
+              </button>
+            )}
+            {service.canEditConfig && (
+              <button
+                onClick={() => onEditConfig(service)}
+                className="px-2 py-1.5 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover"
+              >
+                Edit Config
               </button>
             )}
             {service.status === 'running' ? (
@@ -501,6 +546,11 @@ const ServiceList = () => {
 
   const [editingDomain, setEditingDomain] = useState<{ composeId: string; domainId: string; currentHost: string } | null>(null);
   const [newDomainHost, setNewDomainHost] = useState('');
+  const [editingConfigService, setEditingConfigService] = useState<any | null>(null);
+  const [editingConfigFields, setEditingConfigFields] = useState<any[]>([]);
+  const [editingConfigValues, setEditingConfigValues] = useState<Record<string, string>>({});
+  const [loadingConfigModal, setLoadingConfigModal] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
 
   const [newProjectName, setNewProjectName] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
@@ -606,6 +656,41 @@ const ServiceList = () => {
       toast.success('Domain updated successfully');
     } catch (error: any) {
       toast.error(`Failed to update domain: ${error.message}`);
+    }
+  };
+
+  const handleEditConfig = async (service: any) => {
+    setLoadingConfigModal(true);
+    try {
+      const result = await trpc.getServiceConfig.query({ composeId: service.composeId });
+      setEditingConfigService(service);
+      setEditingConfigFields(result.fields || []);
+      setEditingConfigValues(result.config || {});
+    } catch (error: any) {
+      toast.error(`Failed to load service config: ${error.message}`);
+    } finally {
+      setLoadingConfigModal(false);
+    }
+  };
+
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingConfigService) return;
+    setSavingConfig(true);
+    try {
+      await trpc.updateServiceConfig.mutate({
+        composeId: editingConfigService.composeId,
+        config: editingConfigValues,
+      });
+      toast.success('Service config updated and redeploy started');
+      setEditingConfigService(null);
+      setEditingConfigFields([]);
+      setEditingConfigValues({});
+      await loadData();
+    } catch (error: any) {
+      toast.error(`Failed to update config: ${error.message}`);
+    } finally {
+      setSavingConfig(false);
     }
   };
 
@@ -831,6 +916,7 @@ const ServiceList = () => {
                           onStart={handleStartService}
                           onStop={handleStopService}
                           onDelete={openDeleteServiceConfirm}
+                          onEditConfig={handleEditConfig}
                           onMove={handleMoveService}
                           allEnvironments={allEnvironments}
                         />
@@ -917,6 +1003,23 @@ const ServiceList = () => {
           onCancel={() => setConfirmModal(null)}
         />
       )}
+      {(loadingConfigModal || editingConfigService) && (
+        <ConfigEditModal
+          loading={loadingConfigModal}
+          service={editingConfigService}
+          fields={editingConfigFields}
+          values={editingConfigValues}
+          setValues={setEditingConfigValues}
+          onSubmit={handleSaveConfig}
+          onClose={() => {
+            if (savingConfig) return;
+            setEditingConfigService(null);
+            setEditingConfigFields([]);
+            setEditingConfigValues({});
+          }}
+          saving={savingConfig}
+        />
+      )}
     </div>
   );
 };
@@ -984,29 +1087,11 @@ const DeployModal = ({
           <div key={field.id} className="mb-4">
             <label className="block mb-2 font-medium text-ink">
               {field.name}:
-              {field.type === 'select' ? (
-                <select
-                  value={deployConfig[field.id] || field.default || ''}
-                  onChange={(e) => setDeployConfig({ ...deployConfig, [field.id]: e.target.value })}
-                  required={field.required}
-                  className="block w-full px-3 py-2 mt-1 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary bg-paper-elevated text-ink"
-                >
-                  {field.options?.map((option: any) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type={field.type}
-                  value={deployConfig[field.id] || ''}
-                  onChange={(e) => setDeployConfig({ ...deployConfig, [field.id]: e.target.value })}
-                  required={field.required}
-                  placeholder={field.placeholder || field.description}
-                  className="block w-full px-3 py-2 mt-1 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary bg-paper-elevated text-ink"
-                />
-              )}
+              <PresetConfigFieldInput
+                field={field}
+                value={deployConfig[field.id] ?? field.default ?? ''}
+                onChange={(next) => setDeployConfig({ ...deployConfig, [field.id]: next })}
+              />
             </label>
             {field.description && <small className="text-ink-muted text-xs">{field.description}</small>}
           </div>
@@ -1039,6 +1124,84 @@ const DeployModal = ({
   </div>
   );
 };
+
+const ConfigEditModal = ({
+  loading,
+  service,
+  fields,
+  values,
+  setValues,
+  onSubmit,
+  onClose,
+  saving,
+}: {
+  loading: boolean;
+  service: any | null;
+  fields: any[];
+  values: Record<string, string>;
+  setValues: (next: Record<string, string>) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onClose: () => void;
+  saving: boolean;
+}) => (
+  <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50">
+    <div className="bg-paper-elevated rounded-lg p-8 max-w-lg w-full max-h-[80vh] overflow-auto border border-border shadow-lg">
+      <h2 className="text-2xl font-bold mt-0 text-ink">Edit Config</h2>
+      <p className="text-ink-muted">
+        {service ? `Update environment config for ${service.name}` : 'Loading service config...'}
+      </p>
+      {loading ? (
+        <p className="text-ink-muted">Loading...</p>
+      ) : fields.length === 0 ? (
+        <>
+          <p className="text-ink-muted">No editable config fields for this service.</p>
+          <div className="flex gap-4 mt-6">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-3 bg-ink text-paper-elevated rounded hover:opacity-90"
+            >
+              Close
+            </button>
+          </div>
+        </>
+      ) : (
+        <form onSubmit={onSubmit}>
+          {fields.map((field) => (
+            <div key={field.id} className="mb-4">
+              <label className="block mb-2 font-medium text-ink">
+                {field.name}:
+                <PresetConfigFieldInput
+                  field={field}
+                  value={values[field.id] ?? field.default ?? ''}
+                  onChange={(next) => setValues({ ...values, [field.id]: next })}
+                />
+              </label>
+              {field.description && <small className="text-ink-muted text-xs">{field.description}</small>}
+            </div>
+          ))}
+          <div className="flex gap-4 mt-6">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 px-4 py-3 bg-success text-paper-elevated rounded hover:opacity-90 disabled:bg-border disabled:cursor-not-allowed"
+            >
+              {saving ? 'Saving...' : 'Save + Redeploy'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="flex-1 px-4 py-3 bg-ink text-paper-elevated rounded hover:opacity-90 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  </div>
+);
 
 const DeploySection = () => (
   <div className="mt-12">
@@ -1146,11 +1309,6 @@ const DokployInitialCheck = () => {
           logout();
           return;
         }
-        const isConfigError =
-          code === 'PRECONDITION_FAILED' ||
-          msg.includes('not configured') ||
-          msg.includes('invalid or expired') ||
-          msg.includes('bootstrap key');
         setDokployConnectionError(msg || 'Could not load services. Run the setup script (see README).');
       });
   }, [setDokployConnectionError, setDokployReady, logout]);
