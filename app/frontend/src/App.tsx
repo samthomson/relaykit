@@ -471,6 +471,7 @@ const ServiceCard = ({
   const httpsUrl = domain ? `https://${domain.host}` : '';
   const wssUrl = domain ? `wss://${domain.host}` : '';
   const moveTargets = allEnvironments.filter((env) => env.environmentId !== service.environmentId);
+  const labelColClass = 'text-ink-subtle font-medium w-24 shrink-0';
   const manageItems: { label: string; onClick: () => void; danger?: boolean }[] = [];
   if (domain && !isEditing) {
     manageItems.push({ label: 'Edit Domain', onClick: () => onEditDomain(service.composeId, domain) });
@@ -498,7 +499,7 @@ const ServiceCard = ({
     tone: 'green' | 'red';
   }) => (
     <div className="flex items-start gap-2 flex-wrap">
-      <span className="text-ink-subtle font-medium shrink-0">{label}</span>
+      <span className={labelColClass}>{label}</span>
       {values.map((value, i) => (
         <span
           key={`${label}-${value}-${i}`}
@@ -555,116 +556,121 @@ const ServiceCard = ({
           <p className="m-0 mt-1 text-xs font-mono text-ink-subtle truncate" title={service.name}>{service.name}</p>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-3">
-          <div className="rounded border border-border-soft bg-paper p-3 space-y-2 text-sm text-ink-muted">
-            {(whitelistedKinds.length > 0 || blacklistedKinds.length > 0 || whitelistedPubkeys.length > 0 || requireNip42) && (
-              <div className="pt-2 mt-2 border-t border-border-soft space-y-1.5">
-                {whitelistedKinds.length > 0 && <ConfigPills label="Kinds +" values={whitelistedKinds} tone="green" />}
-                {blacklistedKinds.length > 0 && <ConfigPills label="Kinds -" values={blacklistedKinds} tone="red" />}
-                {whitelistedPubkeys.length > 0 && <ConfigPills label="Pubkeys +" values={whitelistedPubkeys} tone="green" />}
-                {requireNip42 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-ink-subtle font-medium shrink-0">Auth</span>
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium border bg-primary/10 text-primary border-primary/30">
-                      NIP-42 required
-                    </span>
-                  </div>
+        <div className="mt-4 space-y-4 text-sm text-ink-muted">
+          {domain ? (
+            <div className="pt-3 border-t border-border-soft space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={labelColClass}>HTTPS</span>
+                <a href={httpsUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
+                  {httpsUrl} ↗
+                </a>
+                <button
+                  onClick={() => onCopy(httpsUrl)}
+                  className="shrink-0 px-2 py-0.5 text-xs rounded border border-border bg-paper-elevated hover:bg-border-soft text-ink-muted"
+                >
+                  Copy
+                </button>
+                {service.type === 'blossom' && (
+                  <button
+                    onClick={() => setShowBlossomExplorer(true)}
+                    className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary"
+                  >
+                    Explore
+                  </button>
                 )}
               </div>
-            )}
-            <div className="pt-2 mt-2 border-t border-border-soft">
-              <div className="flex items-center gap-2">
-                <span className="text-ink-subtle font-medium w-24 shrink-0">Created</span>
-                <span>{createdStr}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-24 shrink-0" />
-                <span className="text-xs text-ink-subtle italic">{createdAgo}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded border border-border-soft bg-paper p-3 space-y-2 text-sm text-ink-muted">
-            {domain ? (
-              <>
+              {service.type === 'relay' && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-ink-subtle font-medium w-24 shrink-0">HTTPS</span>
-                  <a href={httpsUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
-                    {httpsUrl} ↗
-                  </a>
+                  <span className={labelColClass}>WSS</span>
+                  <span className="font-mono text-xs truncate">{wssUrl}</span>
                   <button
-                    onClick={() => onCopy(httpsUrl)}
+                    onClick={() => onCopy(wssUrl)}
                     className="shrink-0 px-2 py-0.5 text-xs rounded border border-border bg-paper-elevated hover:bg-border-soft text-ink-muted"
                   >
                     Copy
                   </button>
-                  {service.type === 'blossom' && (
-                    <button
-                      onClick={() => setShowBlossomExplorer(true)}
-                      className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary"
-                    >
-                      Explore
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setShowExplorer(true)}
+                    className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary"
+                  >
+                    Explore
+                  </button>
                 </div>
-                {service.type === 'relay' && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-ink-subtle font-medium w-24 shrink-0">WSS</span>
-                    <span className="font-mono text-xs truncate">{wssUrl}</span>
-                    <button
-                      onClick={() => onCopy(wssUrl)}
-                      className="shrink-0 px-2 py-0.5 text-xs rounded border border-border bg-paper-elevated hover:bg-border-soft text-ink-muted"
-                    >
-                      Copy
-                    </button>
-                    <button
-                      onClick={() => setShowExplorer(true)}
-                      className="shrink-0 px-2 py-0.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary"
-                    >
-                      Explore
-                    </button>
-                  </div>
-                )}
-                {isEditing && (
-                  <div className="pt-2 mt-2 border-t border-border-soft flex items-center gap-2">
-                    <span className="text-ink-subtle font-medium w-24 shrink-0">Host</span>
-                    <input
-                      type="text"
-                      value={newDomainHost}
-                      onChange={(e) => setNewDomainHost(e.target.value)}
-                      className="px-2 py-1 border border-border rounded text-xs flex-1 bg-paper-elevated text-ink"
-                    />
-                    <button onClick={onSaveDomain} className="px-2 py-1 bg-success text-paper-elevated rounded text-xs hover:opacity-90 shrink-0">
-                      Save
-                    </button>
-                    <button onClick={onCancelEdit} className="px-2 py-1 bg-ink text-paper-elevated rounded text-xs hover:opacity-90 shrink-0">
-                      Cancel
-                    </button>
-                  </div>
-                )}
-                {domain && serverIp && (
-                  <div className="pt-2 mt-2 border-t border-border-soft space-y-2">
-                    <span className="text-ink-subtle font-medium text-xs uppercase tracking-wide">DNS Setup</span>
-                    <p className="text-sm text-ink-muted m-0">
-                      Add this A record to <strong>{dnsRecordNameForHost(domain.host).zone}</strong>:
-                    </p>
-                    <div className="bg-paper-elevated rounded px-3 py-2 text-sm font-mono flex items-center justify-between text-ink-muted border border-border-soft">
-                      <span><strong className="text-ink">{dnsRecordNameForHost(domain.host).name}</strong> → {serverIp}</span>
-                      <button
-                        type="button"
-                        onClick={() => onCopy(serverIp)}
-                        className="ml-2 p-1 text-ink-subtle hover:text-ink"
-                        title="Copy IP address"
-                      >
-                        📋
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
+              )}
+              {isEditing && (
+                <div className="pt-2 mt-2 border-t border-border-soft flex items-center gap-2">
+                  <span className={labelColClass}>Host</span>
+                  <input
+                    type="text"
+                    value={newDomainHost}
+                    onChange={(e) => setNewDomainHost(e.target.value)}
+                    className="px-2 py-1 border border-border rounded text-xs flex-1 bg-paper-elevated text-ink"
+                  />
+                  <button onClick={onSaveDomain} className="px-2 py-1 bg-success text-paper-elevated rounded text-xs hover:opacity-90 shrink-0">
+                    Save
+                  </button>
+                  <button onClick={onCancelEdit} className="px-2 py-1 bg-ink text-paper-elevated rounded text-xs hover:opacity-90 shrink-0">
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="pt-3 border-t border-border-soft flex items-center gap-2">
+              <span className={labelColClass}>Domain</span>
               <p className="text-ink-subtle text-xs italic m-0">No domain configured</p>
-            )}
+            </div>
+          )}
+
+          {(whitelistedKinds.length > 0 || blacklistedKinds.length > 0 || whitelistedPubkeys.length > 0 || requireNip42) && (
+            <div className="pt-3 border-t border-border-soft space-y-1.5">
+              {whitelistedKinds.length > 0 && <ConfigPills label="Kinds +" values={whitelistedKinds} tone="green" />}
+              {blacklistedKinds.length > 0 && <ConfigPills label="Kinds -" values={blacklistedKinds} tone="red" />}
+              {whitelistedPubkeys.length > 0 && <ConfigPills label="Pubkeys +" values={whitelistedPubkeys} tone="green" />}
+              {requireNip42 && (
+                <div className="flex items-center gap-2">
+                  <span className={labelColClass}>Auth</span>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium border bg-primary/10 text-primary border-primary/30">
+                    NIP-42 required
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {domain && serverIp && (
+            <div className="pt-3 border-t border-border-soft">
+              <div className="flex items-start gap-2">
+                <span className={labelColClass}>DNS</span>
+                <div className="flex-1 space-y-2">
+                  <p className="text-sm text-ink-muted m-0">
+                    A record for <strong>{dnsRecordNameForHost(domain.host).zone}</strong>
+                  </p>
+                  <div className="rounded px-3 py-2 text-sm font-mono flex items-center justify-between text-ink-muted border border-border-soft">
+                    <span><strong className="text-ink">{dnsRecordNameForHost(domain.host).name}</strong> → {serverIp}</span>
+                    <button
+                      type="button"
+                      onClick={() => onCopy(serverIp)}
+                      className="ml-2 p-1 text-ink-subtle hover:text-ink"
+                      title="Copy IP address"
+                    >
+                      📋
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="pt-3 border-t border-border-soft">
+            <div className="flex items-center gap-2">
+              <span className={labelColClass}>Created</span>
+              <span>{createdStr}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-24 shrink-0" />
+              <span className="text-xs text-ink-subtle italic">{createdAgo}</span>
+            </div>
           </div>
         </div>
 
