@@ -1,0 +1,66 @@
+# Routing is configured via Dokploy's Domains API (domain.create), not Traefik labels in this file.
+# Service must be on dokploy-network so Traefik can reach it (Dokploy requirement).
+# Use {{DEPLOY_SUFFIX}} in volume names so each deployment gets its own volume (replaced at deploy time).
+services:
+  nostr-rs-relay:
+    image: scsibug/nostr-rs-relay:latest
+    restart: unless-stopped
+    environment:
+      RELAY_HOST: ${RELAY_HOST}
+      ALLOWED_PUBKEYS: ${ALLOWED_PUBKEYS:-}
+      ALLOWED_KINDS: ${ALLOWED_KINDS:-}
+      REQUIRE_NIP42: ${REQUIRE_NIP42:-false}
+    volumes:
+      - nostr_rs_relay_data_{{DEPLOY_SUFFIX}}:/usr/src/app/db
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        cat > /usr/src/app/config.toml <<EOF
+        [info]
+        relay_url = "wss://${RELAY_HOST}"
+        name = "nostr-rs-relay"
+        description = "Relaykit nostr-rs-relay preset"
+
+        [network]
+        address = "0.0.0.0"
+        port = 8080
+
+        [options]
+        reject_future_seconds = 1800
+
+        [limits]
+        limit_scrapers = false
+        EOF
+
+        if [ -n "${ALLOWED_KINDS}" ]; then
+          printf "event_kind_allowlist = [\n" >> /usr/src/app/config.toml
+          printf "%s" "${ALLOWED_KINDS}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | sed 's/^/  /;s/$/,/' >> /usr/src/app/config.toml
+          printf "]\n" >> /usr/src/app/config.toml
+        fi
+
+        if [ -n "${ALLOWED_PUBKEYS}" ] || [ "${REQUIRE_NIP42}" = "true" ]; then
+          printf "\n[authorization]\n" >> /usr/src/app/config.toml
+        fi
+
+        if [ -n "${ALLOWED_PUBKEYS}" ]; then
+          printf "pubkey_whitelist = [\n" >> /usr/src/app/config.toml
+          printf "%s" "${ALLOWED_PUBKEYS}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | sed 's/^/  "/;s/$/",/' >> /usr/src/app/config.toml
+          printf "]\n" >> /usr/src/app/config.toml
+        fi
+
+        if [ "${REQUIRE_NIP42}" = "true" ]; then
+          printf "nip42_auth = true\n" >> /usr/src/app/config.toml
+        fi
+
+        ./nostr-rs-relay --db /usr/src/app/db
+    expose:
+      - "8080"
+    networks:
+      - dokploy-network
+
+volumes:
+  nostr_rs_relay_data_{{DEPLOY_SUFFIX}}:
+
+networks:
+  dokploy-network:
+    external: true

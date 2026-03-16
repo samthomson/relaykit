@@ -1,0 +1,43 @@
+{
+  "id": "nostr-rs-relay",
+  "name": "nostr-rs-relay",
+  "label": "nostr-rs-relay",
+  "description": "A Rust Nostr relay with built-in whitelist and kind filtering",
+  "version": "1.0.0",
+  "type": "relay",
+  "serviceName": "nostr-rs-relay",
+  "internalPort": 8080,
+  "domainConfigKey": "RELAY_HOST",
+  "requiredConfig": [
+    {
+      "id": "RELAY_HOST",
+      "name": "Relay Domain",
+      "type": "string",
+      "required": true,
+      "description": "The domain name for your Nostr relay (e.g., relay.example.com)",
+      "placeholder": "relay.example.com"
+    },
+    {
+      "id": "ALLOWED_PUBKEYS",
+      "name": "Allowed Pubkeys (hex)",
+      "type": "string",
+      "required": false,
+      "description": "Comma-separated hex pubkeys allowed to publish. Empty = allow any pubkey."
+    },
+    {
+      "id": "ALLOWED_KINDS",
+      "name": "Allowed Event Kinds",
+      "type": "string",
+      "required": false,
+      "description": "Comma-separated event kind numbers allowed to publish. Empty = allow any kind."
+    },
+    {
+      "id": "REQUIRE_NIP42",
+      "name": "Require NIP-42 Auth",
+      "type": "string",
+      "required": false,
+      "default": "false",
+      "description": "Set to true to require NIP-42 authentication for publish."
+    }
+  ]
+}
