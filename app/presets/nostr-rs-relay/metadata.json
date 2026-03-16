@@ -18,18 +18,25 @@
       "placeholder": "relay.example.com"
     },
     {
-      "id": "ALLOWED_PUBKEYS",
-      "name": "Allowed Pubkeys (hex)",
+      "id": "WHITELISTED_PUBKEYS",
+      "name": "Whitelisted Pubkeys (hex)",
       "type": "string",
       "required": false,
-      "description": "Comma-separated hex pubkeys allowed to publish. Empty = allow any pubkey."
+      "description": "Comma-separated hex pubkeys allowed to publish. Empty = no pubkey whitelist."
     },
     {
-      "id": "ALLOWED_KINDS",
-      "name": "Allowed Event Kinds",
+      "id": "WHITELISTED_KINDS",
+      "name": "Whitelisted Event Kinds",
       "type": "string",
       "required": false,
-      "description": "Comma-separated event kind numbers allowed to publish. Empty = allow any kind."
+      "description": "Comma-separated event kind numbers allowed to publish. Empty = no kind whitelist."
+    },
+    {
+      "id": "BLACKLISTED_KINDS",
+      "name": "Blacklisted Event Kinds",
+      "type": "string",
+      "required": false,
+      "description": "Comma-separated event kind numbers to reject. Used only when Whitelisted Event Kinds is empty."
     },
     {
       "id": "REQUIRE_NIP42",

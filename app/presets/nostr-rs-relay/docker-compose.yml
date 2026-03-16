@@ -7,8 +7,9 @@ services:
     restart: unless-stopped
     environment:
       RELAY_HOST: ${RELAY_HOST}
-      ALLOWED_PUBKEYS: ${ALLOWED_PUBKEYS:-}
-      ALLOWED_KINDS: ${ALLOWED_KINDS:-}
+      WHITELISTED_PUBKEYS: ${WHITELISTED_PUBKEYS:-}
+      WHITELISTED_KINDS: ${WHITELISTED_KINDS:-}
+      BLACKLISTED_KINDS: ${BLACKLISTED_KINDS:-}
       REQUIRE_NIP42: ${REQUIRE_NIP42:-false}
     volumes:
       - nostr_rs_relay_data_{{DEPLOY_SUFFIX}}:/usr/src/app/db
@@ -32,19 +33,23 @@ services:
         limit_scrapers = false
         EOF
 
-        if [ -n "${ALLOWED_KINDS}" ]; then
+        if [ -n "${WHITELISTED_KINDS}" ]; then
           printf "event_kind_allowlist = [\n" >> /usr/src/app/config.toml
-          printf "%s" "${ALLOWED_KINDS}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | sed 's/^/  /;s/$/,/' >> /usr/src/app/config.toml
+          printf "%s" "${WHITELISTED_KINDS}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | sed 's/^/  /;s/$/,/' >> /usr/src/app/config.toml
+          printf "]\n" >> /usr/src/app/config.toml
+        elif [ -n "${BLACKLISTED_KINDS}" ]; then
+          printf "event_kind_blacklist = [\n" >> /usr/src/app/config.toml
+          printf "%s" "${BLACKLISTED_KINDS}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | sed 's/^/  /;s/$/,/' >> /usr/src/app/config.toml
           printf "]\n" >> /usr/src/app/config.toml
         fi
 
-        if [ -n "${ALLOWED_PUBKEYS}" ] || [ "${REQUIRE_NIP42}" = "true" ]; then
+        if [ -n "${WHITELISTED_PUBKEYS}" ] || [ "${REQUIRE_NIP42}" = "true" ]; then
           printf "\n[authorization]\n" >> /usr/src/app/config.toml
         fi
 
-        if [ -n "${ALLOWED_PUBKEYS}" ]; then
+        if [ -n "${WHITELISTED_PUBKEYS}" ]; then
           printf "pubkey_whitelist = [\n" >> /usr/src/app/config.toml
-          printf "%s" "${ALLOWED_PUBKEYS}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | sed 's/^/  "/;s/$/",/' >> /usr/src/app/config.toml
+          printf "%s" "${WHITELISTED_PUBKEYS}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | sed 's/^/  "/;s/$/",/' >> /usr/src/app/config.toml
           printf "]\n" >> /usr/src/app/config.toml
         fi
 

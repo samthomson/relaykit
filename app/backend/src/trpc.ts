@@ -116,7 +116,7 @@ const ensureADefaultProjectExistsForServices = async (): Promise<{ projectId: st
   return { projectId: created.projectId, environmentId }
 }
 
-const registerDomain = async (composeId: string, host: string, presetData: { internalPort: number; serviceName: string }) => {
+const registerDomain = async (composeId: string, host: string, presetData: { internalPort: number; serviceName?: string }) => {
   const certificateType = getCertificateType()
   const domainPayload = {
     composeId,
