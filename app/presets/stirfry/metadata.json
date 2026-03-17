@@ -2,6 +2,8 @@
   "id": "stirfry",
   "name": "Strfry Relay",
   "label": "Strfry",
+  "repo": "https://github.com/hoytech/strfry",
+  "icon": "⚡",
   "description": "A high-performance Nostr relay written in C++",
   "version": "1.0.0",
   "type": "relay",

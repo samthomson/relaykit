@@ -322,7 +322,22 @@ const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironment
                 onClick={() => handleSelectPreset(preset)}
                 className="block w-full text-left px-4 py-2.5 hover:bg-border-soft transition-colors border-b border-border-soft last:border-b-0"
               >
-                <span className="text-sm font-medium text-primary">{preset.name}</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {preset.icon && <span className="text-base leading-none">{preset.icon}</span>}
+                  <span className="text-sm font-medium text-primary">{preset.name}</span>
+                  {preset.repo && (
+                    <a
+                      href={preset.repo}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-ink-muted hover:text-primary ml-auto"
+                      onClick={(e) => e.stopPropagation()}
+                      title="View repo"
+                    >
+                      Repo ↗
+                    </a>
+                  )}
+                </div>
                 {preset.description && (
                   <p className="text-xs text-ink-muted m-0 mt-0.5">{preset.description}</p>
                 )}
@@ -546,9 +561,24 @@ const ServiceCard = ({
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap min-w-0">
               <h3 className="text-lg font-semibold m-0 text-ink truncate">{domain ? domain.host : service.name}</h3>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary inline-block">
-                {service.serviceType}
-              </span>
+              {service.repo ? (
+                <a
+                  href={service.repo}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary inline-flex items-center gap-1 hover:opacity-90"
+                  title="View upstream repo"
+                >
+                  {service.icon && <span>{service.icon}</span>}
+                  {service.serviceType}
+                  <span className="opacity-70">↗</span>
+                </a>
+              ) : (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary inline-flex items-center gap-1">
+                  {service.icon && <span>{service.icon}</span>}
+                  {service.serviceType}
+                </span>
+              )}
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium inline-block ${deploymentPillColor}`}>
                 {service.status}
               </span>
@@ -1204,7 +1234,17 @@ const DeployModal = ({
   return (
   <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50">
     <div className="bg-paper-elevated rounded-lg p-8 max-w-lg w-full max-h-[80vh] overflow-auto border border-border shadow-lg">
-      <h2 className="text-2xl font-bold mt-0 text-ink">Deploy {preset.name}</h2>
+      <div className="flex items-center gap-2 flex-wrap">
+        <h2 className="text-2xl font-bold mt-0 text-ink">
+          {preset.icon && <span className="mr-1.5">{preset.icon}</span>}
+          Deploy {preset.name}
+        </h2>
+        {preset.repo && (
+          <a href={preset.repo} target="_blank" rel="noopener noreferrer" className="text-sm text-ink-muted hover:text-primary" title="View repo">
+            Repo ↗
+          </a>
+        )}
+      </div>
       <p className="text-ink-muted">{preset.description}</p>
       <form onSubmit={onSubmit}>
         <div className="mb-4">

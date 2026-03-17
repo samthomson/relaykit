@@ -67,6 +67,8 @@ type PresetMetadata = {
   internalPort: number
   domainConfigKey?: string
   requiredConfig: PresetField[]
+  repo?: string
+  icon?: string
 }
 
 const stringifyEnvVars = (envVars: Record<string, string>): string =>
@@ -346,6 +348,8 @@ export const appRouter = router({
             whitelistedKinds: parseCsvList(envVars.WHITELISTED_KINDS),
             blacklistedKinds: parseCsvList(envVars.BLACKLISTED_KINDS),
             requireNip42: (envVars.REQUIRE_NIP42 || '').toLowerCase() === 'true',
+            repo: presetData.repo,
+            icon: presetData.icon,
           })
         }
       }

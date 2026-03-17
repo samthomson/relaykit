@@ -2,6 +2,8 @@
   "id": "nostr-rs-relay",
   "name": "nostr-rs-relay",
   "label": "nostr-rs-relay",
+  "repo": "https://github.com/scsibug/nostr-rs-relay",
+  "icon": "🦀",
   "description": "A Rust Nostr relay with built-in whitelist and kind filtering",
   "version": "1.0.0",
   "type": "relay",

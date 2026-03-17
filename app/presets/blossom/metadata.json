@@ -2,6 +2,8 @@
   "id": "blossom",
   "name": "Blossom Server",
   "label": "Blossom",
+  "repo": "https://github.com/hzrd149/blossom",
+  "icon": "🌸",
   "description": "A Blossom media server for Nostr",
   "version": "1.0.0",
   "type": "blossom",
