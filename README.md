@@ -34,6 +34,14 @@ Browser → RelayKit App → Dokploy API
 4. Dokploy handles actual container orchestration
 5. User sees their deployed services and can manage them
 
+## Available services
+
+| Service         | Repo |
+|-----------------|------|
+| nostr-rs-relay  | [scsibug/nostr-rs-relay](https://github.com/scsibug/nostr-rs-relay) |
+| Strfry          | [hoytech/strfry](https://github.com/hoytech/strfry) |
+| Blossom         | [hzrd149/blossom](https://github.com/hzrd149/blossom) |
+
 ## Project Structure
 
 ```
