@@ -164,3 +164,5 @@ RelayKit has two domain flows: **create a service (with domain in one go)** and 
 - [ ] some high level things per service (disk space used, maybe cpu/mem usage too? network traffic?)
 
 - [ ] in ui dns, make both values (name & ip) copyable
+
+- [ ] figure out full ssl for relaykit instance itself
