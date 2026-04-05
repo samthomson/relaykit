@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# Deploy from local machine: SSH to server, git pull, restart (or rebuild) containers.
+# Deploy from local machine: SSH to server, git pull, build images, then recreate containers.
+# Build runs while old containers are still up, so downtime is only the brief recreate.
 #
 # One-time setup:
-#   1. Copy .env.example to .env and set DEPLOY_HOST, DEPLOY_PATH (see .env.example).
+#   1. Copy .env.example to .env and set DEPLOY_HOST, DEPLOY_PATH.
 #   2. Ensure you can SSH to the server (e.g. ssh "$DEPLOY_HOST").
 #
 # Usage:
-#   ./scripts/deploy.sh           # git pull + restart
-#   ./scripts/deploy.sh --rebuild # git pull + docker compose build + up
+#   ./scripts/deploy.sh           # pull, build, then up (default)
+#   ./scripts/deploy.sh --no-rebuild   # pull + restart only (no new image; rarely needed)
 
 set -e
 
@@ -22,10 +23,10 @@ fi
 DEPLOY_HOST="${DEPLOY_HOST:-}"
 DEPLOY_PATH="${DEPLOY_PATH:-}"
 
-REBUILD=false
+REBUILD=true
 for arg in "$@"; do
   case "$arg" in
-    --rebuild|-r) REBUILD=true ;;
+    --no-rebuild|-n) REBUILD=false ;;
   esac
 done
 
@@ -42,14 +43,37 @@ if [[ -z "$DEPLOY_PATH" ]]; then
   exit 1
 fi
 
-echo "Deploying to $DEPLOY_HOST:$DEPLOY_PATH (rebuild=$REBUILD)"
+echo "=============================================="
+echo "  RelayKit deploy → $DEPLOY_HOST:$DEPLOY_PATH"
+echo "  Mode: $([ "$REBUILD" = true ] && echo 'pull + build + up' || echo 'pull + restart only')"
+echo "=============================================="
 echo ""
 
+run_remote() {
+  ssh "$DEPLOY_HOST" "cd $DEPLOY_PATH && $1"
+}
+
 if [[ "$REBUILD" == true ]]; then
-  ssh "$DEPLOY_HOST" "cd $DEPLOY_PATH && git pull && docker compose --profile prod up -d --build"
+  echo "==> Pulling latest code..."
+  run_remote "git pull"
+  echo ""
+
+  echo "==> Building images (existing containers still running)..."
+  run_remote "docker compose --profile prod build"
+  echo ""
+
+  echo "==> Recreating containers (short downtime)..."
+  run_remote "docker compose --profile prod up -d"
 else
-  ssh "$DEPLOY_HOST" "cd $DEPLOY_PATH && git pull && docker compose --profile prod restart"
+  echo "==> Pulling latest code..."
+  run_remote "git pull"
+  echo ""
+
+  echo "==> Restarting containers (no rebuild)..."
+  run_remote "docker compose --profile prod restart"
 fi
 
 echo ""
-echo "Done."
+echo "=============================================="
+echo "  Done."
+echo "=============================================="
