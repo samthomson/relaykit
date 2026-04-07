@@ -25,9 +25,13 @@ RUN cd backend && yarn install
 # Install tsx globally so it's available even with volume mounts
 RUN yarn global add tsx
 
-# Copy app then install frontend deps (vite etc.) so build works in prod
+# Install frontend dependencies in a cache-friendly layer.
+# This avoids re-fetching all frontend packages on every code change.
+COPY app/frontend/package.json app/frontend/yarn.lock* ./frontend/
+RUN cd frontend && yarn install --frozen-lockfile --network-timeout 600000
+
+# Copy full app source after dependency layers are cached
 COPY app .
-RUN cd frontend && yarn install
 
 # Copy scripts
 COPY scripts/automate-dokploy-setup.js /app/scripts/
