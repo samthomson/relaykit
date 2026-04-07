@@ -33,6 +33,10 @@ RUN cd frontend && yarn install --frozen-lockfile --network-timeout 600000
 # Copy full app source after dependency layers are cached
 COPY app .
 
+# Build frontend at image build time (not container startup).
+# Then drop frontend node_modules to keep the final image smaller/faster to export.
+RUN cd frontend && yarn build && rm -rf node_modules
+
 # Copy scripts
 COPY scripts/automate-dokploy-setup.js /app/scripts/
 COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh

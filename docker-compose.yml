@@ -147,7 +147,7 @@ services:
     depends_on:
       dokploy:
         condition: service_started
-    command: ["sh", "-c", "cd /app/frontend && yarn build && cd /app/backend && yarn start"]
+    command: ["sh", "-c", "cd /app/backend && yarn start"]
 
 volumes:
   postgres_data:
