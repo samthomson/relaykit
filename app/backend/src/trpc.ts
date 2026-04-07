@@ -179,6 +179,33 @@ const syncNsiteDokployDomains = async (composeId: string, envVars: Record<string
   }
 }
 
+const diagnoseDokployAuthFailure = async (): Promise<{
+  likelyInfraIssue: boolean
+  detail: string
+}> => {
+  try {
+    const res = await fetch(`${DOKPLOY_URL}/api/auth/session`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(5000),
+    })
+    if (res.status >= 500) {
+      return {
+        likelyInfraIssue: true,
+        detail: `Dokploy auth/session endpoint returned ${res.status}.`,
+      }
+    }
+    return {
+      likelyInfraIssue: false,
+      detail: `Dokploy auth/session endpoint returned ${res.status}.`,
+    }
+  } catch (e: any) {
+    return {
+      likelyInfraIssue: true,
+      detail: `Dokploy auth/session probe failed: ${e?.message || 'unknown error'}.`,
+    }
+  }
+}
+
 const dokployFetch = async (endpoint: string, options: RequestInit = {}) => {
   const url = `${DOKPLOY_URL}${endpoint}`
   const key = await getBootstrapKey()
@@ -207,9 +234,18 @@ const dokployFetch = async (endpoint: string, options: RequestInit = {}) => {
       body: text.substring(0, 500)
     })
     if (response.status === 401) {
+      const diag = await diagnoseDokployAuthFailure()
+      if (diag.likelyInfraIssue) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message:
+            `Dokploy rejected the API key, but Dokploy auth appears unhealthy right now (${diag.detail}) ` +
+            `This often indicates Dokploy internal DB connectivity issues, not just an invalid key.`,
+        })
+      }
       throw new TRPCError({
         code: 'UNAUTHORIZED',
-        message: 'Dokploy API key is invalid or expired. Update the bootstrap key (see README).',
+        message: 'Dokploy API key was rejected (401). Key may be invalid/revoked. Update the bootstrap key (see README).',
       })
     }
     throw new TRPCError({
