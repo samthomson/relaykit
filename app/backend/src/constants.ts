@@ -1,7 +1,6 @@
 import path from 'path'
 
-export const SERVICE_TYPE = { RELAY: 'relay', BLOSSOM: 'blossom' } as const
-export type ServiceType = (typeof SERVICE_TYPE)[keyof typeof SERVICE_TYPE]
+export { SERVICE_TYPE, type ServiceType } from '../../shared/serviceType'
 
 export const DOKPLOY_URL = 'http://dokploy:3000'
 export const CONFIG_PATH = path.join('/app', '.dokploy-key')

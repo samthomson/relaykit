@@ -1,11 +1,22 @@
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import {
+  useState,
+  useEffect,
+  useRef,
+  useLayoutEffect,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { nip19 } from 'nostr-tools';
 import { trpc } from './trpc';
 import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
 import { useRefreshServices } from './contexts/RefreshServicesContext';
+import { SERVICE_TYPE } from '../../shared/serviceType';
+import { parsePubkeyHex } from '../../shared/nsite';
+import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from './components/NsiteDeployFields';
 
 const CogMenu = ({
   items,
@@ -207,6 +218,7 @@ const MoveServiceModal = ({
 
 const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironmentId?: string }) => {
   const { triggerRefresh } = useRefreshServices();
+  const { npub } = useAuth();
   const [presets, setPresets] = useState<any[]>([]);
   const [environments, setEnvironments] = useState<{ environmentId: string; label: string }[]>([]);
   const [deployModalOpen, setDeployModalOpen] = useState(false);
@@ -266,10 +278,14 @@ const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironment
     setOpen(false);
     loadData();
     setSelectedPreset(preset);
-    const defaults: Record<string, string> = {};
-    preset.requiredConfig.forEach((field: any) => {
-      if (field.default) defaults[field.id] = field.default;
-    });
+    const isNsite = preset.id === SERVICE_TYPE.NSITE;
+    const defaults = isNsite
+      ? buildNsiteDeployDefaults(preset, npub)
+      : Object.fromEntries(
+          preset.requiredConfig
+            .filter((f: any) => f.default)
+            .map((f: any) => [f.id, f.default]),
+        );
     setDeployConfig(defaults);
     setDeployResult(null);
     setSelectedEnvironmentId(preselectedEnvironmentId ?? '');
@@ -281,9 +297,11 @@ const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironment
     setLoading(true);
     setDeployResult(null);
     try {
+      const isNsite = selectedPreset.id === SERVICE_TYPE.NSITE;
+      const config = isNsite ? prepareNsiteConfigForSave(deployConfig) : deployConfig;
       await trpc.deployService.mutate({
         presetId: selectedPreset.id,
-        config: deployConfig,
+        config,
         environmentId: selectedEnvironmentId || undefined,
       });
       toast.success('Service deployment started!');
@@ -313,34 +331,39 @@ const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironment
         createPortal(
           <div
             ref={dropdownRef}
-            className="fixed min-w-[240px] bg-paper-elevated border border-border rounded-lg shadow-lg py-1 z-[100]"
+            className="fixed z-[100] w-max max-w-sm min-w-[16rem] rounded-lg border border-border bg-paper-elevated py-1 shadow-lg"
             style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
           >
             {presets.map((preset) => (
               <button
                 key={preset.id}
+                type="button"
                 onClick={() => handleSelectPreset(preset)}
-                className="block w-full text-left px-4 py-2.5 hover:bg-border-soft transition-colors border-b border-border-soft last:border-b-0"
+                className="block w-full border-b border-border-soft px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-border-soft"
               >
-                <div className="flex items-center gap-2 flex-wrap">
-                  {preset.icon && <span className="text-base leading-none">{preset.icon}</span>}
-                  <span className="text-sm font-medium text-primary">{preset.name}</span>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {preset.icon && <span className="shrink-0 text-base leading-none">{preset.icon}</span>}
+                      <span className="truncate text-sm font-medium text-primary">{preset.name}</span>
+                    </div>
+                    {preset.description && (
+                      <p className="m-0 mt-1 line-clamp-2 text-xs leading-snug text-ink-muted">{preset.description}</p>
+                    )}
+                  </div>
                   {preset.repo && (
                     <a
                       href={preset.repo}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-ink-muted hover:text-primary ml-auto"
+                      className="shrink-0 text-xs text-ink-muted hover:text-primary"
                       onClick={(e) => e.stopPropagation()}
                       title="View repo"
                     >
-                      Repo ↗
+                      Repo&nbsp;↗
                     </a>
                   )}
                 </div>
-                {preset.description && (
-                  <p className="text-xs text-ink-muted m-0 mt-0.5">{preset.description}</p>
-                )}
               </button>
             ))}
           </div>,
@@ -358,6 +381,7 @@ const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironment
           environments={environments}
           selectedEnvironmentId={selectedEnvironmentId}
           setSelectedEnvironmentId={setSelectedEnvironmentId}
+          ownerPubkeyHex={npub}
         />
       )}
     </div>
@@ -486,7 +510,8 @@ const ServiceCard = ({
   const httpsUrl = domain ? `https://${domain.host}` : '';
   const wssUrl = domain ? `wss://${domain.host}` : '';
   const moveTargets = allEnvironments.filter((env) => env.environmentId !== service.environmentId);
-  const labelColClass = 'text-ink-subtle font-medium w-24 shrink-0';
+  const labelColClass = 'text-ink-subtle font-medium w-40 shrink-0';
+  const cardValueRailClass = 'flex min-w-0 flex-1 items-center gap-2';
   const secondaryActionBtnClass = 'shrink-0 h-7 px-2.5 text-xs rounded border border-border bg-paper-elevated hover:bg-border-soft text-ink-muted inline-flex items-center';
   const primaryActionBtnClass = 'shrink-0 h-7 px-2.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary inline-flex items-center';
   const manageItems: { label: string; onClick: () => void; danger?: boolean }[] = [];
@@ -515,20 +540,22 @@ const ServiceCard = ({
     values: string[];
     tone: 'green' | 'red';
   }) => (
-    <div className="flex items-start gap-2 flex-wrap">
+    <div className="flex items-start gap-2">
       <span className={labelColClass}>{label}</span>
-      {values.map((value, i) => (
-        <span
-          key={`${label}-${value}-${i}`}
-          className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
-            tone === 'green'
-              ? 'bg-success-bg text-success-text border-success/30'
-              : 'bg-error-bg text-error-text border-error/30'
-          }`}
-        >
-          {value}
-        </span>
-      ))}
+      <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+        {values.map((value, i) => (
+          <span
+            key={`${label}-${value}-${i}`}
+            className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
+              tone === 'green'
+                ? 'bg-success-bg text-success-text border-success/30'
+                : 'bg-error-bg text-error-text border-error/30'
+            }`}
+          >
+            {value}
+          </span>
+        ))}
+      </div>
     </div>
   );
 
@@ -591,44 +618,207 @@ const ServiceCard = ({
         <div className="mt-4 space-y-4 text-sm text-ink-muted">
           {domain ? (
             <div className="pt-3 border-t border-border-soft space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={labelColClass}>HTTPS</span>
-                <a href={httpsUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
-                  {httpsUrl} ↗
-                </a>
-                <button
-                  onClick={() => onCopy(httpsUrl)}
-                  className={secondaryActionBtnClass}
-                >
-                  Copy
-                </button>
-                {service.type === 'blossom' && (
-                  <button
-                    onClick={() => setShowBlossomExplorer(true)}
-                    className={primaryActionBtnClass}
-                  >
-                    Explore
-                  </button>
-                )}
-              </div>
-              {service.type === 'relay' && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={labelColClass}>WSS</span>
-                  <span className="font-mono text-xs truncate">{wssUrl}</span>
-                  <button
-                    onClick={() => onCopy(wssUrl)}
-                    className={secondaryActionBtnClass}
-                  >
-                    Copy
-                  </button>
-                  <button
-                    onClick={() => setShowExplorer(true)}
-                    className={primaryActionBtnClass}
-                  >
-                    Explore
-                  </button>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className={labelColClass}>HTTPS</span>
+                  <div className={cardValueRailClass}>
+                    <a
+                      href={httpsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="min-w-0 flex-1 truncate text-primary hover:underline"
+                    >
+                      {httpsUrl} ↗
+                    </a>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        onClick={() => onCopy(httpsUrl)}
+                        className={secondaryActionBtnClass}
+                      >
+                        Copy
+                      </button>
+                      {service.type === SERVICE_TYPE.BLOSSOM && (
+                        <button
+                          onClick={() => setShowBlossomExplorer(true)}
+                          className={primaryActionBtnClass}
+                        >
+                          Explore
+                        </button>
+                      )}
+                      {service.type === SERVICE_TYPE.NSITE && (
+                        <a href={`${httpsUrl}/status`} target="_blank" rel="noopener noreferrer" className={primaryActionBtnClass}>
+                          Status
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              )}
+                {service.type === SERVICE_TYPE.NSITE && (
+                  <div className="flex gap-2">
+                    <div className="w-40 shrink-0" aria-hidden />
+                    <p className="m-0 min-w-0 flex-1 text-xs leading-snug text-ink-subtle">
+                      Republished the site? Use <strong className="text-ink">Stop</strong> then <strong className="text-ink">Start</strong> so
+                      the gateway pulls fresh manifests (otherwise it may take ~10 minutes).
+                    </p>
+                  </div>
+                )}
+                {service.type === SERVICE_TYPE.RELAY && (
+                  <div className="flex items-center gap-2">
+                    <span className={labelColClass}>WSS</span>
+                    <div className={cardValueRailClass}>
+                      <span className="min-w-0 flex-1 truncate font-mono text-xs" title={wssUrl}>
+                        {wssUrl}
+                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button
+                          onClick={() => onCopy(wssUrl)}
+                          className={secondaryActionBtnClass}
+                        >
+                          Copy
+                        </button>
+                        <button
+                          onClick={() => setShowExplorer(true)}
+                          className={primaryActionBtnClass}
+                        >
+                          Explore
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {service.type === SERVICE_TYPE.NSITE &&
+                  service.nsiteVisitorHost &&
+                  service.nsiteCanonicalHost &&
+                  service.nsiteCanonicalHost !== domain?.host && (() => {
+                    const h = service.nsiteCanonicalHost;
+                    const nip5aHttps = `https://${h}`;
+                    return (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className={labelColClass}>NIP-5A URL</span>
+                          <div className={cardValueRailClass}>
+                            <a
+                              href={nip5aHttps}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="min-w-0 flex-1 truncate text-primary hover:underline"
+                              title={h}
+                            >
+                              {nip5aHttps} ↗
+                            </a>
+                            <button type="button" onClick={() => onCopy(nip5aHttps)} className={secondaryActionBtnClass}>
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="w-40 shrink-0" aria-hidden />
+                          <p className="m-0 min-w-0 flex-1 text-xs leading-snug text-ink-subtle">
+                            NIP-5A builds this hostname from your pubkey and site id (compact encoding), so it will not look like your hex or npub.
+                          </p>
+                        </div>
+                      </>
+                    );
+                  })()}
+              </div>
+
+              {service.type === SERVICE_TYPE.NSITE &&
+                (service.nsiteSiteNpub ||
+                  service.nsiteSiteD ||
+                  (!service.nsiteSiteNpub && service.nsiteManifestEventId)) && (
+                  <div className="space-y-2 border-t border-border-soft pt-3">
+                    {service.nsiteSiteNpub && (() => {
+                      const raw = service.nsiteSiteNpub.trim();
+                      const hex = parsePubkeyHex(raw);
+                      if (!hex) {
+                        return (
+                          <div className="flex items-center gap-2">
+                            <span className={labelColClass}>Publishing key</span>
+                            <div className={cardValueRailClass}>
+                              <span className="min-w-0 flex-1 truncate font-mono text-xs" title={raw}>
+                                {raw}
+                              </span>
+                              <button type="button" onClick={() => onCopy(raw)} className={secondaryActionBtnClass}>
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+                      const npub = nip19.npubEncode(hex);
+                      const storedAsHex = /^[0-9a-f]{64}$/i.test(raw);
+                      const hexRow = (
+                        <div key="pub-hex" className="flex items-center gap-2">
+                          <span className={labelColClass}>Pubkey (hex)</span>
+                          <div className={cardValueRailClass}>
+                            <span className="min-w-0 flex-1 truncate font-mono text-xs" title={hex}>
+                              {hex}
+                            </span>
+                            <button type="button" onClick={() => onCopy(hex)} className={secondaryActionBtnClass}>
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+                      );
+                      const npubRow = (
+                        <div key="npub" className="flex items-center gap-2">
+                          <span className={labelColClass}>Npub</span>
+                          <div className={cardValueRailClass}>
+                            <span className="min-w-0 flex-1 truncate font-mono text-xs" title={npub}>
+                              {npub}
+                            </span>
+                            <button type="button" onClick={() => onCopy(npub)} className={secondaryActionBtnClass}>
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+                      );
+                      return storedAsHex ? (
+                        <>
+                          {hexRow}
+                          {npubRow}
+                        </>
+                      ) : (
+                        <>
+                          {npubRow}
+                          {hexRow}
+                        </>
+                      );
+                    })()}
+                    {service.nsiteSiteD && (
+                      <div className="flex items-center gap-2">
+                        <span className={labelColClass}>Site id</span>
+                        <div className={cardValueRailClass}>
+                          <span className="min-w-0 flex-1 truncate font-mono text-xs" title={service.nsiteSiteD}>
+                            {service.nsiteSiteD}
+                          </span>
+                          <button
+                            onClick={() => onCopy(service.nsiteSiteD)}
+                            className={secondaryActionBtnClass}
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {!service.nsiteSiteNpub && service.nsiteManifestEventId && (
+                      <div className="flex items-center gap-2">
+                        <span className={labelColClass}>Manifest id</span>
+                        <div className={cardValueRailClass}>
+                          <span className="min-w-0 flex-1 truncate font-mono text-xs" title={service.nsiteManifestEventId}>
+                            {service.nsiteManifestEventId}
+                          </span>
+                          <button
+                            onClick={() => onCopy(service.nsiteManifestEventId)}
+                            className={secondaryActionBtnClass}
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               {isEditing && (
                 <div className="pt-2 mt-2 border-t border-border-soft flex items-center gap-2">
                   <span className={labelColClass}>Host</span>
@@ -670,29 +860,46 @@ const ServiceCard = ({
             </div>
           )}
 
-          {domain && serverIp && (
-            <div className="pt-3 border-t border-border-soft">
-              <div className="flex items-start gap-2">
-                <span className={labelColClass}>DNS</span>
-                <div className="flex-1 space-y-2">
-                  <p className="text-sm text-ink-muted m-0">
-                    A record for <strong>{dnsRecordNameForHost(domain.host).zone}</strong>
-                  </p>
-                  <div className="rounded px-3 py-2 text-sm font-mono flex items-center justify-between text-ink-muted border border-border-soft">
-                    <span><strong className="text-ink">{dnsRecordNameForHost(domain.host).name}</strong> → {serverIp}</span>
-                    <button
-                      type="button"
-                      onClick={() => onCopy(serverIp)}
-                      className="ml-2 p-1 text-ink-subtle hover:text-ink"
-                      title="Copy IP address"
-                    >
-                      📋
-                    </button>
+          {domain && serverIp && (() => {
+            const dnsHosts = [domain.host];
+            if (
+              service.type === SERVICE_TYPE.NSITE &&
+              service.nsiteCanonicalHost &&
+              service.nsiteCanonicalHost !== domain.host
+            ) {
+              dnsHosts.push(service.nsiteCanonicalHost);
+            }
+            return (
+              <div className="pt-3 border-t border-border-soft">
+                <div className="flex items-start gap-2">
+                  <span className={labelColClass}>DNS</span>
+                  <div className="flex-1 space-y-2">
+                    {dnsHosts.map((h) => {
+                      const rec = dnsRecordNameForHost(h);
+                      return (
+                        <div key={h}>
+                          <p className="text-sm text-ink-muted m-0">
+                            A record for <strong>{rec.zone}</strong>
+                          </p>
+                          <div className="rounded px-3 py-2 text-sm font-mono flex items-center justify-between text-ink-muted border border-border-soft">
+                            <span><strong className="text-ink">{rec.name}</strong> → {serverIp}</span>
+                            <button
+                              type="button"
+                              onClick={() => onCopy(serverIp)}
+                              className="ml-2 p-1 text-ink-subtle hover:text-ink"
+                              title="Copy IP address"
+                            >
+                              📋
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           <div className="pt-3 border-t border-border-soft">
             <div className="flex items-center gap-2">
@@ -700,7 +907,7 @@ const ServiceCard = ({
               <span>{createdStr}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-24 shrink-0" />
+              <span className="w-40 shrink-0" />
               <span className="text-xs text-ink-subtle italic">{createdAgo}</span>
             </div>
           </div>
@@ -854,9 +1061,13 @@ const ServiceList = () => {
     if (!editingConfigService) return;
     setSavingConfig(true);
     try {
+      const configToSave =
+        editingConfigService.type === SERVICE_TYPE.NSITE
+          ? prepareNsiteConfigForSave(editingConfigValues)
+          : editingConfigValues;
       await trpc.updateServiceConfig.mutate({
         composeId: editingConfigService.composeId,
-        config: editingConfigValues,
+        config: configToSave,
       });
       toast.success('Service config updated and redeploy started');
       setEditingConfigService(null);
@@ -1211,6 +1422,7 @@ const DeployModal = ({
   environments,
   selectedEnvironmentId,
   setSelectedEnvironmentId,
+  ownerPubkeyHex,
 }: {
   preset: any;
   deployConfig: Record<string, string>;
@@ -1222,6 +1434,7 @@ const DeployModal = ({
   environments: { environmentId: string; label: string }[];
   selectedEnvironmentId: string;
   setSelectedEnvironmentId: (id: string) => void;
+  ownerPubkeyHex: string | null;
 }) => {
   const byGroup = environments.reduce<Record<string, { environmentId: string; label: string }[]>>((acc, env) => {
     const [groupName, envName] = env.label.includes(' → ') ? env.label.split(' → ') : [env.label, ''];
@@ -1230,31 +1443,50 @@ const DeployModal = ({
     return acc;
   }, {});
   const groupNames = Object.keys(byGroup);
+  const isNsite = preset.id === SERVICE_TYPE.NSITE;
+
+  const renderField = (field: any) => (
+    <div key={field.id} className="mb-4">
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-ink">{field.name}</span>
+        <PresetConfigFieldInput
+          field={field}
+          value={deployConfig[field.id] ?? field.default ?? ''}
+          onChange={(next) => setDeployConfig((c) => ({ ...c, [field.id]: next }))}
+        />
+      </label>
+      {field.description && (
+        <p className="m-0 mt-1 text-xs leading-snug text-ink-muted">{field.description}</p>
+      )}
+    </div>
+  );
 
   return (
-  <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50">
-    <div className="bg-paper-elevated rounded-lg p-8 max-w-lg w-full max-h-[80vh] overflow-auto border border-border shadow-lg">
-      <div className="flex items-center gap-2 flex-wrap">
-        <h2 className="text-2xl font-bold mt-0 text-ink">
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
+    <div className="max-h-[85vh] w-full max-w-md overflow-auto rounded-lg border border-border bg-paper-elevated p-6 shadow-lg">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className="m-0 text-xl font-bold text-ink">
           {preset.icon && <span className="mr-1.5">{preset.icon}</span>}
           Deploy {preset.name}
         </h2>
         {preset.repo && (
-          <a href={preset.repo} target="_blank" rel="noopener noreferrer" className="text-sm text-ink-muted hover:text-primary" title="View repo">
+          <a href={preset.repo} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-ink-muted hover:text-primary" title="View repo">
             Repo ↗
           </a>
         )}
       </div>
-      <p className="text-ink-muted">{preset.description}</p>
+      {preset.description && (
+        <p className="mt-2 text-sm leading-relaxed text-ink-muted">{preset.description}</p>
+      )}
       <form onSubmit={onSubmit}>
         <div className="mb-4">
-          <label className="block mb-2 font-medium text-ink">
-            Deploy into:
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-ink">Deploy into</span>
             <select
               value={selectedEnvironmentId}
               onChange={(e) => setSelectedEnvironmentId(e.target.value)}
               required
-              className="block w-full px-3 py-2 mt-1 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary bg-paper-elevated text-ink"
+              className="block w-full rounded border border-border bg-paper-elevated px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Select environment…</option>
               {groupNames.map((groupName) => (
@@ -1269,30 +1501,28 @@ const DeployModal = ({
             </select>
           </label>
         </div>
-        {preset.requiredConfig.map((field: any) => (
-          <div key={field.id} className="mb-4">
-            <label className="block mb-2 font-medium text-ink">
-              {field.name}:
-              <PresetConfigFieldInput
-                field={field}
-                value={deployConfig[field.id] ?? field.default ?? ''}
-                onChange={(next) => setDeployConfig({ ...deployConfig, [field.id]: next })}
-              />
-            </label>
-            {field.description && <small className="text-ink-muted text-xs">{field.description}</small>}
-          </div>
-        ))}
+        {isNsite ? (
+          <NsiteDeployFields
+            preset={preset}
+            config={deployConfig}
+            setConfig={setDeployConfig}
+            ownerPubkeyHex={ownerPubkeyHex}
+            autoFetchProfile
+          />
+        ) : (
+          preset.requiredConfig.map(renderField)
+        )}
         {deployResult && (
           <div className={`mb-4 p-4 rounded ${deployResult.error ? 'bg-error-bg text-error-text' : 'bg-success-bg text-success-text'}`}>
             <strong>{deployResult.error ? 'Error:' : 'Success!'}</strong>
             <pre className="mt-2 text-xs whitespace-pre-wrap">{JSON.stringify(deployResult, null, 2)}</pre>
           </div>
         )}
-        <div className="flex gap-4 mt-6">
+        <div className="mt-6 flex gap-3">
           <button
             type="submit"
             disabled={loading || !selectedEnvironmentId}
-            className="flex-1 px-4 py-3 bg-success text-paper-elevated rounded hover:opacity-90 disabled:bg-border disabled:cursor-not-allowed"
+            className="flex-1 rounded bg-success px-4 py-2.5 text-sm text-paper-elevated hover:opacity-90 disabled:cursor-not-allowed disabled:bg-border"
           >
             {loading ? 'Deploying...' : 'Deploy'}
           </button>
@@ -1300,7 +1530,7 @@ const DeployModal = ({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="flex-1 px-4 py-3 bg-ink text-paper-elevated rounded hover:opacity-90 disabled:cursor-not-allowed"
+            className="flex-1 rounded bg-ink px-4 py-2.5 text-sm text-paper-elevated hover:opacity-90 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
@@ -1325,69 +1555,87 @@ const ConfigEditModal = ({
   service: any | null;
   fields: any[];
   values: Record<string, string>;
-  setValues: (next: Record<string, string>) => void;
+  setValues: Dispatch<SetStateAction<Record<string, string>>>;
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
   saving: boolean;
-}) => (
-  <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50">
-    <div className="bg-paper-elevated rounded-lg p-8 max-w-lg w-full max-h-[80vh] overflow-auto border border-border shadow-lg">
-      <h2 className="text-2xl font-bold mt-0 text-ink">Edit Config</h2>
-      <p className="text-ink-muted">
-        {service ? `Update environment config for ${service.name}` : 'Loading service config...'}
-      </p>
-      {loading ? (
-        <p className="text-ink-muted">Loading...</p>
-      ) : fields.length === 0 ? (
-        <>
-          <p className="text-ink-muted">No editable config fields for this service.</p>
-          <div className="flex gap-4 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-3 bg-ink text-paper-elevated rounded hover:opacity-90"
-            >
-              Close
-            </button>
-          </div>
-        </>
-      ) : (
-        <form onSubmit={onSubmit}>
-          {fields.map((field) => (
-            <div key={field.id} className="mb-4">
-              <label className="block mb-2 font-medium text-ink">
-                {field.name}:
-                <PresetConfigFieldInput
-                  field={field}
-                  value={values[field.id] ?? field.default ?? ''}
-                  onChange={(next) => setValues({ ...values, [field.id]: next })}
-                />
-              </label>
-              {field.description && <small className="text-ink-muted text-xs">{field.description}</small>}
-            </div>
-          ))}
-          <div className="flex gap-4 mt-6">
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 px-4 py-3 bg-success text-paper-elevated rounded hover:opacity-90 disabled:bg-border disabled:cursor-not-allowed"
-            >
-              {saving ? 'Saving...' : 'Save + Redeploy'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="flex-1 px-4 py-3 bg-ink text-paper-elevated rounded hover:opacity-90 disabled:cursor-not-allowed"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+}) => {
+  const isNsite = service?.type === SERVICE_TYPE.NSITE;
+  const fakePreset = isNsite ? { id: SERVICE_TYPE.NSITE, requiredConfig: fields } : null;
+
+  const renderConfigField = (field: any) => (
+    <div key={field.id} className="mb-4">
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-ink">{field.name}</span>
+        <PresetConfigFieldInput
+          field={field}
+          value={values[field.id] ?? field.default ?? ''}
+          onChange={(next) => setValues((v) => ({ ...v, [field.id]: next }))}
+        />
+      </label>
+      {field.description && (
+        <p className="m-0 mt-1 text-xs leading-snug text-ink-muted">{field.description}</p>
       )}
     </div>
-  </div>
-);
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
+      <div className="max-h-[85vh] w-full max-w-md overflow-auto rounded-lg border border-border bg-paper-elevated p-6 shadow-lg">
+        <h2 className="m-0 text-xl font-bold text-ink">Edit Config</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          {service ? `Update environment config for ${service.name}` : 'Loading service config...'}
+        </p>
+        {loading ? (
+          <p className="text-ink-muted">Loading...</p>
+        ) : fields.length === 0 ? (
+          <>
+            <p className="text-ink-muted">No editable config fields for this service.</p>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 rounded bg-ink px-4 py-2.5 text-sm text-paper-elevated hover:opacity-90"
+              >
+                Close
+              </button>
+            </div>
+          </>
+        ) : (
+          <form onSubmit={onSubmit}>
+            {isNsite && fakePreset ? (
+              <NsiteDeployFields
+                preset={fakePreset}
+                config={values}
+                setConfig={setValues}
+                ownerPubkeyHex={null}
+              />
+            ) : (
+              fields.map(renderConfigField)
+            )}
+            <div className="mt-6 flex gap-3">
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex-1 rounded bg-success px-4 py-2.5 text-sm text-paper-elevated hover:opacity-90 disabled:cursor-not-allowed disabled:bg-border"
+              >
+                {saving ? 'Saving...' : 'Save + Redeploy'}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={saving}
+                className="flex-1 rounded bg-ink px-4 py-2.5 text-sm text-paper-elevated hover:opacity-90 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const DeploySection = () => (
   <div className="mt-12">

@@ -1,0 +1,41 @@
+# Traefik → nsite-caddy:8080 → nsite-gateway:3000 with Host rewritten to NIP-5A canonical (NSITE_DOMAIN).
+# hzrd149 reads Host for routing; NSITE_ROUTER_HOST is what users type in the browser / DNS.
+services:
+  nsite-gateway:
+    image: ghcr.io/hzrd149/nsite-gateway:master
+    restart: unless-stopped
+    environment:
+      PUBLIC_DOMAIN: ${NSITE_ROUTER_HOST}
+      CACHE_PATH: /cache/nsite.kv
+      NOSTR_RELAYS: ${NOSTR_RELAYS}
+      LOOKUP_RELAYS: ${LOOKUP_RELAYS}
+      BLOSSOM_SERVERS: ${BLOSSOM_SERVERS}
+    volumes:
+      - nsite_gateway_cache_{{DEPLOY_SUFFIX}}:/cache
+    expose:
+      - "3000"
+    networks:
+      - dokploy-network
+
+  nsite-caddy:
+    image: caddy:alpine
+    restart: unless-stopped
+    environment:
+      CANONICAL_HOST: ${NSITE_DOMAIN}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        printf '%s\n' ':8080' 'reverse_proxy http://nsite-gateway:3000 {' "    header_up Host $$CANONICAL_HOST" '}' > /tmp/Caddyfile && exec caddy run --config /tmp/Caddyfile
+    expose:
+      - "8080"
+    depends_on:
+      - nsite-gateway
+    networks:
+      - dokploy-network
+
+volumes:
+  nsite_gateway_cache_{{DEPLOY_SUFFIX}}:
+
+networks:
+  dokploy-network:
+    external: true

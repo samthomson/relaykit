@@ -1,0 +1,71 @@
+{
+  "id": "nsite",
+  "name": "nsite gateway",
+  "label": "nsite",
+  "repo": "https://github.com/hzrd149/nsite-gateway",
+  "icon": "◈",
+  "description": "Static sites on Nostr — gateway for NIP-5A nsites.",
+  "version": "1.0.0",
+  "type": "nsite",
+  "serviceName": "nsite-caddy",
+  "internalPort": 8080,
+  "domainConfigKey": "NSITE_ROUTER_HOST",
+  "requiredConfig": [
+    {
+      "id": "NSITE_PARENT_DOMAIN",
+      "name": "Site domain",
+      "type": "string",
+      "required": true,
+      "description": "Per deployment — whatever comes after the long site label in the URL. Examples: relayk.it for one gateway, testsub.example.com for another. RelayKit builds the full host as <npub or base36+d>.<this>. Not a global setting: each nsite service picks its own.",
+      "placeholder": "relayk.it or testsub.example.com"
+    },
+    {
+      "id": "NSITE_SITE_NPUB",
+      "name": "Publishing key",
+      "type": "string",
+      "required": true,
+      "description": "Hex pubkey (64 hex chars) or npub1… for the account that signs manifests in Shakespeare. Same account for all sites under that key; each site is distinguished by the site id below.",
+      "placeholder": "npub1… or hex"
+    },
+    {
+      "id": "NSITE_SITE_D",
+      "name": "Site id (d tag)",
+      "type": "string",
+      "required": false,
+      "description": "Named site identifier for kind 35128 (Shakespeare). Leave empty only if you publish a root manifest (kind 15128). Must match NIP-5A: 1–13 chars [a-z0-9-], must not end with -.",
+      "placeholder": "myblog — empty for root-only 15128"
+    },
+    {
+      "id": "NSITE_VISITOR_HOST",
+      "name": "Public hostname (optional)",
+      "type": "string",
+      "required": false,
+      "description": "What visitors type and DNS should point at (e.g. blog.com). Leave empty to use only the long NIP-5A hostname. RelayKit registers routing and TLS for this host when you deploy or Save + Redeploy — check the service card HTTPS link matches before you rely on DNS.",
+      "placeholder": "empty = use computed NIP-5A host"
+    },
+    {
+      "id": "NOSTR_RELAYS",
+      "name": "Event / manifest relays",
+      "type": "string",
+      "required": false,
+      "description": "Comma-separated wss:// URLs for loading events and manifest sync (defaults are fine for most setups).",
+      "placeholder": "wss://…"
+    },
+    {
+      "id": "LOOKUP_RELAYS",
+      "name": "Discovery relays",
+      "type": "string",
+      "required": false,
+      "description": "Comma-separated wss:// URLs to find routing and Blossom hints for a pubkey.",
+      "placeholder": "wss://…"
+    },
+    {
+      "id": "BLOSSOM_SERVERS",
+      "name": "Blob mirror URLs",
+      "type": "string",
+      "required": false,
+      "description": "Comma-separated https:// Blossom bases when the manifest does not list servers.",
+      "placeholder": "https://…"
+    }
+  ]
+}

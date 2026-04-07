@@ -5,7 +5,8 @@ import fs from 'fs/promises'
 import path from 'path'
 import { createAuthContext, requireAuth, AuthContext } from './auth/middleware'
 import { getBootstrapKey } from './db'
-import { DOKPLOY_URL, CONFIG_PATH, PRESETS_DIR, DEFAULT_PROJECT_NAME } from './constants'
+import { DOKPLOY_URL, CONFIG_PATH, PRESETS_DIR, DEFAULT_PROJECT_NAME, SERVICE_TYPE } from './constants'
+import { applyNsiteHostnameToEnv, finalizeNsiteRouterEnv } from '../../shared/nsite'
 
 const t = initTRPC.context<{ auth: AuthContext | null; noBootstrapKey?: boolean; host?: string }>().create()
 
@@ -148,6 +149,33 @@ const registerDomain = async (composeId: string, host: string, presetData: { int
   } catch (error) {
     console.error('Domain creation failed:', error)
     throw error
+  }
+}
+
+/** Traefik needs a router (and cert) per Host; nsite may use a short public host plus the canonical NIP-5A host. */
+const syncNsiteDokployDomains = async (composeId: string, envVars: Record<string, string>, presetData: PresetMetadata) => {
+  const router = (envVars.NSITE_ROUTER_HOST || envVars.NSITE_DOMAIN || '').trim()
+  const canon = (envVars.NSITE_DOMAIN || '').trim()
+  const targets = new Set<string>()
+  if (router) targets.add(router)
+  if (canon && canon !== router) targets.add(canon)
+  if (targets.size === 0) return
+
+  const compose = await dokployFetch(`/api/compose.one?composeId=${composeId}`)
+  let domains = (compose.domains || []) as { domainId: string; host: string }[]
+  for (const dom of domains) {
+    if (targets.has(dom.host)) continue
+    await dokployFetch('/api/domain.delete', {
+      method: 'POST',
+      body: JSON.stringify({ domainId: dom.domainId }),
+    })
+  }
+
+  const composeAfter = await dokployFetch(`/api/compose.one?composeId=${composeId}`)
+  domains = (composeAfter.domains || []) as { domainId: string; host: string }[]
+  const existing = new Set(domains.map((d) => d.host))
+  for (const host of targets) {
+    if (!existing.has(host)) await registerDomain(composeId, host, presetData)
   }
 }
 
@@ -330,13 +358,17 @@ export const appRouter = router({
           const runtimeStatus = compose.composeStatus === 'done' ? 'running' : compose.composeStatus
           
           const domainKey = presetData.domainConfigKey ?? 'RELAY_HOST'
+          const hostname =
+            presetData.id === SERVICE_TYPE.NSITE
+              ? envVars.NSITE_ROUTER_HOST || envVars.NSITE_DOMAIN || envVars[domainKey]
+              : envVars[domainKey]
           services.push({
             composeId: compose.composeId,
             name: compose.name,
             serviceType: presetData.label,
             status: runtimeStatus,
             createdAt: compose.createdAt,
-            hostname: envVars[domainKey] || 'No hostname configured',
+            hostname: hostname || 'No hostname configured',
             domains: compose.domains || [],
             projectId: project.projectId,
             projectName: project.name,
@@ -348,6 +380,12 @@ export const appRouter = router({
             whitelistedKinds: parseCsvList(envVars.WHITELISTED_KINDS),
             blacklistedKinds: parseCsvList(envVars.BLACKLISTED_KINDS),
             requireNip42: (envVars.REQUIRE_NIP42 || '').toLowerCase() === 'true',
+            nsiteSiteNpub: envVars.NSITE_SITE_NPUB || undefined,
+            nsiteParentDomain: envVars.NSITE_PARENT_DOMAIN || undefined,
+            nsiteSiteD: envVars.NSITE_SITE_D || undefined,
+            nsiteVisitorHost: envVars.NSITE_VISITOR_HOST || undefined,
+            nsiteCanonicalHost: envVars.NSITE_DOMAIN || undefined,
+            nsiteManifestEventId: envVars.NSITE_MANIFEST_EVENT_ID || undefined,
             repo: presetData.repo,
             icon: presetData.icon,
           })
@@ -468,12 +506,22 @@ export const appRouter = router({
       const preset = await getPresetMetadata(compose.description)
       const editableFields = getEditablePresetFields(preset)
       const editableById = Object.fromEntries(editableFields.map((f) => [f.id, f] as const))
-      const envVars = parseServiceEnvVarsString(compose.env)
+      let envVars = parseServiceEnvVarsString(compose.env)
 
       for (const [key, rawValue] of Object.entries(input.config)) {
         const field = editableById[key]
         if (!field) continue
         envVars[key] = coerceConfigValueToString(field, rawValue)
+      }
+
+      if (preset.id === SERVICE_TYPE.NSITE) {
+        if ((envVars.NSITE_PARENT_DOMAIN ?? '').trim()) {
+          envVars = applyNsiteHostnameToEnv(envVars)
+        }
+        envVars = finalizeNsiteRouterEnv(envVars)
+      }
+      if (preset.id === SERVICE_TYPE.NSITE) {
+        await syncNsiteDokployDomains(input.composeId, envVars, preset)
       }
 
       const env = stringifyEnvVars(envVars)
@@ -563,7 +611,15 @@ export const appRouter = router({
       try {
         const presetDir = path.join(PRESETS_DIR, input.presetId)
         const composeContent = await fs.readFile(path.join(presetDir, 'docker-compose.yml'), 'utf-8')
-        const envString = stringifyEnvVars(input.config)
+        let configForDeploy = { ...input.config }
+        if (input.presetId === SERVICE_TYPE.NSITE) {
+          if (!(configForDeploy.NSITE_PARENT_DOMAIN ?? '').trim()) {
+            throw new Error('Site domain is required (the suffix after the site label, e.g. relayk.it).')
+          }
+          configForDeploy = applyNsiteHostnameToEnv(configForDeploy)
+          configForDeploy = finalizeNsiteRouterEnv(configForDeploy)
+        }
+        const envString = stringifyEnvVars(configForDeploy)
         const environmentId = input.environmentId ?? (await ensureADefaultProjectExistsForServices()).environmentId
 
         const uniqueSuffix = Date.now()
@@ -590,9 +646,13 @@ export const appRouter = router({
 
         const presetData = await getPresetMetadata(input.presetId)
         const domainKey = presetData.domainConfigKey ?? 'RELAY_HOST'
-        const hostname = input.config[domainKey]
+        const hostname = configForDeploy[domainKey] || configForDeploy.NSITE_DOMAIN
+        const nsiteCanon = (configForDeploy.NSITE_DOMAIN || '').trim()
         if (hostname && presetData.serviceName) {
           await registerDomain(createCompose.composeId, hostname, presetData)
+          if (input.presetId === SERVICE_TYPE.NSITE && nsiteCanon && nsiteCanon !== hostname) {
+            await registerDomain(createCompose.composeId, nsiteCanon, presetData)
+          }
         }
 
         await dokployFetch('/api/compose.deploy', {
