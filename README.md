@@ -36,11 +36,12 @@ Browser → RelayKit App → Dokploy API
 
 ## Available services
 
-| Service         | Repo |
-|-----------------|------|
-| nostr-rs-relay  | [scsibug/nostr-rs-relay](https://github.com/scsibug/nostr-rs-relay) |
-| Strfry          | [hoytech/strfry](https://github.com/hoytech/strfry) |
-| Blossom         | [hzrd149/blossom](https://github.com/hzrd149/blossom) |
+| Service         | Repo | Notes |
+|-----------------|------|-------|
+| nostr-rs-relay  | [scsibug/nostr-rs-relay](https://github.com/scsibug/nostr-rs-relay) | |
+| Strfry          | [hoytech/strfry](https://github.com/hoytech/strfry) | |
+| Blossom         | [hzrd149/blossom](https://github.com/hzrd149/blossom) | |
+| nsite gateway   | [hzrd149/nsite-gateway](https://github.com/hzrd149/nsite-gateway) | Static sites on Nostr (NIP-5A). Deploys two containers: the gateway itself and a Caddy sidecar that rewrites the `Host` header to the canonical NIP-5A hostname before proxying to the gateway. This lets users set a friendly custom domain while the gateway still resolves the correct site. |
 
 ## Project Structure
 
@@ -53,8 +54,12 @@ relaykit-proto/
 └── app/
     ├── frontend/     (React + tRPC client)
     ├── backend/      (Node.js + tRPC server)
+    ├── shared/       (shared TypeScript utils, e.g. nsite.ts)
     └── presets/      (service docker-compose templates)
-        └── stirfry-relay/
+        ├── strfry-relay/
+        ├── nostr-rs-relay/
+        ├── blossom/
+        └── nsite/
             ├── docker-compose.yml
             └── metadata.json
 ```
