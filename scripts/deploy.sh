@@ -64,6 +64,10 @@ if [[ "$REBUILD" == true ]]; then
 
   echo "==> Recreating containers (short downtime)..."
   run_remote "docker compose --profile prod up -d"
+  echo ""
+
+  echo "==> Refreshing Traefik routing state..."
+  run_remote "docker compose --profile prod restart dokploy-traefik-prod"
 else
   echo "==> Pulling latest code..."
   run_remote "git pull"
