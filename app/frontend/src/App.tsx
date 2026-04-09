@@ -1364,6 +1364,32 @@ const DokployConnectionAlert = ({ message }: { message: string }) => (
   </Paper>
 );
 
+const ServicesPage = () => {
+  const { dokployConnectionError, dokployReady } = useDokploy();
+
+  if (dokployConnectionError) {
+    return (
+      <Stack gap="xl" p="xl">
+        <DokployConnectionAlert message={dokployConnectionError} />
+      </Stack>
+    );
+  }
+
+  return (
+    <Stack gap="xl" p="xl">
+      <DokployInitialCheck />
+      {!dokployReady ? (
+        <Text c="dimmed">Loading…</Text>
+      ) : (
+        <>
+          <ServiceList />
+          <DeploySection />
+        </>
+      )}
+    </Stack>
+  );
+};
+
 const AccountModal = ({ opened, onClose }: { opened: boolean; onClose: () => void }) => {
   const { npub } = useAuth();
   const { hex, npub: encodedNpub } = getIdentityKeys(npub);
@@ -1475,7 +1501,6 @@ const DokployInitialCheck = () => {
 
 const AppContent = () => {
   const { isAuthenticated, isLoading, logout } = useAuth();
-  const { dokployConnectionError, dokployReady } = useDokploy();
   const [mobileMenuOpened, { toggle: toggleMobileMenu, close: closeMobileMenu }] = useDisclosure(false);
   const [accountModalOpen, { open: openAccountModal, close: closeAccountModal }] = useDisclosure(false);
 
@@ -1486,26 +1511,6 @@ const AppContent = () => {
   if (!isAuthenticated) {
     return <LoginScreen />;
   }
-
-  const mainContent = (
-    <Stack gap="xl" p="xl">
-      {dokployConnectionError ? (
-        <DokployConnectionAlert message={dokployConnectionError} />
-      ) : (
-        <>
-          <DokployInitialCheck />
-          {!dokployReady ? (
-            <Text c="dimmed">Loading…</Text>
-          ) : (
-            <>
-              <ServiceList />
-              <DeploySection />
-            </>
-          )}
-        </>
-      )}
-    </Stack>
-  );
 
   return (
     <>
@@ -1558,7 +1563,7 @@ const AppContent = () => {
 
         <AppShell.Main bg="paper.2">
           <Routes>
-            <Route path="/" element={mainContent} />
+            <Route path="/" element={<ServicesPage />} />
             <Route path="/debug" element={<DebugPage />} />
           </Routes>
         </AppShell.Main>
