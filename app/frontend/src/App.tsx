@@ -613,7 +613,6 @@ const ServiceList = () => {
   const { logout } = useAuth();
   const [services, setServices] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [serverIp, setServerIp] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
@@ -640,7 +639,6 @@ const ServiceList = () => {
   );
 
   const loadData = async () => {
-    setLoading(true);
     setDokployConnectionError(null);
     try {
       const [svcResult, projResult, ipResult] = await Promise.all([
@@ -662,8 +660,6 @@ const ServiceList = () => {
       setDokployConnectionError(msg || 'Could not load services. Run the setup script (see README).');
       setServices([]);
       setProjects([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -880,22 +876,17 @@ const ServiceList = () => {
       <Group justify="space-between">
         <Title order={2}>Services</Title>
         <Group gap="xs">
-          <Group gap="xs">
-            <Text size="sm" c="dimmed">View:</Text>
-            <SegmentedControl
-              size="sm"
-              color="relay-orange"
-              value={showDetails ? 'details' : 'overview'}
-              onChange={(v) => setShowDetails(v === 'details')}
-              data={[
-                { label: 'Overview', value: 'overview' },
-                { label: 'Details', value: 'details' },
-              ]}
-            />
-          </Group>
-          <Button color="relay-orange" onClick={() => triggerRefresh()} loading={loading} leftSection={loading ? undefined : '↻'}>
-            Refresh
-          </Button>
+          <Text size="sm" c="dimmed">View:</Text>
+          <SegmentedControl
+            size="sm"
+            color="relay-orange"
+            value={showDetails ? 'details' : 'overview'}
+            onChange={(v) => setShowDetails(v === 'details')}
+            data={[
+              { label: 'Overview', value: 'overview' },
+              { label: 'Details', value: 'details' },
+            ]}
+          />
         </Group>
       </Group>
 
