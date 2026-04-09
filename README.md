@@ -173,7 +173,6 @@ RelayKit has two domain flows: **create a service (with domain in one go)** and 
 - [ ] figure out full ssl for relaykit instance itself
 
 - [ ] ui rewrite
-   - [ ] add service button lost
    - [ ] table for dns
    - [ ] drop refresh button
    - [ ] rubix state/loading component
