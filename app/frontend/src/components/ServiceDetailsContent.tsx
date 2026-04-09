@@ -8,11 +8,11 @@ import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Paper, Badge, 
 import { IconCopy, IconExternalLink } from '@tabler/icons-react';
 import { InlineTextEditRow } from './InlineTextEditRow';
 
-const LABEL_COL = 100;
-
 const SHELL_H_MS = 480;
 const FADE_MS = 280;
 const HEIGHT_EASE = `${SHELL_H_MS / 1000}s cubic-bezier(0.33, 1, 0.68, 1)`;
+
+const LABEL_COL = 100;
 
 const monoBreakable = { wordBreak: 'break-all' as const, overflowWrap: 'anywhere' as const };
 
@@ -25,6 +25,49 @@ const DetailBlock = ({ label, children }: { label: string; children: ReactNode }
       {children}
     </Stack>
   </Group>
+);
+
+const ServiceDetailsDns = ({
+  service,
+  domain,
+  serverIp,
+  onCopy,
+}: {
+  service: any;
+  domain: { host: string };
+  serverIp: string;
+  onCopy: (text: string) => void;
+}) => (
+  <Stack gap="xs">
+    <Paper withBorder p="xs">
+      <Group gap="xs" align="flex-start" wrap="nowrap" justify="space-between">
+        <Text size="xs" ff="monospace" style={{ flex: 1, minWidth: 0, ...monoBreakable }}>
+          {domain.host} → {serverIp}
+        </Text>
+        <Tooltip label="Copy IP">
+          <ActionIcon variant="subtle" size="sm" style={{ flexShrink: 0 }} onClick={() => onCopy(serverIp)}>
+            <IconCopy size={12} />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
+    </Paper>
+    {service.type === SERVICE_TYPE.NSITE &&
+      service.nsiteCanonicalHost &&
+      service.nsiteCanonicalHost !== domain.host && (
+        <Paper withBorder p="xs">
+          <Group gap="xs" align="flex-start" wrap="nowrap" justify="space-between">
+            <Text size="xs" ff="monospace" style={{ flex: 1, minWidth: 0, ...monoBreakable }}>
+              {service.nsiteCanonicalHost} → {serverIp}
+            </Text>
+            <Tooltip label="Copy IP">
+              <ActionIcon variant="subtle" size="sm" style={{ flexShrink: 0 }} onClick={() => onCopy(serverIp)}>
+                <IconCopy size={12} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+        </Paper>
+      )}
+  </Stack>
 );
 
 export type ServiceDetailsContentProps = {
@@ -42,19 +85,19 @@ export type ServiceDetailsContentProps = {
   omitHostEditor?: boolean;
 };
 
-export const ServiceDetailsContent = ({
-  service,
-  serverIp,
-  editingDomain,
-  newDomainHost,
-  setNewDomainHost,
-  onSaveDomain,
-  onCancelEdit,
-  onCopy,
-  onOpenRelayExplorer,
-  onOpenBlossomExplorer,
-  omitHostEditor = false,
-}: ServiceDetailsContentProps) => {
+const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
+  const {
+    service,
+    editingDomain,
+    newDomainHost,
+    setNewDomainHost,
+    onSaveDomain,
+    onCancelEdit,
+    onCopy,
+    onOpenRelayExplorer,
+    onOpenBlossomExplorer,
+    omitHostEditor = false,
+  } = props;
   const domain = service.domains?.[0];
   const whitelistedPubkeys: string[] = service.whitelistedPubkeys || [];
   const whitelistedKinds: string[] = service.whitelistedKinds || [];
@@ -68,9 +111,8 @@ export const ServiceDetailsContent = ({
   const httpsUrl = domain ? `https://${domain.host}` : '';
   const wssUrl = domain ? `wss://${domain.host}` : '';
   const hasConfig = whitelistedKinds.length > 0 || blacklistedKinds.length > 0 || whitelistedPubkeys.length > 0 || requireNip42;
-  const hasDNS = domain && serverIp;
 
-  const infoPanel = (
+  return (
     <Stack gap="md">
       <DetailBlock label="Service ID">
         <Group gap="xs" wrap="wrap" align="flex-start">
@@ -304,31 +346,12 @@ export const ServiceDetailsContent = ({
       </DetailBlock>
     </Stack>
   );
+};
 
-  const dnsHostRow = (host: string) => (
-    <Paper withBorder p="xs">
-      <Group gap="xs" align="flex-start" wrap="nowrap" justify="space-between">
-        <Text size="xs" ff="monospace" style={{ flex: 1, minWidth: 0, ...monoBreakable }}>
-          {host} → {serverIp}
-        </Text>
-        <Tooltip label="Copy IP">
-          <ActionIcon variant="subtle" size="sm" style={{ flexShrink: 0 }} onClick={() => onCopy(serverIp!)}>
-            <IconCopy size={12} />
-          </ActionIcon>
-        </Tooltip>
-      </Group>
-    </Paper>
-  );
-
-  const dnsPanel = hasDNS ? (
-    <Stack gap="xs">
-      {dnsHostRow(domain!.host)}
-      {service.type === SERVICE_TYPE.NSITE &&
-        service.nsiteCanonicalHost &&
-        service.nsiteCanonicalHost !== domain!.host &&
-        dnsHostRow(service.nsiteCanonicalHost)}
-    </Stack>
-  ) : null;
+export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
+  const { service, serverIp } = props;
+  const domain = service.domains?.[0];
+  const hasDNS = domain && serverIp;
 
   const [section, setSection] = useState('info');
   const innerRef = useRef<HTMLDivElement>(null);
@@ -369,10 +392,25 @@ export const ServiceDetailsContent = ({
             </Tabs.List>
             <Box style={{ flex: 1, minWidth: 0, paddingTop: rem(2) }}>
               <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'info'}>
-                {(tStyle) => <Box style={{ ...tStyle, minWidth: 0 }}>{infoPanel}</Box>}
+                {(tStyle) => (
+                  <Box style={{ ...tStyle, minWidth: 0 }}>
+                    <ServiceDetailsInfo {...props} />
+                  </Box>
+                )}
               </Transition>
               <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'dns'}>
-                {(tStyle) => <Box style={{ ...tStyle, minWidth: 0 }}>{dnsPanel}</Box>}
+                {(tStyle) => (
+                  <Box style={{ ...tStyle, minWidth: 0 }}>
+                    {hasDNS ? (
+                      <ServiceDetailsDns
+                        service={service}
+                        domain={domain}
+                        serverIp={serverIp}
+                        onCopy={props.onCopy}
+                      />
+                    ) : null}
+                  </Box>
+                )}
               </Transition>
             </Box>
           </Group>
