@@ -10,9 +10,11 @@ import { useRefreshServices } from './contexts/RefreshServicesContext';
 import { SERVICE_TYPE } from '../../shared/serviceType';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from './components/NsiteDeployFields';
 import { ServiceDetailsContent } from './components/ServiceDetailsContent';
+import { InlineTextEditRow, INLINE_TITLE_ROW_H } from './components/InlineTextEditRow';
+import { ServiceHostTitleView } from './components/ServiceHostTitleView';
 import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, rem } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconChevronDown, IconCopy, IconExternalLink } from '@tabler/icons-react';
+import { IconChevronDown, IconCopy, IconExternalLink, IconPencil } from '@tabler/icons-react';
 
 function getIdentityKeys(key: string | null): { hex: string | null; npub: string | null } {
   if (!key) return { hex: null, npub: null };
@@ -389,6 +391,7 @@ const ServiceCard = ({
     onCopy,
     onOpenRelayExplorer: () => setShowExplorer(true),
     onOpenBlossomExplorer: () => setShowBlossomExplorer(true),
+    omitHostEditor: !!(isEditing && domain),
   };
 
   return (
@@ -421,15 +424,39 @@ const ServiceCard = ({
       >
         {showDetails ? (
           <>
-            <Group justify="space-between" align="center">
-              <Group align="center" gap="xs">
+            <Group justify="space-between" align="center" wrap="nowrap" gap="sm" style={{ minHeight: INLINE_TITLE_ROW_H }}>
+              <Group align="center" gap="xs" wrap="nowrap" style={{ minWidth: 0, flex: 1, minHeight: INLINE_TITLE_ROW_H }}>
                 {service.icon && (
-                  <span style={{ display: 'inline-flex', width: 20, height: 20, alignItems: 'center', justifyContent: 'center', marginRight: 6 }}>
+                  <span style={{ display: 'inline-flex', width: 20, height: 20, alignItems: 'center', justifyContent: 'center', marginRight: 6, flexShrink: 0 }}>
                     {service.icon}
                   </span>
                 )}
-                <Text fw={700} size="lg" truncate>{domain ? domain.host : service.name}</Text>
-                <Badge variant="filled" color={statusColor} size="sm">{service.status}</Badge>
+                {isEditing && domain ? (
+                  <InlineTextEditRow
+                    value={newDomainHost}
+                    onChange={setNewDomainHost}
+                    onSave={() => void onSaveDomain()}
+                    onCancel={onCancelEdit}
+                    autoFocus
+                    density="comfortable"
+                    inputStyle={{ flex: 1, minWidth: 0 }}
+                    rowStyle={{ flex: 1, minWidth: 0 }}
+                    trailing={<Badge variant="filled" color={statusColor} size="sm">{service.status}</Badge>}
+                  />
+                ) : (
+                  <ServiceHostTitleView
+                    title={domain ? domain.host : service.name}
+                    density="comfortable"
+                    domain={domain}
+                    canEditConfig={service.canEditConfig}
+                    composeId={service.composeId}
+                    service={service}
+                    onEditDomain={onEditDomain}
+                    onEditConfig={onEditConfig}
+                    rowStyle={{ flex: 1, minWidth: 0 }}
+                    trailing={<Badge variant="filled" color={statusColor} size="sm">{service.status}</Badge>}
+                  />
+                )}
               </Group>
               <CogMenu showLabel items={manageItems} />
             </Group>
@@ -440,17 +467,37 @@ const ServiceCard = ({
         ) : (
           <>
             <Stack gap="sm">
-              <Group justify="space-between" align="flex-start" wrap="nowrap" gap="xs">
-                <Group align="center" gap="xs" style={{ minWidth: 0, flex: 1 }}>
+              <Group justify="space-between" align="center" wrap="nowrap" gap="xs" style={{ minHeight: INLINE_TITLE_ROW_H }}>
+                <Group align="center" gap="xs" style={{ minWidth: 0, flex: 1, minHeight: INLINE_TITLE_ROW_H }}>
                   {service.icon && (
                     <span style={{ display: 'inline-flex', width: 22, height: 22, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       {service.icon}
                     </span>
                   )}
                   <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
-                    <Text fw={600} size="sm" truncate title={domain ? domain.host : service.name}>
-                      {domain ? domain.host : service.name}
-                    </Text>
+                    {isEditing && domain ? (
+                      <InlineTextEditRow
+                        value={newDomainHost}
+                        onChange={setNewDomainHost}
+                        onSave={() => void onSaveDomain()}
+                        onCancel={onCancelEdit}
+                        autoFocus
+                        inputStyle={{ flex: 1, minWidth: 0 }}
+                        rowStyle={{ width: '100%' }}
+                      />
+                    ) : (
+                      <ServiceHostTitleView
+                        title={domain ? domain.host : service.name}
+                        density="compact"
+                        domain={domain}
+                        canEditConfig={service.canEditConfig}
+                        composeId={service.composeId}
+                        service={service}
+                        onEditDomain={onEditDomain}
+                        onEditConfig={onEditConfig}
+                        rowStyle={{ minWidth: 0, flex: 1 }}
+                      />
+                    )}
                     <Badge variant="filled" color={statusColor} size="xs" w="fit-content">{service.status}</Badge>
                   </Stack>
                 </Group>
@@ -502,10 +549,31 @@ const ServiceCard = ({
               opened={detailsModalOpen}
               onClose={() => setDetailsModalOpen(false)}
               title={
-                <Group justify="space-between" align="center" gap="sm" wrap="nowrap" w="100%" maw="calc(100% - 2.5rem)">
-                  <Text fw={700} size="lg" truncate style={{ flex: 1, minWidth: 0 }}>
-                    {domain ? domain.host : service.name}
-                  </Text>
+                <Group justify="space-between" align="center" gap="sm" wrap="nowrap" w="100%" maw="calc(100% - 2.5rem)" style={{ minHeight: INLINE_TITLE_ROW_H }}>
+                  {isEditing && domain ? (
+                    <InlineTextEditRow
+                      value={newDomainHost}
+                      onChange={setNewDomainHost}
+                      onSave={() => void onSaveDomain()}
+                      onCancel={onCancelEdit}
+                      autoFocus
+                      density="comfortable"
+                      inputStyle={{ flex: 1, minWidth: 0 }}
+                      rowStyle={{ flex: 1, minWidth: 0 }}
+                    />
+                  ) : (
+                    <ServiceHostTitleView
+                      title={domain ? domain.host : service.name}
+                      density="comfortable"
+                      domain={domain}
+                      canEditConfig={service.canEditConfig}
+                      composeId={service.composeId}
+                      service={service}
+                      onEditDomain={onEditDomain}
+                      onEditConfig={onEditConfig}
+                      rowStyle={{ flex: 1, minWidth: 0 }}
+                    />
+                  )}
                   <CogMenu showLabel items={manageItems} />
                 </Group>
               }
@@ -831,37 +899,48 @@ const ServiceList = () => {
             const projectServiceCount = project.environments.reduce((acc: number, e: any) => acc + e.services.length, 0);
             return (
               <Paper key={project.projectId} withBorder p="md" bg="white">
-                <Group justify="space-between" mb="md">
-                  <Group gap="xs">
-                    {renamingProjectId === project.projectId ? (
-                      <>
-                        <TextInput
-                          size="xs"
-                          value={renameProjectValue}
-                          onChange={(e) => setRenameProjectValue(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleRenameProject(project.projectId)}
-                          style={{ width: 200 }}
-                          autoFocus
-                        />
-                        <Button size="xs" color="relay-orange" onClick={() => handleRenameProject(project.projectId)} disabled={!renameProjectValue.trim()}>Save</Button>
-                        <Button size="xs" variant="default" onClick={() => { setRenamingProjectId(null); setRenameProjectValue(''); }}>Cancel</Button>
-                      </>
-                    ) : (
-                      <>
-                        {displayProjectName(project.name) && <Text fw={600}>{displayProjectName(project.name)}</Text>}
+                <Group justify="space-between" mb="md" wrap="wrap" align="center" w="100%" style={{ minHeight: INLINE_TITLE_ROW_H }}>
+                  {renamingProjectId === project.projectId ? (
+                    <>
+                      <InlineTextEditRow
+                        value={renameProjectValue}
+                        onChange={setRenameProjectValue}
+                        onSave={() => handleRenameProject(project.projectId)}
+                        onCancel={() => { setRenamingProjectId(null); setRenameProjectValue(''); }}
+                        saveDisabled={!renameProjectValue.trim()}
+                        autoFocus
+                        inputStyle={{ flex: 1, minWidth: 120 }}
+                        rowStyle={{ flex: 1, minWidth: 0 }}
+                      />
+                      <Group gap="xs" wrap="nowrap" style={{ minHeight: INLINE_TITLE_ROW_H }} align="center">
                         <Badge variant="filled" color="gray" size="sm">{projectServiceCount} {pluralize('service', projectServiceCount)}</Badge>
-                        {!isDefaultProject(project.name) && (
-                          <ActionIcon variant="subtle" size="xs" onClick={() => { setRenamingProjectId(project.projectId); setRenameProjectValue(project.name); }}>
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" style={{ width: 14, height: 14 }}><path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" /></svg>
-                          </ActionIcon>
-                        )}
-                        <div style={{ flex: 1 }} />
                         <CogMenu items={[
                           { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
                         ]} />
-                      </>
-                    )}
-                  </Group>
+                      </Group>
+                    </>
+                  ) : (
+                    <>
+                      <Group gap={4} wrap="nowrap" align="center" style={{ flex: 1, minWidth: 0, minHeight: INLINE_TITLE_ROW_H }}>
+                        {displayProjectName(project.name) && (
+                          <Text fw={600} fz="md" style={{ lineHeight: INLINE_TITLE_ROW_H, display: 'flex', alignItems: 'center' }}>
+                            {displayProjectName(project.name)}
+                          </Text>
+                        )}
+                        {displayProjectName(project.name) && !isDefaultProject(project.name) && (
+                          <ActionIcon variant="subtle" size="xs" onClick={() => { setRenamingProjectId(project.projectId); setRenameProjectValue(project.name); }} aria-label="Rename group">
+                            <IconPencil size={14} />
+                          </ActionIcon>
+                        )}
+                      </Group>
+                      <Group gap="xs" wrap="nowrap" style={{ minHeight: INLINE_TITLE_ROW_H }} align="center">
+                        <Badge variant="filled" color="gray" size="sm">{projectServiceCount} {pluralize('service', projectServiceCount)}</Badge>
+                        <CogMenu items={[
+                          { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
+                        ]} />
+                      </Group>
+                    </>
+                  )}
                 </Group>
                 <Stack gap="sm">
                   {showDetails ? (
@@ -869,37 +948,33 @@ const ServiceList = () => {
                       const isDefaultEnv = env.isDefault === true;
                       return (
                         <Card key={env.environmentId} withBorder padding="sm" bg="gray.0">
-                          <Group justify="space-between" mb="xs">
-                            <Group gap="xs">
-                              {renamingEnvId === env.environmentId ? (
-                                <>
-                                  <TextInput
-                                    size="xs"
-                                    value={renameEnvValue}
-                                    onChange={(e) => setRenameEnvValue(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleRenameEnvironment(env.environmentId)}
-                                    style={{ width: 150 }}
-                                    autoFocus
-                                  />
-                                  <Button size="xs" color="relay-orange" onClick={() => handleRenameEnvironment(env.environmentId)} disabled={!renameEnvValue.trim()}>Save</Button>
-                                  <Button size="xs" variant="default" onClick={() => { setRenamingEnvId(null); setRenameEnvValue(''); }}>Cancel</Button>
-                                </>
-                              ) : (
-                                <>
+                          <Group justify="space-between" align="center" mb="xs" wrap="nowrap" w="100%" gap="xs" style={{ minHeight: INLINE_TITLE_ROW_H }}>
+                            {renamingEnvId === env.environmentId ? (
+                              <InlineTextEditRow
+                                value={renameEnvValue}
+                                onChange={setRenameEnvValue}
+                                onSave={() => handleRenameEnvironment(env.environmentId)}
+                                onCancel={() => { setRenamingEnvId(null); setRenameEnvValue(''); }}
+                                saveDisabled={!renameEnvValue.trim()}
+                                autoFocus
+                                inputStyle={{ width: rem(200), maxWidth: '100%', flexShrink: 1 }}
+                                rowStyle={{ maxWidth: '100%' }}
+                              />
+                            ) : (
+                              <>
+                                <Group gap={4} wrap="nowrap" align="center" style={{ minHeight: INLINE_TITLE_ROW_H }}>
                                   <Badge variant="light" color="relay-orange" size="sm">{env.name}</Badge>
                                   {!isDefaultEnv && (
-                                    <ActionIcon variant="subtle" size="xs" onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }}>
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" style={{ width: 14, height: 14 }}>
-                                        <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" />
-                                      </svg>
+                                    <ActionIcon variant="subtle" size="xs" onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }} aria-label="Rename environment">
+                                      <IconPencil size={14} />
                                     </ActionIcon>
                                   )}
-                                </>
-                              )}
-                            </Group>
-                            <CogMenu items={[
-                              { label: 'Delete environment', onClick: () => openDeleteEnvConfirm(env.environmentId, env.name), danger: true },
-                            ]} />
+                                </Group>
+                                <CogMenu items={[
+                                  { label: 'Delete environment', onClick: () => openDeleteEnvConfirm(env.environmentId, env.name), danger: true },
+                                ]} />
+                              </>
+                            )}
                           </Group>
                           <Stack gap="sm">
                             {env.services.length === 0 ? (
@@ -964,10 +1039,6 @@ const ServiceList = () => {
                           return (
                             <Box
                               key={env.environmentId}
-                              pos="relative"
-                              pt={14}
-                              px="sm"
-                              pb="sm"
                               style={{
                                 flex: '0 1 auto',
                                 minWidth: rem(200),
@@ -976,45 +1047,36 @@ const ServiceList = () => {
                                 borderRadius: 'var(--mantine-radius-md)',
                               }}
                             >
-                              <Box
-                                pos="absolute"
-                                top={rem(-10)}
-                                left={rem(12)}
-                                px={6}
-                                bg="white"
-                              >
-                                <Group gap={4} wrap="nowrap">
+                              <Stack gap="sm" p="sm" pt="sm">
+                                <Group justify="space-between" align="center" wrap="nowrap" gap="xs" style={{ minHeight: INLINE_TITLE_ROW_H }}>
                                   {renamingEnvId === env.environmentId ? (
-                                    <>
-                                      <TextInput
-                                        size="xs"
-                                        value={renameEnvValue}
-                                        onChange={(e) => setRenameEnvValue(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleRenameEnvironment(env.environmentId)}
-                                        style={{ width: 120 }}
-                                        autoFocus
-                                      />
-                                      <Button size="xs" color="relay-orange" onClick={() => handleRenameEnvironment(env.environmentId)} disabled={!renameEnvValue.trim()}>Save</Button>
-                                      <Button size="xs" variant="default" onClick={() => { setRenamingEnvId(null); setRenameEnvValue(''); }}>Cancel</Button>
-                                    </>
+                                    <InlineTextEditRow
+                                      value={renameEnvValue}
+                                      onChange={setRenameEnvValue}
+                                      onSave={() => handleRenameEnvironment(env.environmentId)}
+                                      onCancel={() => { setRenamingEnvId(null); setRenameEnvValue(''); }}
+                                      saveDisabled={!renameEnvValue.trim()}
+                                      autoFocus
+                                      inputStyle={{ width: rem(200), maxWidth: '100%', flexShrink: 1 }}
+                                      rowStyle={{ maxWidth: '100%' }}
+                                    />
                                   ) : (
                                     <>
-                                      <Badge variant="light" color="relay-orange" size="sm">{env.name}</Badge>
-                                      {!isDefaultEnv && (
-                                        <ActionIcon variant="subtle" size="xs" onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }}>
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" style={{ width: 14, height: 14 }}>
-                                            <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" />
-                                          </svg>
-                                        </ActionIcon>
-                                      )}
+                                      <Group gap={4} wrap="nowrap" align="center" style={{ minHeight: INLINE_TITLE_ROW_H }}>
+                                        <Badge variant="light" color="relay-orange" size="sm">{env.name}</Badge>
+                                        {!isDefaultEnv && (
+                                          <ActionIcon variant="subtle" size="xs" onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }} aria-label="Rename environment">
+                                            <IconPencil size={14} />
+                                          </ActionIcon>
+                                        )}
+                                      </Group>
                                       <CogMenu items={[
                                         { label: 'Delete environment', onClick: () => openDeleteEnvConfirm(env.environmentId, env.name), danger: true },
                                       ]} />
                                     </>
                                   )}
                                 </Group>
-                              </Box>
-                              <Group gap="sm" wrap="wrap" align="flex-start" pt={4}>
+                              <Group gap="sm" wrap="wrap" align="flex-start">
                                 {env.services.length === 0 ? (
                                   <Text c="dimmed" size="sm" fs="italic">No services</Text>
                                 ) : (
@@ -1041,6 +1103,7 @@ const ServiceList = () => {
                                   ))
                                 )}
                               </Group>
+                              </Stack>
                             </Box>
                           );
                         })}

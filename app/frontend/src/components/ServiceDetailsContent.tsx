@@ -3,8 +3,9 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { nip19 } from 'nostr-tools';
 import { SERVICE_TYPE } from '../../../shared/serviceType';
 import { parsePubkeyHex } from '../../../shared/nsite';
-import { Text, Group, Anchor, Tooltip, ActionIcon, TextInput, Button, Stack, Paper, Badge } from '@mantine/core';
+import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Paper, Badge } from '@mantine/core';
 import { IconCopy, IconExternalLink } from '@tabler/icons-react';
+import { InlineTextEditRow } from './InlineTextEditRow';
 
 const LABEL_COL = 100;
 
@@ -32,6 +33,8 @@ export type ServiceDetailsContentProps = {
   onCopy: (text: string) => void;
   onOpenRelayExplorer: () => void;
   onOpenBlossomExplorer: () => void;
+  /** When host is edited in the service card header / modal title instead. */
+  omitHostEditor?: boolean;
 };
 
 export const ServiceDetailsContent = ({
@@ -45,6 +48,7 @@ export const ServiceDetailsContent = ({
   onCopy,
   onOpenRelayExplorer,
   onOpenBlossomExplorer,
+  omitHostEditor = false,
 }: ServiceDetailsContentProps) => {
   const domain = service.domains?.[0];
   const whitelistedPubkeys: string[] = service.whitelistedPubkeys || [];
@@ -238,18 +242,15 @@ export const ServiceDetailsContent = ({
           </Stack>
         )}
 
-      {isEditing && (
+      {isEditing && !omitHostEditor && (
         <DetailBlock label="Host">
-          <Group gap="xs" wrap="wrap" align="flex-end">
-            <TextInput
-              size="xs"
-              value={newDomainHost}
-              onChange={(e) => setNewDomainHost(e.target.value)}
-              style={{ flex: '1 1 12rem', minWidth: 0 }}
-            />
-            <Button size="xs" color="green" onClick={onSaveDomain}>Save</Button>
-            <Button size="xs" color="gray" onClick={onCancelEdit}>Cancel</Button>
-          </Group>
+          <InlineTextEditRow
+            value={newDomainHost}
+            onChange={setNewDomainHost}
+            onSave={onSaveDomain}
+            onCancel={onCancelEdit}
+            inputStyle={{ flex: 1, minWidth: 0 }}
+          />
         </DetailBlock>
       )}
 
