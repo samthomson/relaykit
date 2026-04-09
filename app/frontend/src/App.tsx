@@ -10,7 +10,7 @@ import { useRefreshServices } from './contexts/RefreshServicesContext';
 import { SERVICE_TYPE } from '../../shared/serviceType';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from './components/NsiteDeployFields';
 import { ServiceDetailsContent } from './components/ServiceDetailsContent';
-import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, rem } from '@mantine/core';
+import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, rem } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconCopy, IconExternalLink } from '@tabler/icons-react';
 
@@ -410,33 +410,53 @@ const ServiceCard = ({
           }}
         />
       )}
-      <Paper withBorder p="md" bg="white">
-        <Group justify="apart" align="center">
-          <Group align="center" gap="xs">
-            {service.icon && (
-              <span style={{ display: 'inline-flex', width: 20, height: 20, alignItems: 'center', justifyContent: 'center', marginRight: 6 }}>
-                {service.icon}
-              </span>
-            )}
-            <Text fw={700} size="lg" truncate>{domain ? domain.host : service.name}</Text>
-            <Badge variant="filled" color={statusColor} size="sm">{service.status}</Badge>
-          </Group>
-          <CogMenu label="Manage" items={manageItems} />
-        </Group>
-
+      <Paper
+        withBorder
+        p={showDetails ? 'md' : 'sm'}
+        bg="white"
+        radius="md"
+        style={showDetails ? undefined : { width: 260, maxWidth: '100%', flexShrink: 0 }}
+      >
         {showDetails ? (
-          <Stack mt="md">
-            <ServiceDetailsContent {...detailsContentProps} />
-          </Stack>
+          <>
+            <Group justify="space-between" align="center">
+              <Group align="center" gap="xs">
+                {service.icon && (
+                  <span style={{ display: 'inline-flex', width: 20, height: 20, alignItems: 'center', justifyContent: 'center', marginRight: 6 }}>
+                    {service.icon}
+                  </span>
+                )}
+                <Text fw={700} size="lg" truncate>{domain ? domain.host : service.name}</Text>
+                <Badge variant="filled" color={statusColor} size="sm">{service.status}</Badge>
+              </Group>
+              <CogMenu label="Manage" items={manageItems} />
+            </Group>
+            <Stack mt="md">
+              <ServiceDetailsContent {...detailsContentProps} />
+            </Stack>
+          </>
         ) : (
           <>
-            <Group mt="md" gap="xs" wrap="wrap">
-              <Button size="xs" variant="light" color="gray" onClick={() => setDetailsModalOpen(true)}>
-                Details
-              </Button>
-              {domain && (
-                <>
-                  <Anchor href={httpsUrl} target="_blank" size="sm">
+            <Stack gap="sm">
+              <Group justify="space-between" align="flex-start" wrap="nowrap" gap="xs">
+                <Group align="center" gap="xs" style={{ minWidth: 0, flex: 1 }}>
+                  {service.icon && (
+                    <span style={{ display: 'inline-flex', width: 22, height: 22, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {service.icon}
+                    </span>
+                  )}
+                  <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
+                    <Text fw={600} size="sm" truncate title={domain ? domain.host : service.name}>
+                      {domain ? domain.host : service.name}
+                    </Text>
+                    <Badge variant="filled" color={statusColor} size="xs" w="fit-content">{service.status}</Badge>
+                  </Stack>
+                </Group>
+                <CogMenu items={manageItems} />
+              </Group>
+              {domain ? (
+                <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0 }}>
+                  <Anchor href={httpsUrl} target="_blank" size="xs" c="relay-orange" truncate style={{ flex: 1, minWidth: 0 }} title={httpsUrl}>
                     {httpsUrl} ↗
                   </Anchor>
                   <Tooltip label="Copy URL">
@@ -444,32 +464,38 @@ const ServiceCard = ({
                       <IconCopy size={14} />
                     </ActionIcon>
                   </Tooltip>
-                  {service.type === SERVICE_TYPE.RELAY && (
-                    <Button
-                      size="xs"
-                      variant="light"
-                      color="relay-orange"
-                      onClick={() => setShowExplorer(true)}
-                      rightSection={<IconExternalLink size={12} />}
-                    >
-                      Explorer
-                    </Button>
-                  )}
-                  {service.type === SERVICE_TYPE.BLOSSOM && (
-                    <Button
-                      size="xs"
-                      variant="light"
-                      color="relay-orange"
-                      onClick={() => setShowBlossomExplorer(true)}
-                      rightSection={<IconExternalLink size={12} />}
-                    >
-                      Explorer
-                    </Button>
-                  )}
-                </>
+                </Group>
+              ) : (
+                <Text size="xs" c="dimmed" fs="italic">No domain configured</Text>
               )}
-              {!domain && <Text size="sm" c="dimmed" fs="italic">No domain configured</Text>}
-            </Group>
+              <Group gap="xs" wrap="wrap">
+                {domain && service.type === SERVICE_TYPE.RELAY && (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="relay-orange"
+                    onClick={() => setShowExplorer(true)}
+                    rightSection={<IconExternalLink size={12} />}
+                  >
+                    Explorer
+                  </Button>
+                )}
+                {domain && service.type === SERVICE_TYPE.BLOSSOM && (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="relay-orange"
+                    onClick={() => setShowBlossomExplorer(true)}
+                    rightSection={<IconExternalLink size={12} />}
+                  >
+                    Explorer
+                  </Button>
+                )}
+                <Button size="xs" variant="light" color="gray" onClick={() => setDetailsModalOpen(true)}>
+                  Details
+                </Button>
+              </Group>
+            </Stack>
             <Modal
               opened={detailsModalOpen}
               onClose={() => setDetailsModalOpen(false)}
@@ -825,47 +851,48 @@ const ServiceList = () => {
                   </Group>
                 </Group>
                 <Stack gap="sm">
-                  {project.environments.map((env: any) => {
-                    const isDefaultEnv = env.isDefault === true;
-                    return (
-                      <Card key={env.environmentId} withBorder padding="sm" bg="gray.0">
-                        <Group justify="space-between" mb="xs">
-                          <Group gap="xs">
-                            {renamingEnvId === env.environmentId ? (
-                              <>
-                                <TextInput
-                                  size="xs"
-                                  value={renameEnvValue}
-                                  onChange={(e) => setRenameEnvValue(e.target.value)}
-                                  onKeyDown={(e) => e.key === 'Enter' && handleRenameEnvironment(env.environmentId)}
-                                  style={{ width: 150 }}
-                                  autoFocus
-                                />
-                                <Button size="xs" color="relay-orange" onClick={() => handleRenameEnvironment(env.environmentId)} disabled={!renameEnvValue.trim()}>Save</Button>
-                                <Button size="xs" variant="default" onClick={() => { setRenamingEnvId(null); setRenameEnvValue(''); }}>Cancel</Button>
-                              </>
-                            ) : (
-                              <>
-                                <Badge variant="light" color="relay-orange" size="sm">{env.name}</Badge>
-                                {!isDefaultEnv && (
-                                  <ActionIcon variant="subtle" size="xs" onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" style={{ width: 14, height: 14 }}>
-                                      <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" />
-                                    </svg>
-                                  </ActionIcon>
-                                )}
-                              </>
-                            )}
+                  {showDetails ? (
+                    project.environments.map((env: any) => {
+                      const isDefaultEnv = env.isDefault === true;
+                      return (
+                        <Card key={env.environmentId} withBorder padding="sm" bg="gray.0">
+                          <Group justify="space-between" mb="xs">
+                            <Group gap="xs">
+                              {renamingEnvId === env.environmentId ? (
+                                <>
+                                  <TextInput
+                                    size="xs"
+                                    value={renameEnvValue}
+                                    onChange={(e) => setRenameEnvValue(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleRenameEnvironment(env.environmentId)}
+                                    style={{ width: 150 }}
+                                    autoFocus
+                                  />
+                                  <Button size="xs" color="relay-orange" onClick={() => handleRenameEnvironment(env.environmentId)} disabled={!renameEnvValue.trim()}>Save</Button>
+                                  <Button size="xs" variant="default" onClick={() => { setRenamingEnvId(null); setRenameEnvValue(''); }}>Cancel</Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Badge variant="light" color="relay-orange" size="sm">{env.name}</Badge>
+                                  {!isDefaultEnv && (
+                                    <ActionIcon variant="subtle" size="xs" onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }}>
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" style={{ width: 14, height: 14 }}>
+                                        <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" />
+                                      </svg>
+                                    </ActionIcon>
+                                  )}
+                                </>
+                              )}
+                            </Group>
+                            <CogMenu items={[
+                              { label: 'Delete environment', onClick: () => openDeleteEnvConfirm(env.environmentId, env.name), danger: true },
+                            ]} />
                           </Group>
-                          <CogMenu items={[
-                            { label: 'Delete environment', onClick: () => openDeleteEnvConfirm(env.environmentId, env.name), danger: true },
-                          ]} />
-                        </Group>
-                        <Stack gap="sm">
-                          {env.services.length === 0 ? (
-                            <Text c="dimmed" size="sm" fs="italic">No services in this environment.</Text>
-                          ) : (
-                            env.services.map((service: any) => (
+                          <Stack gap="sm">
+                            {env.services.length === 0 ? (
+                              <Text c="dimmed" size="sm" fs="italic">No services in this environment.</Text>
+                            ) : (
+                              env.services.map((service: any) => (
                                 <ServiceCard
                                   key={service.composeId}
                                   service={service}
@@ -885,37 +912,153 @@ const ServiceList = () => {
                                   allEnvironments={allEnvironments}
                                   showDetails={showDetails}
                                 />
-                            ))
-                          )}
-                          <Group justify="flex-end">
-                            {newEnvTarget === project.projectId ? (
-                              <>
-                                <TextInput
-                                  size="xs"
-                                  placeholder="Environment name…"
-                                  value={newEnvName}
-                                  onChange={(e) => setNewEnvName(e.target.value)}
-                                  onKeyDown={(e) => e.key === 'Enter' && handleCreateEnvironment(project.projectId)}
-                                  style={{ width: 150 }}
-                                  autoFocus
-                                />
-                                <Button size="xs" color="relay-orange" onClick={() => handleCreateEnvironment(project.projectId)} disabled={!newEnvName.trim()}>Add</Button>
-                                <Button size="xs" variant="default" onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}>Cancel</Button>
-                              </>
-                            ) : (
-                              <Button
-                                variant="subtle"
-                                size="xs"
-                                onClick={() => setNewEnvTarget(project.projectId)}
-                              >
-                                + Add environment
-                              </Button>
+                              ))
                             )}
-                          </Group>
-                        </Stack>
-                      </Card>
-                    );
-                  })}
+                            <Group justify="flex-end">
+                              {newEnvTarget === project.projectId ? (
+                                <>
+                                  <TextInput
+                                    size="xs"
+                                    placeholder="Environment name…"
+                                    value={newEnvName}
+                                    onChange={(e) => setNewEnvName(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleCreateEnvironment(project.projectId)}
+                                    style={{ width: 150 }}
+                                    autoFocus
+                                  />
+                                  <Button size="xs" color="relay-orange" onClick={() => handleCreateEnvironment(project.projectId)} disabled={!newEnvName.trim()}>Add</Button>
+                                  <Button size="xs" variant="default" onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}>Cancel</Button>
+                                </>
+                              ) : (
+                                <Button
+                                  variant="subtle"
+                                  size="xs"
+                                  onClick={() => setNewEnvTarget(project.projectId)}
+                                >
+                                  + Add environment
+                                </Button>
+                              )}
+                            </Group>
+                          </Stack>
+                        </Card>
+                      );
+                    })
+                  ) : (
+                    <>
+                      <Group align="flex-start" gap="md" wrap="wrap">
+                        {project.environments.map((env: any) => {
+                          const isDefaultEnv = env.isDefault === true;
+                          return (
+                            <Box
+                              key={env.environmentId}
+                              pos="relative"
+                              pt={14}
+                              px="sm"
+                              pb="sm"
+                              style={{
+                                flex: '0 1 auto',
+                                minWidth: rem(200),
+                                maxWidth: '100%',
+                                border: '1px solid var(--mantine-color-gray-4)',
+                                borderRadius: 'var(--mantine-radius-md)',
+                              }}
+                            >
+                              <Box
+                                pos="absolute"
+                                top={rem(-10)}
+                                left={rem(12)}
+                                px={6}
+                                bg="white"
+                              >
+                                <Group gap={4} wrap="nowrap">
+                                  {renamingEnvId === env.environmentId ? (
+                                    <>
+                                      <TextInput
+                                        size="xs"
+                                        value={renameEnvValue}
+                                        onChange={(e) => setRenameEnvValue(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleRenameEnvironment(env.environmentId)}
+                                        style={{ width: 120 }}
+                                        autoFocus
+                                      />
+                                      <Button size="xs" color="relay-orange" onClick={() => handleRenameEnvironment(env.environmentId)} disabled={!renameEnvValue.trim()}>Save</Button>
+                                      <Button size="xs" variant="default" onClick={() => { setRenamingEnvId(null); setRenameEnvValue(''); }}>Cancel</Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Badge variant="light" color="relay-orange" size="sm">{env.name}</Badge>
+                                      {!isDefaultEnv && (
+                                        <ActionIcon variant="subtle" size="xs" onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }}>
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" style={{ width: 14, height: 14 }}>
+                                            <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" />
+                                          </svg>
+                                        </ActionIcon>
+                                      )}
+                                      <CogMenu items={[
+                                        { label: 'Delete environment', onClick: () => openDeleteEnvConfirm(env.environmentId, env.name), danger: true },
+                                      ]} />
+                                    </>
+                                  )}
+                                </Group>
+                              </Box>
+                              <Group gap="sm" wrap="wrap" align="flex-start" pt={4}>
+                                {env.services.length === 0 ? (
+                                  <Text c="dimmed" size="sm" fs="italic">No services</Text>
+                                ) : (
+                                  env.services.map((service: any) => (
+                                    <ServiceCard
+                                      key={service.composeId}
+                                      service={service}
+                                      serverIp={serverIp}
+                                      editingDomain={editingDomain}
+                                      newDomainHost={newDomainHost}
+                                      setNewDomainHost={setNewDomainHost}
+                                      onEditDomain={handleEditDomain}
+                                      onSaveDomain={handleSaveDomain}
+                                      onCancelEdit={() => setEditingDomain(null)}
+                                      onCopy={copyToClipboard}
+                                      onStart={handleStartService}
+                                      onStop={handleStopService}
+                                      onDelete={openDeleteServiceConfirm}
+                                      onEditConfig={handleEditConfig}
+                                      onMove={handleMoveService}
+                                      allEnvironments={allEnvironments}
+                                      showDetails={showDetails}
+                                    />
+                                  ))
+                                )}
+                              </Group>
+                            </Box>
+                          );
+                        })}
+                      </Group>
+                      <Group justify="flex-end">
+                        {newEnvTarget === project.projectId ? (
+                          <>
+                            <TextInput
+                              size="xs"
+                              placeholder="Environment name…"
+                              value={newEnvName}
+                              onChange={(e) => setNewEnvName(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && handleCreateEnvironment(project.projectId)}
+                              style={{ width: 150 }}
+                              autoFocus
+                            />
+                            <Button size="xs" color="relay-orange" onClick={() => handleCreateEnvironment(project.projectId)} disabled={!newEnvName.trim()}>Add</Button>
+                            <Button size="xs" variant="default" onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}>Cancel</Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="subtle"
+                            size="xs"
+                            onClick={() => setNewEnvTarget(project.projectId)}
+                          >
+                            + Add environment
+                          </Button>
+                        )}
+                      </Group>
+                    </>
+                  )}
                 </Stack>
               </Paper>
             );
