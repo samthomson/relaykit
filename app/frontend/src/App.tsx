@@ -1547,7 +1547,7 @@ const AppContent = () => {
             </Group>
             <Menu shadow="md" width={200}>
               <Menu.Target>
-                <Button variant="default" size="sm" rightSection="▾">
+                <Button variant="default" size="sm" rightSection={<ServiceMenuCaret />}>
                   Profile
                 </Button>
               </Menu.Target>
