@@ -1,13 +1,9 @@
-import {
-  useState,
-  useEffect,
-  type Dispatch,
-  type SetStateAction,
-} from 'react';
+import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { BrowserRouter, Routes, Route, NavLink as RouterNavLink } from 'react-router-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { nip19 } from 'nostr-tools';
+import pluralize from 'pluralize';
 import { trpc } from './trpc';
 import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
@@ -15,8 +11,9 @@ import { useRefreshServices } from './contexts/RefreshServicesContext';
 import { SERVICE_TYPE } from '../../shared/serviceType';
 import { parsePubkeyHex } from '../../shared/nsite';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from './components/NsiteDeployFields';
-import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea } from '@mantine/core';
+import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Accordion, Card, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { IconCopy, IconExternalLink } from '@tabler/icons-react';
 
 function getIdentityKeys(key: string | null): { hex: string | null; npub: string | null } {
   if (!key) return { hex: null, npub: null };
@@ -33,30 +30,6 @@ function getIdentityKeys(key: string | null): { hex: string | null; npub: string
   
   return { hex: null, npub: null };
 }
-
-// Small utility to render a set of config pills (labels) with color accents
-const ConfigPills = ({
-  label,
-  values,
-  tone,
-}: {
-  label: string;
-  values: string[];
-  tone: 'green' | 'red';
-}) => {
-  if (!values || values.length === 0) return null;
-  const color = tone === 'green' ? 'green' : 'red';
-  return (
-    <Stack gap="xs">
-      <Text size="sm" c="dimmed" fw={500}>{label}</Text>
-      <Group gap={6}>
-        {values.map((v, idx) => (
-          <Badge key={`${label}-${idx}`} variant="light" color={color} size="sm">{v}</Badge>
-        ))}
-      </Group>
-    </Stack>
-  );
-};
 
 const CogMenu = ({
   items,
@@ -236,7 +209,6 @@ const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironment
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSelectPreset = (preset: any) => {
@@ -323,14 +295,6 @@ const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironment
       )}
     </>
   );
-};
-
-const dnsRecordNameForHost = (host: string): { zone: string; name: string } => {
-  const parts = host.toLowerCase().trim().split('.');
-  if (parts.length < 2) return { zone: host, name: '@' };
-  const zone = parts.slice(-2).join('.');
-  const name = host.toLowerCase() === zone ? '@' : host.toLowerCase().slice(0, -(zone.length + 1));
-  return { zone, name };
 };
 
 const RelayExplorerModal = ({ relayUrl, onClose }: { relayUrl: string; onClose: () => void }) => {
@@ -439,7 +403,7 @@ const ServiceCard = ({
           }}
         />
       )}
-  <Paper withBorder p="md">
+      <Paper withBorder p="md" bg="white">
         <Group justify="apart" align="center">
           <Group align="center" gap="xs">
             {service.icon && (
@@ -448,8 +412,7 @@ const ServiceCard = ({
               </span>
             )}
             <Text fw={700} size="lg" truncate>{domain ? domain.host : service.name}</Text>
-            <Badge variant="light" color={statusColor} size="sm">{service.serviceType}</Badge>
-            <Badge variant="light" color={statusColor} size="sm">{service.status}</Badge>
+            <Badge variant="filled" color={statusColor} size="sm">{service.status}</Badge>
           </Group>
           <CogMenu label="Manage" items={manageItems} />
         </Group>
@@ -457,14 +420,27 @@ const ServiceCard = ({
           {domain ? (
             <>
               <Stack gap="xs">
-                <Group gap="xs">
-                  <Text size="sm" fw={500} c="dimmed" w={100}>HTTPS</Text>
-                  <Anchor href={httpsUrl} target="_blank" size="sm" truncate style={{ flex: 1 }}>
+                <Group gap={6} wrap="nowrap">
+                  <Text size="sm" fw={500} c="dimmed" w={60}>HTTPS</Text>
+                  <Anchor href={httpsUrl} target="_blank" size="sm" fw={500} truncate={false}>
                     {httpsUrl} ↗
                   </Anchor>
-                  <Button size="xs" variant="subtle" onClick={() => onCopy(httpsUrl)}>Copy</Button>
+                  <span style={{ color: 'var(--mantine-color-gray-4)' }}>|</span>
+                  <Tooltip label="Copy URL">
+                    <ActionIcon variant="subtle" size="sm" onClick={() => onCopy(httpsUrl)}>
+                      <IconCopy size={14} />
+                    </ActionIcon>
+                  </Tooltip>
                   {service.type === SERVICE_TYPE.BLOSSOM && (
-                    <Button size="xs" variant="light" color="relay-orange" onClick={() => setShowBlossomExplorer(true)}>Explore</Button>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="relay-orange"
+                      onClick={() => setShowBlossomExplorer(true)}
+                      rightSection={<IconExternalLink size={12} />}
+                    >
+                      Blossom Explorer
+                    </Button>
                   )}
                   {service.type === SERVICE_TYPE.NSITE && (
                     <Anchor href={`${httpsUrl}/status`} target="_blank" size="xs" variant="light" color="relay-orange">Status</Anchor>
@@ -477,11 +453,24 @@ const ServiceCard = ({
                   </Text>
                 )}
                 {service.type === SERVICE_TYPE.RELAY && (
-                  <Group gap="xs">
-                    <Text size="sm" fw={500} c="dimmed" w={100}>WSS</Text>
+                  <Group gap={6} wrap="nowrap">
+                    <Text size="sm" fw={500} c="dimmed" w={60}>WSS</Text>
                     <Text size="xs" ff="monospace" truncate style={{ flex: 1 }} title={wssUrl}>{wssUrl}</Text>
-                    <Button size="xs" variant="subtle" onClick={() => onCopy(wssUrl)}>Copy</Button>
-                    <Button size="xs" variant="light" color="relay-orange" onClick={() => setShowExplorer(true)}>Explore</Button>
+                    <span style={{ color: 'var(--mantine-color-gray-4)' }}>|</span>
+                    <Tooltip label="Copy URL">
+                      <ActionIcon variant="subtle" size="sm" onClick={() => onCopy(wssUrl)}>
+                        <IconCopy size={14} />
+                      </ActionIcon>
+                    </Tooltip>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="relay-orange"
+                      onClick={() => setShowExplorer(true)}
+                      rightSection={<IconExternalLink size={12} />}
+                    >
+                      Relay Explorer
+                    </Button>
                   </Group>
                 )}
                 {service.type === SERVICE_TYPE.NSITE &&
@@ -592,9 +581,36 @@ const ServiceCard = ({
 
           {(whitelistedKinds.length > 0 || blacklistedKinds.length > 0 || whitelistedPubkeys.length > 0 || requireNip42) && (
             <Stack gap="xs" pt="sm">
-              {whitelistedKinds.length > 0 && <ConfigPills label="Kinds +" values={whitelistedKinds} tone="green" />}
-              {blacklistedKinds.length > 0 && <ConfigPills label="Kinds -" values={blacklistedKinds} tone="red" />}
-              {whitelistedPubkeys.length > 0 && <ConfigPills label="Pubkeys +" values={whitelistedPubkeys} tone="green" />}
+              {whitelistedKinds.length > 0 && (
+                <Group gap="xs">
+                  <Text size="sm" fw={500} c="dimmed" w={100}>Kinds +</Text>
+                  <Group gap={4}>
+                    {whitelistedKinds.map((k) => (
+                      <Badge key={k} variant="light" color="green" size="xs">{k}</Badge>
+                    ))}
+                  </Group>
+                </Group>
+              )}
+              {blacklistedKinds.length > 0 && (
+                <Group gap="xs">
+                  <Text size="sm" fw={500} c="dimmed" w={100}>Kinds -</Text>
+                  <Group gap={4}>
+                    {blacklistedKinds.map((k) => (
+                      <Badge key={k} variant="light" color="red" size="xs">{k}</Badge>
+                    ))}
+                  </Group>
+                </Group>
+              )}
+              {whitelistedPubkeys.length > 0 && (
+                <Group gap="xs">
+                  <Text size="sm" fw={500} c="dimmed" w={100}>Pubkeys +</Text>
+                  <Group gap={4}>
+                    {whitelistedPubkeys.map((p) => (
+                      <Badge key={p} variant="light" color="green" size="xs">{p.slice(0, 8)}…</Badge>
+                    ))}
+                  </Group>
+                </Group>
+              )}
               {requireNip42 && (
                 <Group gap="xs">
                   <Text size="sm" fw={500} c="dimmed" w={100}>Auth</Text>
@@ -618,26 +634,20 @@ const ServiceCard = ({
                 <Group gap="xs" align="flex-start">
                   <Text size="sm" fw={500} c="dimmed" w={100}>DNS</Text>
                   <Stack gap="xs" style={{ flex: 1 }}>
-                    {dnsHosts.map((h) => {
-                      const rec = dnsRecordNameForHost(h);
-                      return (
-                        <div key={h}>
-                          <Text size="sm" c="dimmed">
-                            A record for <Text component="span" fw={500}>{rec.zone}</Text>
+                    {dnsHosts.map((h) => (
+                      <Paper key={h} withBorder p="xs" ff="monospace">
+                        <Group justify="space-between">
+                          <Text size="xs">
+                            {h} → {serverIp}
                           </Text>
-                          <Paper withBorder p="xs" ff="monospace">
-                            <Group justify="space-between">
-                              <Text size="sm">
-                                <Text component="span" fw={500}>{rec.name}</Text> → {serverIp}
-                              </Text>
-                              <ActionIcon variant="subtle" onClick={() => onCopy(serverIp)} title="Copy IP address">
-                                📋
-                              </ActionIcon>
-                            </Group>
-                          </Paper>
-                        </div>
-                      );
-                    })}
+                          <Tooltip label="Copy IP">
+                            <ActionIcon variant="subtle" onClick={() => onCopy(serverIp)}>
+                              <IconCopy size={12} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Group>
+                      </Paper>
+                    ))}
                   </Stack>
                 </Group>
               </Stack>
@@ -717,7 +727,6 @@ const ServiceList = () => {
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
   const copyToClipboard = (text: string) => {
@@ -921,145 +930,162 @@ const ServiceList = () => {
 
   const isDefaultProject = (name: string) => name === 'relaykit.ungrouped';
 
+  const displayProjectName = (name: string) => 
+    name === 'relaykit.ungrouped' ? '' : name;
+
   return (
     <Stack gap="xl" mt="xl">
       <Group justify="space-between">
         <Title order={2}>Services</Title>
-        <Button color="relay-orange" onClick={loadData} loading={loading}>
-          {loading ? 'Refreshing...' : 'Refresh'}
+        <Button color="relay-orange" onClick={loadData} loading={loading} leftSection={loading ? undefined : '↻'}>
+          Refresh
         </Button>
       </Group>
 
       {grouped.length === 0 ? (
-        <Text c="dimmed" fs="italic">No groups yet.</Text>
+        <Paper withBorder p="xl">
+          <Stack align="center" gap="sm">
+            <Text c="dimmed">No services yet.</Text>
+            <Text size="sm" c="dimmed">Deploy your first relay or media server.</Text>
+          </Stack>
+        </Paper>
       ) : (
-        <Stack gap="lg">
-          {grouped.map((project: any) => (
-            <Paper key={project.projectId} withBorder>
-              {renamingProjectId === project.projectId ? (
-                <Group px="md" py="sm">
-                  <TextInput
-                    value={renameProjectValue}
-                    onChange={(e) => setRenameProjectValue(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleRenameProject(project.projectId)}
-                    style={{ flex: 1, maxWidth: 300 }}
-                    autoFocus
-                  />
-                  <Button size="xs" color="relay-orange" onClick={() => handleRenameProject(project.projectId)} disabled={!renameProjectValue.trim()}>Save</Button>
-                  <Button size="xs" variant="default" onClick={() => { setRenamingProjectId(null); setRenameProjectValue(''); }}>Cancel</Button>
-                </Group>
-              ) : !isDefaultProject(project.name) ? (
-                <Group px="md" py="sm" bg="gray.1" justify="space-between">
+        <Accordion variant="separated" radius="md" multiple defaultValue={grouped.map((p: any) => p.projectId)}>
+          {grouped.map((project: any) => {
+            const projectServiceCount = project.environments.reduce((acc: number, e: any) => acc + e.services.length, 0);
+            return (
+              <Accordion.Item key={project.projectId} value={project.projectId}>
+                <Accordion.Control>
                   <Group gap="xs">
-                    <Text fw={600}>{project.name}</Text>
-                    <ActionIcon variant="subtle" onClick={() => { setRenamingProjectId(project.projectId); setRenameProjectValue(project.name); }} title="Rename group">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" style={{ width: 14, height: 14 }}><path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" /></svg>
-                    </ActionIcon>
-                  </Group>
-                  <CogMenu items={[
-                    { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
-                  ]} />
-                </Group>
-              ) : (
-                <Group justify="flex-end" px="md" pt="sm">
-                  <CogMenu items={[
-                    { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
-                  ]} />
-                </Group>
-              )}
-              {project.environments.map((env: any) => {
-                const isDefaultEnv = env.isDefault === true;
-                return (
-                <div key={env.environmentId}>
-                  <Group px="md" py="sm" bg="gray.0" style={{ borderLeft: '3px solid var(--mantine-color-relay-orange-5)' }}>
-                    {renamingEnvId === env.environmentId ? (
+                    {renamingProjectId === project.projectId ? (
                       <>
                         <TextInput
                           size="xs"
-                          value={renameEnvValue}
-                          onChange={(e) => setRenameEnvValue(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleRenameEnvironment(env.environmentId)}
-                          style={{ width: 150 }}
+                          value={renameProjectValue}
+                          onChange={(e) => setRenameProjectValue(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleRenameProject(project.projectId)}
+                          style={{ width: 200 }}
                           autoFocus
                         />
-                        <Button size="xs" color="relay-orange" onClick={() => handleRenameEnvironment(env.environmentId)} disabled={!renameEnvValue.trim()}>Save</Button>
-                        <Button size="xs" variant="default" onClick={() => { setRenamingEnvId(null); setRenameEnvValue(''); }}>Cancel</Button>
+                        <Button size="xs" color="relay-orange" onClick={() => handleRenameProject(project.projectId)} disabled={!renameProjectValue.trim()}>Save</Button>
+                        <Button size="xs" variant="default" onClick={() => { setRenamingProjectId(null); setRenameProjectValue(''); }}>Cancel</Button>
                       </>
                     ) : (
                       <>
-                        <Text fw={500}>{env.name}</Text>
-                        {!isDefaultEnv && (
-                          <ActionIcon variant="subtle" onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }} title="Rename environment">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" style={{ width: 14, height: 14 }}>
-                              <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" />
-                            </svg>
+                        {displayProjectName(project.name) && <Text fw={600}>{displayProjectName(project.name)}</Text>}
+                        <Badge variant="filled" color="gray" size="sm">{projectServiceCount} {pluralize('service', projectServiceCount)}</Badge>
+                        {!isDefaultProject(project.name) && (
+                          <ActionIcon variant="subtle" size="xs" onClick={(e) => { e.stopPropagation(); setRenamingProjectId(project.projectId); setRenameProjectValue(project.name); }}>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" style={{ width: 14, height: 14 }}><path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" /></svg>
                           </ActionIcon>
                         )}
                         <div style={{ flex: 1 }} />
                         <CogMenu items={[
-                          { label: 'Delete environment', onClick: () => openDeleteEnvConfirm(env.environmentId, env.name), danger: true },
+                          { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
                         ]} />
                       </>
                     )}
                   </Group>
-                  <Stack gap="md" p="md">
-                    {env.services.length === 0 ? (
-                      <Text c="dimmed" size="sm" fs="italic">No services in this environment.</Text>
-                    ) : (
-                      env.services.map((service: any) => (
-                        <ServiceCard
-                          key={service.composeId}
-                          service={service}
-                          serverIp={serverIp}
-                          editingDomain={editingDomain}
-                          newDomainHost={newDomainHost}
-                          setNewDomainHost={setNewDomainHost}
-                          onEditDomain={handleEditDomain}
-                          onSaveDomain={handleSaveDomain}
-                          onCancelEdit={() => setEditingDomain(null)}
-                          onCopy={copyToClipboard}
-                          onStart={handleStartService}
-                          onStop={handleStopService}
-                          onDelete={openDeleteServiceConfirm}
-                          onEditConfig={handleEditConfig}
-                          onMove={handleMoveService}
-                          allEnvironments={allEnvironments}
-                        />
-                      ))
-                    )}
-                    <AddServiceButton preselectedEnvironmentId={env.environmentId} />
+                </Accordion.Control>
+                <Accordion.Panel>
+                  <Stack gap="md">
+                    {project.environments.map((env: any) => {
+                      const isDefaultEnv = env.isDefault === true;
+                      return (
+                        <Card key={env.environmentId} withBorder padding="sm" bg="white">
+                          <Group justify="space-between" mb="xs">
+                            <Group gap="xs">
+                              <div style={{ width: 3, height: 16, backgroundColor: 'var(--mantine-color-relay-orange-5)', borderRadius: 2 }} />
+                              {renamingEnvId === env.environmentId ? (
+                                <>
+                                  <TextInput
+                                    size="xs"
+                                    value={renameEnvValue}
+                                    onChange={(e) => setRenameEnvValue(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleRenameEnvironment(env.environmentId)}
+                                    style={{ width: 150 }}
+                                    autoFocus
+                                  />
+                                  <Button size="xs" color="relay-orange" onClick={() => handleRenameEnvironment(env.environmentId)} disabled={!renameEnvValue.trim()}>Save</Button>
+                                  <Button size="xs" variant="default" onClick={() => { setRenamingEnvId(null); setRenameEnvValue(''); }}>Cancel</Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Text fw={500}>{env.name}</Text>
+                                  {!isDefaultEnv && (
+                                    <ActionIcon variant="subtle" size="xs" onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }}>
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" style={{ width: 14, height: 14 }}>
+                                        <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" />
+                                      </svg>
+                                    </ActionIcon>
+                                  )}
+                                </>
+                              )}
+                            </Group>
+                            <CogMenu items={[
+                              { label: 'Delete environment', onClick: () => openDeleteEnvConfirm(env.environmentId, env.name), danger: true },
+                            ]} />
+                          </Group>
+                          <Stack gap="sm">
+                            {env.services.length === 0 ? (
+                              <Text c="dimmed" size="sm" fs="italic">No services in this environment.</Text>
+                            ) : (
+                              env.services.map((service: any) => (
+                                <ServiceCard
+                                  key={service.composeId}
+                                  service={service}
+                                  serverIp={serverIp}
+                                  editingDomain={editingDomain}
+                                  newDomainHost={newDomainHost}
+                                  setNewDomainHost={setNewDomainHost}
+                                  onEditDomain={handleEditDomain}
+                                  onSaveDomain={handleSaveDomain}
+                                  onCancelEdit={() => setEditingDomain(null)}
+                                  onCopy={copyToClipboard}
+                                  onStart={handleStartService}
+                                  onStop={handleStopService}
+                                  onDelete={openDeleteServiceConfirm}
+                                  onEditConfig={handleEditConfig}
+                                  onMove={handleMoveService}
+                                  allEnvironments={allEnvironments}
+                                />
+                              ))
+                            )}
+                            <Group justify="flex-end">
+                              {newEnvTarget === project.projectId ? (
+                                <>
+                                  <TextInput
+                                    size="xs"
+                                    placeholder="Environment name…"
+                                    value={newEnvName}
+                                    onChange={(e) => setNewEnvName(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleCreateEnvironment(project.projectId)}
+                                    style={{ width: 150 }}
+                                    autoFocus
+                                  />
+                                  <Button size="xs" color="relay-orange" onClick={() => handleCreateEnvironment(project.projectId)} disabled={!newEnvName.trim()}>Add</Button>
+                                  <Button size="xs" variant="default" onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}>Cancel</Button>
+                                </>
+                              ) : (
+                                <Button
+                                  variant="subtle"
+                                  size="xs"
+                                  onClick={() => setNewEnvTarget(project.projectId)}
+                                >
+                                  + Add environment
+                                </Button>
+                              )}
+                            </Group>
+                          </Stack>
+                        </Card>
+                      );
+                    })}
                   </Stack>
-                </div>
-                );
-              })}
-              {newEnvTarget === project.projectId ? (
-                <Group px="md" py="sm" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
-                  <TextInput
-                    size="xs"
-                    placeholder="Environment name…"
-                    value={newEnvName}
-                    onChange={(e) => setNewEnvName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleCreateEnvironment(project.projectId)}
-                    style={{ flex: 1 }}
-                    autoFocus
-                  />
-                  <Button size="xs" color="relay-orange" onClick={() => handleCreateEnvironment(project.projectId)} disabled={!newEnvName.trim()}>Add</Button>
-                  <Button size="xs" variant="default" onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}>Cancel</Button>
-                </Group>
-              ) : (
-                <Button
-                  variant="subtle"
-                  size="xs"
-                  fullWidth
-                  onClick={() => setNewEnvTarget(project.projectId)}
-                  styles={{ root: { justifyContent: 'flex-start' } }}
-                >
-                  + Add an environment within this group
-                </Button>
-              )}
-            </Paper>
-          ))}
-        </Stack>
+                </Accordion.Panel>
+              </Accordion.Item>
+            );
+          })}
+        </Accordion>
       )}
 
       <Paper withBorder p="md">
@@ -1478,7 +1504,6 @@ const DebugPage = () => {
   );
 };
 
-/** Runs initial listServices when mounted; sets dokployReady, or handles errors so we never hang on loading. */
 const DokployInitialCheck = () => {
   const { setDokployConnectionError, setDokployReady } = useDokploy();
   const { logout } = useAuth();
