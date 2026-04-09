@@ -12,7 +12,7 @@ import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave 
 import { ServiceDetailsContent } from './components/ServiceDetailsContent';
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from './components/InlineTextEditRow';
 import { ServiceHostTitleView } from './components/ServiceHostTitleView';
-import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, rem } from '@mantine/core';
+import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, SimpleGrid, rem } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconCopy, IconExternalLink, IconPencil } from '@tabler/icons-react';
 
@@ -1159,22 +1159,44 @@ const ServiceList = () => {
         </Stack>
       )}
 
-      <Paper withBorder p="md">
-        <Text fw={500} size="sm" mb={4}>Add a new group</Text>
-        <Text size="xs" c="dimmed" mb="md">Create a group to organise services within.</Text>
-        <Group>
-          <TextInput
-            style={{ flex: 1 }}
-            placeholder="Group name"
-            value={newProjectName}
-            onChange={(e) => setNewProjectName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
-          />
-          <Button variant="outline" color="relay-orange" onClick={handleCreateProject} loading={creatingProject} disabled={!newProjectName.trim()}>
-            Add group
-          </Button>
-        </Group>
-      </Paper>
+      <Stack
+        gap="md"
+        pt="xl"
+        mt="md"
+        style={{
+          borderTop: '1px solid var(--mantine-color-gray-3)',
+        }}
+      >
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+          <Paper withBorder p="md">
+            <Text fw={500} size="sm" mb={4}>Add a new group</Text>
+            <Text size="xs" c="dimmed" mb="md">Create a group to organise services within.</Text>
+            <Group wrap="nowrap" align="flex-end">
+              <TextInput
+                style={{ flex: 1, minWidth: 0 }}
+                placeholder="Group name"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
+              />
+              <Button variant="outline" color="relay-orange" onClick={handleCreateProject} loading={creatingProject} disabled={!newProjectName.trim()}>
+                Add group
+              </Button>
+            </Group>
+          </Paper>
+          <Paper withBorder p="md" id="add-service">
+            <Text fw={500} size="sm" mb={4}>
+              Add service
+            </Text>
+            <Text size="xs" c="dimmed" mb="md">
+              Deploy a relay or media server into a group.
+            </Text>
+            <Group justify="flex-start" wrap="wrap">
+              <AddServiceButton />
+            </Group>
+          </Paper>
+        </SimpleGrid>
+      </Stack>
 
       {confirmModal && (
         <ConfirmModal
@@ -1385,20 +1407,6 @@ const ConfigEditModal = ({
   );
 };
 
-const DeploySection = () => (
-  <Paper withBorder p="md" id="add-service">
-    <Text fw={500} size="sm" mb={4}>
-      Add service
-    </Text>
-    <Text size="xs" c="dimmed" mb="md">
-      Deploy a relay or media server into a group.
-    </Text>
-    <Group justify="flex-start" wrap="wrap">
-      <AddServiceButton />
-    </Group>
-  </Paper>
-);
-
 const LoginScreen = () => {
   const { login, hasNostrExtension, isLoading } = useAuth();
   const [loggingIn, setLoggingIn] = useState(false);
@@ -1484,10 +1492,7 @@ const ServicesPage = () => {
       {!dokployReady ? (
         <Text c="dimmed">Loading…</Text>
       ) : (
-        <>
-          <ServiceList />
-          <DeploySection />
-        </>
+        <ServiceList />
       )}
     </Stack>
   );
