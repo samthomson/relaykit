@@ -4,7 +4,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { nip19 } from 'nostr-tools';
 import { SERVICE_TYPE } from '../../../shared/serviceType';
 import { parsePubkeyHex } from '../../../shared/nsite';
-import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Paper, Badge, Tabs, Box, Transition, rem } from '@mantine/core';
+import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, Box, Transition, Table, rem } from '@mantine/core';
 import { IconCopy, IconExternalLink } from '@tabler/icons-react';
 import { InlineTextEditRow } from './InlineTextEditRow';
 
@@ -37,38 +37,95 @@ const ServiceDetailsDns = ({
   domain: { host: string };
   serverIp: string;
   onCopy: (text: string) => void;
-}) => (
-  <Stack gap="xs">
-    <Paper withBorder p="xs">
-      <Group gap="xs" align="flex-start" wrap="nowrap" justify="space-between">
-        <Text size="xs" ff="monospace" style={{ flex: 1, minWidth: 0, ...monoBreakable }}>
-          {domain.host} → {serverIp}
+}) => {
+  const dnsCel = 'service-details-dns-cel';
+  const dnsCopy = 'service-details-dns-copy';
+
+  const dnsRow = (name: string) => (
+    <Table.Tr key={name}>
+      <Table.Td>
+        <Text size="xs" ff="monospace">
+          A
         </Text>
-        <Tooltip label="Copy IP">
-          <ActionIcon variant="subtle" size="sm" style={{ flexShrink: 0 }} onClick={() => onCopy(serverIp)}>
-            <IconCopy size={12} />
-          </ActionIcon>
-        </Tooltip>
-      </Group>
-    </Paper>
-    {service.type === SERVICE_TYPE.NSITE &&
-      service.nsiteCanonicalHost &&
-      service.nsiteCanonicalHost !== domain.host && (
-        <Paper withBorder p="xs">
-          <Group gap="xs" align="flex-start" wrap="nowrap" justify="space-between">
-            <Text size="xs" ff="monospace" style={{ flex: 1, minWidth: 0, ...monoBreakable }}>
-              {service.nsiteCanonicalHost} → {serverIp}
-            </Text>
-            <Tooltip label="Copy IP">
-              <ActionIcon variant="subtle" size="sm" style={{ flexShrink: 0 }} onClick={() => onCopy(serverIp)}>
-                <IconCopy size={12} />
-              </ActionIcon>
-            </Tooltip>
-          </Group>
-        </Paper>
-      )}
-  </Stack>
-);
+      </Table.Td>
+      <Table.Td className={dnsCel}>
+        <Group gap={0} wrap="nowrap" align="center">
+          <Text size="xs" ff="monospace" style={monoBreakable}>
+            {name}
+          </Text>
+          <Tooltip label="Copy name">
+            <ActionIcon
+              variant="subtle"
+              size="sm"
+              className={dnsCopy}
+              onClick={() => onCopy(name)}
+              style={{ flexShrink: 0, marginLeft: rem(2) }}
+            >
+              <IconCopy size={12} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      </Table.Td>
+      <Table.Td className={dnsCel}>
+        <Group gap={0} wrap="nowrap" align="center">
+          <Text size="xs" ff="monospace" style={monoBreakable}>
+            {serverIp}
+          </Text>
+          <Tooltip label="Copy IP">
+            <ActionIcon
+              variant="subtle"
+              size="sm"
+              className={dnsCopy}
+              onClick={() => onCopy(serverIp)}
+              style={{ flexShrink: 0, marginLeft: rem(2) }}
+            >
+              <IconCopy size={12} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      </Table.Td>
+      <Table.Td />
+    </Table.Tr>
+  );
+
+  return (
+    <>
+      <style>
+        {`
+          .${dnsCel}:hover .${dnsCopy} { opacity: 1; pointer-events: auto; }
+          .${dnsCopy} { opacity: 0; pointer-events: none; transition: opacity 80ms ease; }
+        `}
+      </style>
+      <Table.ScrollContainer minWidth={440}>
+        <Table
+          striped
+          highlightOnHover
+          withTableBorder
+          withColumnBorders
+          verticalSpacing="xs"
+          horizontalSpacing="sm"
+          fz="xs"
+        >
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Type</Table.Th>
+              <Table.Th>Name</Table.Th>
+              <Table.Th>Content</Table.Th>
+              <Table.Th />
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {dnsRow(domain.host)}
+            {service.type === SERVICE_TYPE.NSITE &&
+              service.nsiteCanonicalHost &&
+              service.nsiteCanonicalHost !== domain.host &&
+              dnsRow(service.nsiteCanonicalHost)}
+          </Table.Tbody>
+        </Table>
+      </Table.ScrollContainer>
+    </>
+  );
+};
 
 export type ServiceDetailsContentProps = {
   service: any;
