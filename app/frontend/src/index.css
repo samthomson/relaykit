@@ -1,34 +1,6 @@
-@import "tailwindcss";
+@import "@mantine/core/styles.css";
+@import "@mantine/notifications/styles.css";
 
-@theme {
-  /* Paper & earth palette */
-  --color-paper: #f5f0e8;
-  --color-paper-elevated: #fdfbf7;
-  --color-ink: #3d3630;
-  --color-ink-muted: #6b6258;
-  --color-ink-subtle: #8a8178;
-  --color-border: #e5dfd5;
-  --color-border-soft: #ebe7df;
-
-  /* Primary: terracotta / clay */
-  --color-primary: #b87333;
-  --color-primary-hover: #9d6230;
-
-  /* Semantic (muted earth tones) */
-  --color-success: #5a7d5a;
-  --color-success-bg: #eef4ee;
-  --color-success-text: #2d4a2d;
-  --color-error: #a65d5d;
-  --color-error-bg: #f8ecec;
-  --color-error-text: #6b3d3d;
-  --color-warning: #c9a227;
-  --color-warning-bg: #faf6e8;
-  --color-warning-text: #6b5a1a;
-}
-
-@layer base {
-  body {
-    background-color: var(--color-paper);
-    color: var(--color-ink);
-  }
+body {
+  margin: 0;
 }

@@ -1,12 +1,9 @@
 import {
   useState,
   useEffect,
-  useRef,
-  useLayoutEffect,
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import { createPortal } from 'react-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { nip19 } from 'nostr-tools';
@@ -17,6 +14,31 @@ import { useRefreshServices } from './contexts/RefreshServicesContext';
 import { SERVICE_TYPE } from '../../shared/serviceType';
 import { parsePubkeyHex } from '../../shared/nsite';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from './components/NsiteDeployFields';
+import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title } from '@mantine/core';
+
+// Small utility to render a set of config pills (labels) with color accents
+const ConfigPills = ({
+  label,
+  values,
+  tone,
+}: {
+  label: string;
+  values: string[];
+  tone: 'green' | 'red';
+}) => {
+  if (!values || values.length === 0) return null;
+  const color = tone === 'green' ? 'green' : 'red';
+  return (
+    <Stack gap="xs">
+      <Text size="sm" c="dimmed" fw={500}>{label}</Text>
+      <Group gap={6}>
+        {values.map((v, idx) => (
+          <Badge key={`${label}-${idx}`} variant="light" color={color} size="sm">{v}</Badge>
+        ))}
+      </Group>
+    </Stack>
+  );
+};
 
 const CogMenu = ({
   items,
@@ -25,54 +47,30 @@ const CogMenu = ({
   items: { label: string; onClick: () => void; danger?: boolean }[];
   label?: string;
 }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
   return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(!open)}
-        className={
-          label
-            ? "flex items-center gap-2 px-3 py-2 border border-border rounded-lg bg-paper-elevated text-ink-muted hover:bg-border-soft transition-colors text-sm"
-            : "text-ink-subtle/40 hover:text-ink-muted transition-colors p-1 text-lg leading-none"
-        }
-        title={label ? label : "Options"}
-      >
-        {label ? (
-          <>
-            {label}
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`}>
-              <path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-            </svg>
-          </>
-        ) : (
-          "⋮"
-        )}
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 bg-paper-elevated border border-border rounded shadow-lg z-[100] min-w-[140px] py-1">
-          {items.map((item, i) => (
-            <button
-              key={i}
-              onClick={() => { setOpen(false); item.onClick(); }}
-              className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-border-soft transition-colors ${item.danger ? 'text-error' : 'text-ink'}`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <Menu shadow="md" width={200} position="bottom-end">
+      <Menu.Target>
+        <Button
+          variant="subtle"
+          color="gray"
+          size="sm"
+          rightSection={label ? <span style={{ fontSize: '0.6rem' }}>▼</span> : undefined}
+        >
+          {label ?? "⋮"}
+        </Button>
+      </Menu.Target>
+      <Menu.Dropdown>
+        {items.map((item, i) => (
+          <Menu.Item
+            key={i}
+            color={item.danger ? 'red' : undefined}
+            onClick={item.onClick}
+          >
+            {item.label}
+          </Menu.Item>
+        ))}
+      </Menu.Dropdown>
+    </Menu>
   );
 };
 
@@ -91,29 +89,17 @@ const ConfirmModal = ({
   onCancel: () => void;
   danger?: boolean;
 }) => (
-  <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50" onClick={onCancel}>
-    <div
-      className="bg-paper-elevated rounded-lg p-6 max-w-sm w-full border border-border shadow-lg"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <h3 className="text-lg font-semibold text-ink m-0 mb-2">{title}</h3>
-      <p className="text-ink-muted text-sm m-0 mb-6">{message}</p>
-      <div className="flex gap-3 justify-end">
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 border border-border rounded bg-paper-elevated text-ink-muted hover:bg-border-soft text-sm"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={onConfirm}
-          className={`px-4 py-2 rounded text-sm ${danger ? 'bg-error text-paper-elevated hover:opacity-90' : 'bg-primary text-paper-elevated hover:bg-primary-hover'}`}
-        >
-          {confirmLabel}
-        </button>
-      </div>
-    </div>
-  </div>
+  <Modal opened onClose={onCancel} title={title} centered size="sm">
+    <Text size="sm" c="dimmed" mb="lg">
+      {message}
+    </Text>
+    <Group justify="flex-end">
+      <Button variant="default" onClick={onCancel}>Cancel</Button>
+      <Button color={danger ? 'red' : 'relay-orange'} onClick={onConfirm}>
+        {confirmLabel}
+      </Button>
+    </Group>
+  </Modal>
 );
 
 const MoveServiceModal = ({
@@ -148,71 +134,56 @@ const MoveServiceModal = ({
   const groupNames = Object.keys(groupedTargets);
 
   return (
-    <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50" onClick={onClose}>
-      <div
-        className="bg-paper-elevated rounded-lg p-6 max-w-2xl w-full border border-border shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-lg font-semibold text-ink m-0 mb-2">Move Service</h3>
-        <p className="text-ink-muted text-sm m-0 mb-4">
-          Select a target environment for <span className="font-mono">{serviceName}</span>{' '}
-          <span className="italic">(currently in {currentLocation})</span>.
-        </p>
-        <div className="space-y-3 max-h-72 overflow-auto pr-1">
-          {groupNames.map((groupName) => (
-            <div key={groupName} className="rounded-lg border border-border-soft bg-paper p-3">
-              <div className="text-xs uppercase tracking-wide text-ink-subtle font-medium mb-2">{groupName}</div>
-              <div className="flex flex-wrap gap-2">
-                {groupedTargets[groupName].map((target) => (
-                  <button
-                    key={target.environmentId}
-                    disabled={target.environmentId === currentEnvironmentId}
-                    onClick={() =>
+    <Modal opened onClose={onClose} title="Move Service" size="lg" centered>
+      <Text size="sm" c="dimmed" mb="md">
+        Select a target environment for <Text component="span" ff="monospace">{serviceName}</Text>{' '}
+        <Text component="span" fs="italic">(currently in {currentLocation})</Text>.
+      </Text>
+      <Stack gap="sm" maw={700} style={{ maxHeight: 300, overflowY: 'auto' }}>
+        {groupNames.map((groupName) => (
+          <Paper key={groupName} p="sm" withBorder>
+            <Text size="xs" tt="uppercase" fw={500} c="dimmed" mb="xs">{groupName}</Text>
+            <Group gap="xs">
+              {groupedTargets[groupName].map((target) => (
+                <Badge
+                  key={target.environmentId}
+                  variant={selectedTarget?.environmentId === target.environmentId ? 'filled' : 'outline'}
+                  color={target.environmentId === currentEnvironmentId ? 'gray' : 'relay-orange'}
+                  style={{ cursor: target.environmentId === currentEnvironmentId ? 'not-allowed' : 'pointer' }}
+                  onClick={() => {
+                    if (target.environmentId !== currentEnvironmentId) {
                       setSelectedTarget((prev) =>
                         prev?.environmentId === target.environmentId ? null : target
-                      )
+                      );
                     }
-                    className={`px-3 py-1.5 border rounded-full text-sm transition-colors ${
-                      target.environmentId === currentEnvironmentId
-                        ? 'bg-border-soft border-border text-ink-subtle cursor-not-allowed'
-                        :
-                      selectedTarget?.environmentId === target.environmentId
-                        ? 'bg-primary/10 border-primary text-primary'
-                        : 'bg-paper-elevated border-border text-ink hover:bg-border-soft'
-                    }`}
-                  >
-                    {target.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 p-3 rounded border border-border-soft">
-          <div className="flex items-center justify-between gap-3">
-            <p className="m-0 text-sm text-ink-muted">
-              Move to environment:{' '}
-              <span className="text-ink font-medium">{selectedTarget ? selectedTarget.fullLabel : '—'}</span>
-            </p>
-            <button
-              onClick={() => selectedTarget && onSelect(selectedTarget.environmentId)}
-              disabled={!selectedTarget}
-              className="px-4 py-2 bg-primary text-paper-elevated rounded hover:bg-primary-hover text-sm disabled:bg-border disabled:cursor-not-allowed shrink-0"
-            >
-              Confirm Move
-            </button>
-          </div>
-        </div>
-        <div className="flex justify-end gap-2 mt-4">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-ink text-paper-elevated rounded hover:opacity-90 text-sm"
+                  }}
+                >
+                  {target.label}
+                </Badge>
+              ))}
+            </Group>
+          </Paper>
+        ))}
+      </Stack>
+      <Paper p="sm" withBorder mt="md">
+        <Group justify="space-between">
+          <Text size="sm" c="dimmed">
+            Move to environment:{' '}
+            <Text component="span" fw={500}>{selectedTarget ? selectedTarget.fullLabel : '—'}</Text>
+          </Text>
+          <Button
+            color="relay-orange"
+            disabled={!selectedTarget}
+            onClick={() => selectedTarget && onSelect(selectedTarget.environmentId)}
           >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
+            Confirm Move
+          </Button>
+        </Group>
+      </Paper>
+      <Group justify="flex-end" mt="md">
+        <Button variant="default" onClick={onClose}>Cancel</Button>
+      </Group>
+    </Modal>
   );
 };
 
@@ -227,10 +198,6 @@ const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironment
   const [deployConfig, setDeployConfig] = useState<Record<string, string>>({});
   const [deployResult, setDeployResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const loadData = async () => {
     try {
@@ -254,28 +221,7 @@ const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironment
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useLayoutEffect(() => {
-    if (open && ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      setDropdownPosition({ top: rect.bottom + 4, left: rect.left });
-    } else {
-      setDropdownPosition(null);
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (ref.current?.contains(target) || dropdownRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
   const handleSelectPreset = (preset: any) => {
-    setOpen(false);
     loadData();
     setSelectedPreset(preset);
     const isNsite = preset.id === SERVICE_TYPE.NSITE;
@@ -317,58 +263,31 @@ const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironment
   };
 
   return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-2 border border-primary/40 rounded-lg bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/60 transition-colors text-sm font-medium"
-      >
-        + Add Service
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={`w-4 h-4 transition-transform shrink-0 ${open ? 'rotate-180' : ''}`}>
-          <path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-        </svg>
-      </button>
-      {open && presets.length > 0 && dropdownPosition &&
-        createPortal(
-          <div
-            ref={dropdownRef}
-            className="fixed z-[100] w-max max-w-sm min-w-[16rem] rounded-lg border border-border bg-paper-elevated py-1 shadow-lg"
-            style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
-          >
-            {presets.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => handleSelectPreset(preset)}
-                className="block w-full border-b border-border-soft px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-border-soft"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      {preset.icon && <span className="shrink-0 text-base leading-none">{preset.icon}</span>}
-                      <span className="truncate text-sm font-medium text-primary">{preset.name}</span>
-                    </div>
-                    {preset.description && (
-                      <p className="m-0 mt-1 line-clamp-2 text-xs leading-snug text-ink-muted">{preset.description}</p>
-                    )}
-                  </div>
-                  {preset.repo && (
-                    <a
-                      href={preset.repo}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 text-xs text-ink-muted hover:text-primary"
-                      onClick={(e) => e.stopPropagation()}
-                      title="View repo"
-                    >
-                      Repo&nbsp;↗
-                    </a>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>,
-          document.body
-        )}
+    <>
+      <Menu shadow="md" width={280}>
+        <Menu.Target>
+          <Button variant="outline" color="relay-orange" leftSection="+">
+            Add Service
+          </Button>
+        </Menu.Target>
+        <Menu.Dropdown>
+          {presets.map((preset) => (
+            <Menu.Item
+              key={preset.id}
+              onClick={() => handleSelectPreset(preset)}
+              leftSection={preset.icon}
+              rightSection={preset.repo ? (
+                <Anchor href={preset.repo} target="_blank" size="xs" onClick={(e) => e.stopPropagation()}>
+                  Repo ↗
+                </Anchor>
+              ) : undefined}
+            >
+              <Text fw={500} size="sm">{preset.name}</Text>
+              {preset.description && <Text size="xs" c="dimmed">{preset.description}</Text>}
+            </Menu.Item>
+          ))}
+        </Menu.Dropdown>
+      </Menu>
       {deployModalOpen && selectedPreset && (
         <DeployModal
           preset={selectedPreset}
@@ -384,7 +303,7 @@ const AddServiceButton = ({ preselectedEnvironmentId }: { preselectedEnvironment
           ownerPubkeyHex={npub}
         />
       )}
-    </div>
+    </>
   );
 };
 
@@ -399,65 +318,18 @@ const dnsRecordNameForHost = (host: string): { zone: string; name: string } => {
 const RelayExplorerModal = ({ relayUrl, onClose }: { relayUrl: string; onClose: () => void }) => {
   const explorerUrl = `https://relay-explorer.shakespeare.wtf/?relay=${encodeURIComponent(relayUrl)}`;
   return (
-    <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-paper-elevated rounded-lg w-[90vw] h-[90vh] flex flex-col border border-border shadow-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center p-4 border-b border-border">
-          <h2 className="text-xl font-bold m-0 text-ink">Relay Explorer</h2>
-          <button onClick={onClose} className="px-3 py-1.5 bg-ink text-paper-elevated rounded hover:opacity-90 text-sm">Close</button>
-        </div>
-        <iframe src={explorerUrl} className="flex-1 w-full border-0" title="Relay Explorer" />
-      </div>
-    </div>
+    <Modal opened onClose={onClose} title="Relay Explorer" size="90vw" centered styles={{ body: { height: '80vh', padding: 0 }, content: { height: '85vh' } }}>
+      <iframe src={explorerUrl} style={{ flex: 1, width: '100%', border: 'none', height: '100%' }} title="Relay Explorer" />
+    </Modal>
   );
 };
 
 const BlossomExplorerModal = ({ serverUrl, onClose }: { serverUrl: string; onClose: () => void }) => {
   const explorerUrl = `https://blossom-explorer.shakespeare.wtf/?server=${encodeURIComponent(serverUrl)}`;
   return (
-    <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-paper-elevated rounded-lg w-[90vw] h-[90vh] flex flex-col border border-border shadow-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center p-4 border-b border-border">
-          <h2 className="text-xl font-bold m-0 text-ink">Blossom Explorer</h2>
-          <button onClick={onClose} className="px-3 py-1.5 bg-ink text-paper-elevated rounded hover:opacity-90 text-sm">Close</button>
-        </div>
-        <iframe src={explorerUrl} className="flex-1 w-full border-0" title="Blossom Explorer" />
-      </div>
-    </div>
-  );
-};
-
-const PresetConfigFieldInput = ({
-  field,
-  value,
-  onChange,
-}: {
-  field: any;
-  value: string;
-  onChange: (next: string) => void;
-}) => {
-  if (field.type === 'boolean') {
-    return (
-      <select
-        value={value || 'false'}
-        onChange={(e) => onChange(e.target.value)}
-        required={field.required}
-        className="block w-full px-3 py-2 mt-1 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary bg-paper-elevated text-ink"
-      >
-        <option value="true">true</option>
-        <option value="false">false</option>
-      </select>
-    );
-  }
-
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      required={field.required}
-      placeholder={field.placeholder || field.description}
-      className="block w-full px-3 py-2 mt-1 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary bg-paper-elevated text-ink"
-    />
+    <Modal opened onClose={onClose} title="Blossom Explorer" size="90vw" centered styles={{ body: { height: '80vh', padding: 0 }, content: { height: '85vh' } }}>
+      <iframe src={explorerUrl} style={{ flex: 1, width: '100%', border: 'none', height: '100%' }} title="Blossom Explorer" />
+    </Modal>
   );
 };
 
@@ -510,10 +382,6 @@ const ServiceCard = ({
   const httpsUrl = domain ? `https://${domain.host}` : '';
   const wssUrl = domain ? `wss://${domain.host}` : '';
   const moveTargets = allEnvironments.filter((env) => env.environmentId !== service.environmentId);
-  const labelColClass = 'text-ink-subtle font-medium w-40 shrink-0';
-  const cardValueRailClass = 'flex min-w-0 flex-1 items-center gap-2';
-  const secondaryActionBtnClass = 'shrink-0 h-7 px-2.5 text-xs rounded border border-border bg-paper-elevated hover:bg-border-soft text-ink-muted inline-flex items-center';
-  const primaryActionBtnClass = 'shrink-0 h-7 px-2.5 text-xs rounded border border-primary bg-paper-elevated hover:bg-primary/5 text-primary inline-flex items-center';
   const manageItems: { label: string; onClick: () => void; danger?: boolean }[] = [];
   if (domain && !isEditing) {
     manageItems.push({ label: 'Edit Domain', onClick: () => onEditDomain(service.composeId, domain) });
@@ -531,37 +399,7 @@ const ServiceCard = ({
   }
   manageItems.push({ label: 'Delete', onClick: () => onDelete(service.composeId, service.name), danger: true });
 
-  const ConfigPills = ({
-    label,
-    values,
-    tone,
-  }: {
-    label: string;
-    values: string[];
-    tone: 'green' | 'red';
-  }) => (
-    <div className="flex items-start gap-2">
-      <span className={labelColClass}>{label}</span>
-      <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
-        {values.map((value, i) => (
-          <span
-            key={`${label}-${value}-${i}`}
-            className={`px-2 py-0.5 rounded-full text-xs font-medium border ${
-              tone === 'green'
-                ? 'bg-success-bg text-success-text border-success/30'
-                : 'bg-error-bg text-error-text border-error/30'
-            }`}
-          >
-            {value}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-
-  const deploymentPillColor =
-    service.status === 'running' ? 'bg-success-bg text-success-text' :
-    service.status === 'error' ? 'bg-error-bg text-error-text' : 'bg-border-soft text-ink-muted';
+  const statusColor = service.status === 'running' ? 'green' : service.status === 'error' ? 'red' : 'gray';
   return (
     <>
       {showExplorer && domain && (
@@ -583,108 +421,50 @@ const ServiceCard = ({
           }}
         />
       )}
-      <div className="bg-paper-elevated border border-border rounded-lg p-4 shadow-sm">
-        <div className="min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <h3 className="text-lg font-semibold m-0 text-ink truncate">{domain ? domain.host : service.name}</h3>
-              {service.repo ? (
-                <a
-                  href={service.repo}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary inline-flex items-center gap-1 hover:opacity-90"
-                  title="View upstream repo"
-                >
-                  {service.icon && <span>{service.icon}</span>}
-                  {service.serviceType}
-                  <span className="opacity-70">↗</span>
-                </a>
-              ) : (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary inline-flex items-center gap-1">
-                  {service.icon && <span>{service.icon}</span>}
-                  {service.serviceType}
-                </span>
-              )}
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium inline-block ${deploymentPillColor}`}>
-                {service.status}
+  <Paper withBorder p="md">
+        <Group justify="apart" align="center">
+          <Group align="center" gap="xs">
+            {service.icon && (
+              <span style={{ display: 'inline-flex', width: 20, height: 20, alignItems: 'center', justifyContent: 'center', marginRight: 6 }}>
+                {service.icon}
               </span>
-            </div>
-            <CogMenu label="Manage" items={manageItems} />
-          </div>
-          <p className="m-0 mt-1 text-xs font-mono text-ink-subtle truncate" title={service.name}>{service.name}</p>
-        </div>
-
-        <div className="mt-4 space-y-4 text-sm text-ink-muted">
+            )}
+            <Text fw={700} size="lg" truncate>{domain ? domain.host : service.name}</Text>
+            <Badge variant="light" color={statusColor} size="sm">{service.serviceType}</Badge>
+            <Badge variant="light" color={statusColor} size="sm">{service.status}</Badge>
+          </Group>
+          <CogMenu label="Manage" items={manageItems} />
+        </Group>
+        <Stack gap="md" mt="md">
           {domain ? (
-            <div className="pt-3 border-t border-border-soft space-y-2">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className={labelColClass}>HTTPS</span>
-                  <div className={cardValueRailClass}>
-                    <a
-                      href={httpsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="min-w-0 flex-1 truncate text-primary hover:underline"
-                    >
-                      {httpsUrl} ↗
-                    </a>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <button
-                        onClick={() => onCopy(httpsUrl)}
-                        className={secondaryActionBtnClass}
-                      >
-                        Copy
-                      </button>
-                      {service.type === SERVICE_TYPE.BLOSSOM && (
-                        <button
-                          onClick={() => setShowBlossomExplorer(true)}
-                          className={primaryActionBtnClass}
-                        >
-                          Explore
-                        </button>
-                      )}
-                      {service.type === SERVICE_TYPE.NSITE && (
-                        <a href={`${httpsUrl}/status`} target="_blank" rel="noopener noreferrer" className={primaryActionBtnClass}>
-                          Status
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
+            <>
+              <Stack gap="xs">
+                <Group gap="xs">
+                  <Text size="sm" fw={500} c="dimmed" w={100}>HTTPS</Text>
+                  <Anchor href={httpsUrl} target="_blank" size="sm" truncate style={{ flex: 1 }}>
+                    {httpsUrl} ↗
+                  </Anchor>
+                  <Button size="xs" variant="subtle" onClick={() => onCopy(httpsUrl)}>Copy</Button>
+                  {service.type === SERVICE_TYPE.BLOSSOM && (
+                    <Button size="xs" variant="light" color="relay-orange" onClick={() => setShowBlossomExplorer(true)}>Explore</Button>
+                  )}
+                  {service.type === SERVICE_TYPE.NSITE && (
+                    <Anchor href={`${httpsUrl}/status`} target="_blank" size="xs" variant="light" color="relay-orange">Status</Anchor>
+                  )}
+                </Group>
                 {service.type === SERVICE_TYPE.NSITE && (
-                  <div className="flex gap-2">
-                    <div className="w-40 shrink-0" aria-hidden />
-                    <p className="m-0 min-w-0 flex-1 text-xs leading-snug text-ink-subtle">
-                      Republished the site? Use <strong className="text-ink">Stop</strong> then <strong className="text-ink">Start</strong> so
-                      the gateway pulls fresh manifests (otherwise it may take ~10 minutes).
-                    </p>
-                  </div>
+                  <Text size="xs" c="dimmed" pl={100}>
+                    Republished the site? Use <Text component="span" fw={500}>Stop</Text> then <Text component="span" fw={500}>Start</Text> so
+                    the gateway pulls fresh manifests (otherwise it may take ~10 minutes).
+                  </Text>
                 )}
                 {service.type === SERVICE_TYPE.RELAY && (
-                  <div className="flex items-center gap-2">
-                    <span className={labelColClass}>WSS</span>
-                    <div className={cardValueRailClass}>
-                      <span className="min-w-0 flex-1 truncate font-mono text-xs" title={wssUrl}>
-                        {wssUrl}
-                      </span>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <button
-                          onClick={() => onCopy(wssUrl)}
-                          className={secondaryActionBtnClass}
-                        >
-                          Copy
-                        </button>
-                        <button
-                          onClick={() => setShowExplorer(true)}
-                          className={primaryActionBtnClass}
-                        >
-                          Explore
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <Group gap="xs">
+                    <Text size="sm" fw={500} c="dimmed" w={100}>WSS</Text>
+                    <Text size="xs" ff="monospace" truncate style={{ flex: 1 }} title={wssUrl}>{wssUrl}</Text>
+                    <Button size="xs" variant="subtle" onClick={() => onCopy(wssUrl)}>Copy</Button>
+                    <Button size="xs" variant="light" color="relay-orange" onClick={() => setShowExplorer(true)}>Explore</Button>
+                  </Group>
                 )}
                 {service.type === SERVICE_TYPE.NSITE &&
                   service.nsiteVisitorHost &&
@@ -694,84 +474,53 @@ const ServiceCard = ({
                     const nip5aHttps = `https://${h}`;
                     return (
                       <>
-                        <div className="flex items-center gap-2">
-                          <span className={labelColClass}>NIP-5A URL</span>
-                          <div className={cardValueRailClass}>
-                            <a
-                              href={nip5aHttps}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="min-w-0 flex-1 truncate text-primary hover:underline"
-                              title={h}
-                            >
-                              {nip5aHttps} ↗
-                            </a>
-                            <button type="button" onClick={() => onCopy(nip5aHttps)} className={secondaryActionBtnClass}>
-                              Copy
-                            </button>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <div className="w-40 shrink-0" aria-hidden />
-                          <p className="m-0 min-w-0 flex-1 text-xs leading-snug text-ink-subtle">
-                            NIP-5A builds this hostname from your pubkey and site id (compact encoding), so it will not look like your hex or npub.
-                          </p>
-                        </div>
+                        <Group gap="xs">
+                          <Text size="sm" fw={500} c="dimmed" w={100}>NIP-5A URL</Text>
+                          <Anchor href={nip5aHttps} target="_blank" size="xs" truncate style={{ flex: 1 }} title={h}>
+                            {nip5aHttps} ↗
+                          </Anchor>
+                          <Button size="xs" variant="subtle" onClick={() => onCopy(nip5aHttps)}>Copy</Button>
+                        </Group>
+                        <Text size="xs" c="dimmed" pl={100}>
+                          NIP-5A builds this hostname from your pubkey and site id (compact encoding), so it will not look like your hex or npub.
+                        </Text>
                       </>
                     );
                   })()}
-              </div>
+              </Stack>
 
               {service.type === SERVICE_TYPE.NSITE &&
                 (service.nsiteSiteNpub ||
                   service.nsiteSiteD ||
                   (!service.nsiteSiteNpub && service.nsiteManifestEventId)) && (
-                  <div className="space-y-2 border-t border-border-soft pt-3">
+                  <Stack gap="xs" pt="sm">
                     {service.nsiteSiteNpub && (() => {
                       const raw = service.nsiteSiteNpub.trim();
                       const hex = parsePubkeyHex(raw);
                       if (!hex) {
                         return (
-                          <div className="flex items-center gap-2">
-                            <span className={labelColClass}>Publishing key</span>
-                            <div className={cardValueRailClass}>
-                              <span className="min-w-0 flex-1 truncate font-mono text-xs" title={raw}>
-                                {raw}
-                              </span>
-                              <button type="button" onClick={() => onCopy(raw)} className={secondaryActionBtnClass}>
-                                Copy
-                              </button>
-                            </div>
-                          </div>
+                          <Group gap="xs">
+                            <Text size="sm" fw={500} c="dimmed" w={100}>Publishing key</Text>
+                            <Text size="xs" ff="monospace" truncate style={{ flex: 1 }} title={raw}>{raw}</Text>
+                            <Button size="xs" variant="subtle" onClick={() => onCopy(raw)}>Copy</Button>
+                          </Group>
                         );
                       }
                       const npub = nip19.npubEncode(hex);
                       const storedAsHex = /^[0-9a-f]{64}$/i.test(raw);
                       const hexRow = (
-                        <div key="pub-hex" className="flex items-center gap-2">
-                          <span className={labelColClass}>Pubkey (hex)</span>
-                          <div className={cardValueRailClass}>
-                            <span className="min-w-0 flex-1 truncate font-mono text-xs" title={hex}>
-                              {hex}
-                            </span>
-                            <button type="button" onClick={() => onCopy(hex)} className={secondaryActionBtnClass}>
-                              Copy
-                            </button>
-                          </div>
-                        </div>
+                        <Group key="pub-hex" gap="xs">
+                          <Text size="sm" fw={500} c="dimmed" w={100}>Pubkey (hex)</Text>
+                          <Text size="xs" ff="monospace" truncate style={{ flex: 1 }} title={hex}>{hex}</Text>
+                          <Button size="xs" variant="subtle" onClick={() => onCopy(hex)}>Copy</Button>
+                        </Group>
                       );
                       const npubRow = (
-                        <div key="npub" className="flex items-center gap-2">
-                          <span className={labelColClass}>Npub</span>
-                          <div className={cardValueRailClass}>
-                            <span className="min-w-0 flex-1 truncate font-mono text-xs" title={npub}>
-                              {npub}
-                            </span>
-                            <button type="button" onClick={() => onCopy(npub)} className={secondaryActionBtnClass}>
-                              Copy
-                            </button>
-                          </div>
-                        </div>
+                        <Group key="npub" gap="xs">
+                          <Text size="sm" fw={500} c="dimmed" w={100}>Npub</Text>
+                          <Text size="xs" ff="monospace" truncate style={{ flex: 1 }} title={npub}>{npub}</Text>
+                          <Button size="xs" variant="subtle" onClick={() => onCopy(npub)}>Copy</Button>
+                        </Group>
                       );
                       return storedAsHex ? (
                         <>
@@ -786,78 +535,55 @@ const ServiceCard = ({
                       );
                     })()}
                     {service.nsiteSiteD && (
-                      <div className="flex items-center gap-2">
-                        <span className={labelColClass}>Site id</span>
-                        <div className={cardValueRailClass}>
-                          <span className="min-w-0 flex-1 truncate font-mono text-xs" title={service.nsiteSiteD}>
-                            {service.nsiteSiteD}
-                          </span>
-                          <button
-                            onClick={() => onCopy(service.nsiteSiteD)}
-                            className={secondaryActionBtnClass}
-                          >
-                            Copy
-                          </button>
-                        </div>
-                      </div>
+                      <Group gap="xs">
+                        <Text size="sm" fw={500} c="dimmed" w={100}>Site id</Text>
+                        <Text size="xs" ff="monospace" truncate style={{ flex: 1 }} title={service.nsiteSiteD}>{service.nsiteSiteD}</Text>
+                        <Button size="xs" variant="subtle" onClick={() => onCopy(service.nsiteSiteD)}>Copy</Button>
+                      </Group>
                     )}
                     {!service.nsiteSiteNpub && service.nsiteManifestEventId && (
-                      <div className="flex items-center gap-2">
-                        <span className={labelColClass}>Manifest id</span>
-                        <div className={cardValueRailClass}>
-                          <span className="min-w-0 flex-1 truncate font-mono text-xs" title={service.nsiteManifestEventId}>
-                            {service.nsiteManifestEventId}
-                          </span>
-                          <button
-                            onClick={() => onCopy(service.nsiteManifestEventId)}
-                            className={secondaryActionBtnClass}
-                          >
-                            Copy
-                          </button>
-                        </div>
-                      </div>
+                      <Group gap="xs">
+                        <Text size="sm" fw={500} c="dimmed" w={100}>Manifest id</Text>
+                        <Text size="xs" ff="monospace" truncate style={{ flex: 1 }} title={service.nsiteManifestEventId}>{service.nsiteManifestEventId}</Text>
+                        <Button size="xs" variant="subtle" onClick={() => onCopy(service.nsiteManifestEventId)}>Copy</Button>
+                      </Group>
                     )}
-                  </div>
+                  </Stack>
                 )}
               {isEditing && (
-                <div className="pt-2 mt-2 border-t border-border-soft flex items-center gap-2">
-                  <span className={labelColClass}>Host</span>
-                  <input
-                    type="text"
+                <Group gap="xs">
+                  <Text size="sm" fw={500} c="dimmed" w={100}>Host</Text>
+                  <TextInput
+                    size="xs"
                     value={newDomainHost}
                     onChange={(e) => setNewDomainHost(e.target.value)}
-                    className="px-2 py-1 border border-border rounded text-xs flex-1 bg-paper-elevated text-ink"
+                    style={{ flex: 1 }}
                   />
-                  <button onClick={onSaveDomain} className="px-2 py-1 bg-success text-paper-elevated rounded text-xs hover:opacity-90 shrink-0">
-                    Save
-                  </button>
-                  <button onClick={onCancelEdit} className="px-2 py-1 bg-ink text-paper-elevated rounded text-xs hover:opacity-90 shrink-0">
-                    Cancel
-                  </button>
-                </div>
+                  <Button size="xs" color="green" onClick={onSaveDomain}>Save</Button>
+                  <Button size="xs" color="gray" onClick={onCancelEdit}>Cancel</Button>
+                </Group>
               )}
-            </div>
+            </>
           ) : (
-            <div className="pt-3 border-t border-border-soft flex items-center gap-2">
-              <span className={labelColClass}>Domain</span>
-              <p className="text-ink-subtle text-xs italic m-0">No domain configured</p>
-            </div>
+            <Group gap="xs">
+              <Text size="sm" fw={500} c="dimmed" w={100}>Domain</Text>
+              <Text size="xs" c="dimmed" fs="italic">No domain configured</Text>
+            </Group>
           )}
+        </Stack>
 
           {(whitelistedKinds.length > 0 || blacklistedKinds.length > 0 || whitelistedPubkeys.length > 0 || requireNip42) && (
-            <div className="pt-3 border-t border-border-soft space-y-1.5">
+            <Stack gap="xs" pt="sm">
               {whitelistedKinds.length > 0 && <ConfigPills label="Kinds +" values={whitelistedKinds} tone="green" />}
               {blacklistedKinds.length > 0 && <ConfigPills label="Kinds -" values={blacklistedKinds} tone="red" />}
               {whitelistedPubkeys.length > 0 && <ConfigPills label="Pubkeys +" values={whitelistedPubkeys} tone="green" />}
               {requireNip42 && (
-                <div className="flex items-center gap-2">
-                  <span className={labelColClass}>Auth</span>
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium border bg-primary/10 text-primary border-primary/30">
-                    NIP-42 required
-                  </span>
-                </div>
+                <Group gap="xs">
+                  <Text size="sm" fw={500} c="dimmed" w={100}>Auth</Text>
+                  <Badge color="relay-orange" variant="light">NIP-42 required</Badge>
+                </Group>
               )}
-            </div>
+            </Stack>
           )}
 
           {domain && serverIp && (() => {
@@ -870,50 +596,44 @@ const ServiceCard = ({
               dnsHosts.push(service.nsiteCanonicalHost);
             }
             return (
-              <div className="pt-3 border-t border-border-soft">
-                <div className="flex items-start gap-2">
-                  <span className={labelColClass}>DNS</span>
-                  <div className="flex-1 space-y-2">
+              <Stack gap="sm" pt="sm">
+                <Group gap="xs" align="flex-start">
+                  <Text size="sm" fw={500} c="dimmed" w={100}>DNS</Text>
+                  <Stack gap="xs" style={{ flex: 1 }}>
                     {dnsHosts.map((h) => {
                       const rec = dnsRecordNameForHost(h);
                       return (
                         <div key={h}>
-                          <p className="text-sm text-ink-muted m-0">
-                            A record for <strong>{rec.zone}</strong>
-                          </p>
-                          <div className="rounded px-3 py-2 text-sm font-mono flex items-center justify-between text-ink-muted border border-border-soft">
-                            <span><strong className="text-ink">{rec.name}</strong> → {serverIp}</span>
-                            <button
-                              type="button"
-                              onClick={() => onCopy(serverIp)}
-                              className="ml-2 p-1 text-ink-subtle hover:text-ink"
-                              title="Copy IP address"
-                            >
-                              📋
-                            </button>
-                          </div>
+                          <Text size="sm" c="dimmed">
+                            A record for <Text component="span" fw={500}>{rec.zone}</Text>
+                          </Text>
+                          <Paper withBorder p="xs" ff="monospace">
+                            <Group justify="space-between">
+                              <Text size="sm">
+                                <Text component="span" fw={500}>{rec.name}</Text> → {serverIp}
+                              </Text>
+                              <ActionIcon variant="subtle" onClick={() => onCopy(serverIp)} title="Copy IP address">
+                                📋
+                              </ActionIcon>
+                            </Group>
+                          </Paper>
                         </div>
                       );
                     })}
-                  </div>
-                </div>
-              </div>
+                  </Stack>
+                </Group>
+              </Stack>
             );
           })()}
 
-          <div className="pt-3 border-t border-border-soft">
-            <div className="flex items-center gap-2">
-              <span className={labelColClass}>Created</span>
-              <span>{createdStr}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-40 shrink-0" />
-              <span className="text-xs text-ink-subtle italic">{createdAgo}</span>
-            </div>
-          </div>
-        </div>
-
-      </div>
+          <Stack gap={4} pt="sm">
+            <Group gap="xs">
+              <Text size="sm" fw={500} c="dimmed" w={100}>Created</Text>
+              <Text size="sm">{createdStr}</Text>
+            </Group>
+            <Text size="xs" c="dimmed" fs="italic" pl={100}>{createdAgo}</Text>
+          </Stack>
+        </Paper>
     </>
   );
 };
@@ -1184,109 +904,89 @@ const ServiceList = () => {
   const isDefaultProject = (name: string) => name === 'relaykit.ungrouped';
 
   return (
-    <div className="mt-12">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold m-0 text-ink">Services</h2>
-        <button
-          onClick={loadData}
-          disabled={loading}
-          className="px-4 py-2 bg-primary text-paper-elevated rounded hover:bg-primary-hover disabled:bg-border disabled:cursor-not-allowed text-sm"
-        >
+    <Stack gap="xl" mt="xl">
+      <Group justify="space-between">
+        <Title order={2}>Services</Title>
+        <Button color="relay-orange" onClick={loadData} loading={loading}>
           {loading ? 'Refreshing...' : 'Refresh'}
-        </button>
-      </div>
+        </Button>
+      </Group>
 
       {grouped.length === 0 ? (
-        <p className="text-ink-muted italic">No groups yet.</p>
+        <Text c="dimmed" fs="italic">No groups yet.</Text>
       ) : (
-        <div className="space-y-6">
+        <Stack gap="lg">
           {grouped.map((project: any) => (
-            <div key={project.projectId} className="border border-border rounded-lg overflow-hidden">
+            <Paper key={project.projectId} withBorder>
               {renamingProjectId === project.projectId ? (
-                <div className="bg-border-soft px-4 py-3 flex items-center gap-2">
-                  <input
-                    type="text"
+                <Group px="md" py="sm">
+                  <TextInput
                     value={renameProjectValue}
                     onChange={(e) => setRenameProjectValue(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleRenameProject(project.projectId)}
-                    className="px-3 py-1.5 border border-border rounded text-sm bg-paper-elevated text-ink flex-1 max-w-xs"
+                    style={{ flex: 1, maxWidth: 300 }}
                     autoFocus
                   />
-                  <button onClick={() => handleRenameProject(project.projectId)} disabled={!renameProjectValue.trim()} className="px-2 py-1 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover disabled:bg-border">Save</button>
-                  <button onClick={() => { setRenamingProjectId(null); setRenameProjectValue(''); }} className="px-2 py-1 bg-ink text-paper-elevated rounded text-xs hover:opacity-90">Cancel</button>
-                </div>
+                  <Button size="xs" color="relay-orange" onClick={() => handleRenameProject(project.projectId)} disabled={!renameProjectValue.trim()}>Save</Button>
+                  <Button size="xs" variant="default" onClick={() => { setRenamingProjectId(null); setRenameProjectValue(''); }}>Cancel</Button>
+                </Group>
               ) : !isDefaultProject(project.name) ? (
-                <div className="bg-border-soft px-4 py-3 flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-ink m-0">{project.name}</h3>
-                    <button onClick={() => { setRenamingProjectId(project.projectId); setRenameProjectValue(project.name); }} className="text-ink-subtle/30 hover:text-primary transition-colors" title="Rename group">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" /></svg>
-                    </button>
-                  </div>
+                <Group px="md" py="sm" bg="gray.1" justify="space-between">
+                  <Group gap="xs">
+                    <Text fw={600}>{project.name}</Text>
+                    <ActionIcon variant="subtle" onClick={() => { setRenamingProjectId(project.projectId); setRenameProjectValue(project.name); }} title="Rename group">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" style={{ width: 14, height: 14 }}><path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" /></svg>
+                    </ActionIcon>
+                  </Group>
                   <CogMenu items={[
                     { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
                   ]} />
-                </div>
+                </Group>
               ) : (
-                <div className="flex justify-end px-4 pt-2">
+                <Group justify="flex-end" px="md" pt="sm">
                   <CogMenu items={[
                     { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
                   ]} />
-                </div>
+                </Group>
               )}
               {project.environments.map((env: any) => {
                 const isDefaultEnv = env.isDefault === true;
                 return (
-                <div key={env.environmentId} className="border-t border-border">
-                  <div className="px-4 py-2.5 bg-paper-elevated/30 flex items-center gap-2 group/env border-l-2 border-l-primary/20">
+                <div key={env.environmentId}>
+                  <Group px="md" py="sm" bg="gray.0" style={{ borderLeft: '3px solid var(--mantine-color-relay-orange-5)' }}>
                     {renamingEnvId === env.environmentId ? (
                       <>
-                        <input
-                          type="text"
+                        <TextInput
+                          size="xs"
                           value={renameEnvValue}
                           onChange={(e) => setRenameEnvValue(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleRenameEnvironment(env.environmentId)}
-                          className="px-2 py-0.5 border border-border rounded text-sm bg-paper-elevated text-ink"
+                          style={{ width: 150 }}
                           autoFocus
                         />
-                        <button
-                          onClick={() => handleRenameEnvironment(env.environmentId)}
-                          disabled={!renameEnvValue.trim()}
-                          className="px-2 py-0.5 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover disabled:bg-border"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => { setRenamingEnvId(null); setRenameEnvValue(''); }}
-                          className="px-2 py-0.5 bg-ink text-paper-elevated rounded text-xs hover:opacity-90"
-                        >
-                          Cancel
-                        </button>
+                        <Button size="xs" color="relay-orange" onClick={() => handleRenameEnvironment(env.environmentId)} disabled={!renameEnvValue.trim()}>Save</Button>
+                        <Button size="xs" variant="default" onClick={() => { setRenamingEnvId(null); setRenameEnvValue(''); }}>Cancel</Button>
                       </>
                     ) : (
                       <>
-                        <span className="text-sm font-medium text-ink">{env.name}</span>
+                        <Text fw={500}>{env.name}</Text>
                         {!isDefaultEnv && (
-                          <button
-                            onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }}
-                            className="text-ink-subtle/30 hover:text-primary transition-colors"
-                            title="Rename environment"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                          <ActionIcon variant="subtle" onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }} title="Rename environment">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" style={{ width: 14, height: 14 }}>
                               <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L3.22 10.306a1 1 0 0 0-.26.445l-.813 3.04a.5.5 0 0 0 .608.608l3.04-.813a1 1 0 0 0 .445-.26l7.793-7.793a1.75 1.75 0 0 0 0-2.475l-.544-.544ZM11.72 3.22a.25.25 0 0 1 .354 0l.544.544a.25.25 0 0 1 0 .354L5.126 11.61l-1.907.51.51-1.907L11.72 3.22Z" />
                             </svg>
-                          </button>
+                          </ActionIcon>
                         )}
-                        <div className="flex-1" />
+                        <div style={{ flex: 1 }} />
                         <CogMenu items={[
                           { label: 'Delete environment', onClick: () => openDeleteEnvConfirm(env.environmentId, env.name), danger: true },
                         ]} />
                       </>
                     )}
-                  </div>
-                  <div className="p-4 space-y-3">
+                  </Group>
+                  <Stack gap="md" p="md">
                     {env.services.length === 0 ? (
-                      <p className="text-ink-subtle text-sm italic">No services in this environment.</p>
+                      <Text c="dimmed" size="sm" fs="italic">No services in this environment.</Text>
                     ) : (
                       env.services.map((service: any) => (
                         <ServiceCard
@@ -1310,71 +1010,56 @@ const ServiceList = () => {
                       ))
                     )}
                     <AddServiceButton preselectedEnvironmentId={env.environmentId} />
-                  </div>
+                  </Stack>
                 </div>
                 );
               })}
               {newEnvTarget === project.projectId ? (
-                <div className="border-t border-border px-4 py-3 flex items-center gap-2 bg-paper">
-                  <input
-                    type="text"
+                <Group px="md" py="sm" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
+                  <TextInput
+                    size="xs"
+                    placeholder="Environment name…"
                     value={newEnvName}
                     onChange={(e) => setNewEnvName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleCreateEnvironment(project.projectId)}
-                    placeholder="Environment name…"
-                    className="px-2 py-1 border border-border rounded text-xs bg-paper-elevated text-ink"
+                    style={{ flex: 1 }}
                     autoFocus
                   />
-                  <button
-                    onClick={() => handleCreateEnvironment(project.projectId)}
-                    disabled={!newEnvName.trim()}
-                    className="px-2 py-1 bg-primary text-paper-elevated rounded text-xs hover:bg-primary-hover disabled:bg-border"
-                  >
-                    Add
-                  </button>
-                  <button
-                    onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}
-                    className="px-2 py-1 bg-ink text-paper-elevated rounded text-xs hover:opacity-90"
-                  >
-                    Cancel
-                  </button>
-                </div>
+                  <Button size="xs" color="relay-orange" onClick={() => handleCreateEnvironment(project.projectId)} disabled={!newEnvName.trim()}>Add</Button>
+                  <Button size="xs" variant="default" onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}>Cancel</Button>
+                </Group>
               ) : (
-                <button
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  fullWidth
                   onClick={() => setNewEnvTarget(project.projectId)}
-                  className="w-full border-t border-border px-4 py-2.5 text-xs text-primary hover:bg-border-soft/50 transition-colors text-left"
+                  styles={{ root: { justifyContent: 'flex-start' } }}
                 >
                   + Add an environment within this group
-                </button>
+                </Button>
               )}
-            </div>
+            </Paper>
           ))}
-        </div>
+        </Stack>
       )}
 
-      <div className="mt-6 border border-border/60 rounded-lg overflow-hidden bg-paper-elevated/50 hover:bg-paper-elevated hover:border-border transition-colors">
-        <div className="px-4 pt-3 pb-1">
-          <h3 className="text-sm font-semibold text-ink m-0">Add a new group</h3>
-          <p className="text-xs text-ink-muted m-0 mt-0.5">Create a group to organise services within.</p>
-        </div>
-        <div className="px-4 py-3 flex items-center gap-3">
-          <input
-            type="text"
+      <Paper withBorder p="md">
+        <Text fw={500} size="sm" mb={4}>Add a new group</Text>
+        <Text size="xs" c="dimmed" mb="md">Create a group to organise services within.</Text>
+        <Group>
+          <TextInput
+            style={{ flex: 1 }}
+            placeholder="Group name"
             value={newProjectName}
             onChange={(e) => setNewProjectName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
-            placeholder="Group name"
-            className="flex-1 min-w-0 px-3 py-2 border border-border rounded text-sm bg-paper text-ink placeholder:text-ink-subtle"
           />
-          <button
-            onClick={handleCreateProject}
-            disabled={creatingProject || !newProjectName.trim()}
-            className="px-4 py-2 bg-primary text-paper-elevated rounded text-sm font-medium hover:bg-primary-hover disabled:bg-border disabled:cursor-not-allowed shrink-0"
-          >
+          <Button color="relay-orange" onClick={handleCreateProject} loading={creatingProject} disabled={!newProjectName.trim()}>
             Add group
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Group>
+      </Paper>
 
       {confirmModal && (
         <ConfirmModal
@@ -1407,7 +1092,7 @@ const ServiceList = () => {
           saving={savingConfig}
         />
       )}
-    </div>
+    </Stack>
   );
 };
 
@@ -1446,98 +1131,67 @@ const DeployModal = ({
   const isNsite = preset.id === SERVICE_TYPE.NSITE;
 
   const renderField = (field: any) => (
-    <div key={field.id} className="mb-4">
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-ink">{field.name}</span>
-        <PresetConfigFieldInput
-          field={field}
-          value={deployConfig[field.id] ?? field.default ?? ''}
-          onChange={(next) => setDeployConfig((c) => ({ ...c, [field.id]: next }))}
-        />
-      </label>
-      {field.description && (
-        <p className="m-0 mt-1 text-xs leading-snug text-ink-muted">{field.description}</p>
-      )}
+    <div key={field.id} style={{ marginBottom: 'var(--mantine-spacing-md)' }}>
+      <TextInput
+        label={field.name}
+        description={field.description}
+        required={field.required}
+        value={deployConfig[field.id] ?? field.default ?? ''}
+        onChange={(e) => setDeployConfig((c) => ({ ...c, [field.id]: e.target.value }))}
+      />
     </div>
   );
 
   return (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-    <div className="max-h-[85vh] w-full max-w-md overflow-auto rounded-lg border border-border bg-paper-elevated p-6 shadow-lg">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="m-0 text-xl font-bold text-ink">
-          {preset.icon && <span className="mr-1.5">{preset.icon}</span>}
-          Deploy {preset.name}
-        </h2>
-        {preset.repo && (
-          <a href={preset.repo} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-ink-muted hover:text-primary" title="View repo">
-            Repo ↗
-          </a>
-        )}
-      </div>
-      {preset.description && (
-        <p className="mt-2 text-sm leading-relaxed text-ink-muted">{preset.description}</p>
-      )}
-      <form onSubmit={onSubmit}>
-        <div className="mb-4">
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-ink">Deploy into</span>
-            <select
+    <Modal opened onClose={onClose} title={
+      <Group gap="xs">
+        {preset.icon}
+        <Text fw={700}>Deploy {preset.name}</Text>
+      </Group>
+    } size="md" centered styles={{ body: { maxHeight: '85vh', overflow: 'auto' } }}>
+      <Stack gap="md">
+        {preset.description && <Text size="sm" c="dimmed">{preset.description}</Text>}
+        <form onSubmit={onSubmit}>
+          <Stack gap="md">
+            <Select
+              label="Deploy into"
+              placeholder="Select environment…"
               value={selectedEnvironmentId}
-              onChange={(e) => setSelectedEnvironmentId(e.target.value)}
+              onChange={(v) => setSelectedEnvironmentId(v || '')}
               required
-              className="block w-full rounded border border-border bg-paper-elevated px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Select environment…</option>
-              {groupNames.map((groupName) => (
-                <optgroup key={groupName} label={groupName}>
-                  {byGroup[groupName].map((env) => (
-                    <option key={env.environmentId} value={env.environmentId}>
-                      {env.label}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </label>
-        </div>
-        {isNsite ? (
-          <NsiteDeployFields
-            preset={preset}
-            config={deployConfig}
-            setConfig={setDeployConfig}
-            ownerPubkeyHex={ownerPubkeyHex}
-            autoFetchProfile
-          />
-        ) : (
-          preset.requiredConfig.map(renderField)
-        )}
-        {deployResult && (
-          <div className={`mb-4 p-4 rounded ${deployResult.error ? 'bg-error-bg text-error-text' : 'bg-success-bg text-success-text'}`}>
-            <strong>{deployResult.error ? 'Error:' : 'Success!'}</strong>
-            <pre className="mt-2 text-xs whitespace-pre-wrap">{JSON.stringify(deployResult, null, 2)}</pre>
-          </div>
-        )}
-        <div className="mt-6 flex gap-3">
-          <button
-            type="submit"
-            disabled={loading || !selectedEnvironmentId}
-            className="flex-1 rounded bg-success px-4 py-2.5 text-sm text-paper-elevated hover:opacity-90 disabled:cursor-not-allowed disabled:bg-border"
-          >
-            {loading ? 'Deploying...' : 'Deploy'}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="flex-1 rounded bg-ink px-4 py-2.5 text-sm text-paper-elevated hover:opacity-90 disabled:cursor-not-allowed"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
+              data={groupNames.flatMap((groupName) => [
+                { group: groupName, items: byGroup[groupName].map((env) => ({ value: env.environmentId, label: env.label })) }
+              ])}
+            />
+            {isNsite ? (
+              <NsiteDeployFields
+                preset={preset}
+                config={deployConfig}
+                setConfig={setDeployConfig}
+                ownerPubkeyHex={ownerPubkeyHex}
+                autoFetchProfile
+              />
+            ) : (
+              preset.requiredConfig.map(renderField)
+            )}
+            {deployResult && (
+              <Paper color={deployResult.error ? 'red' : 'green'} p="md">
+                <Text fw={700}>{deployResult.error ? 'Error:' : 'Success!'}</Text>
+                <pre style={{ fontSize: 12, whiteSpace: 'pre-wrap' }}>{JSON.stringify(deployResult, null, 2)}</pre>
+              </Paper>
+            )}
+            <Group grow>
+              <Button type="submit" color="green" loading={loading} disabled={!selectedEnvironmentId}>
+                {loading ? 'Deploying...' : 'Deploy'}
+              </Button>
+              <Button variant="default" onClick={onClose} disabled={loading}>
+                Cancel
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Stack>
+    </Modal>
   );
 };
 
@@ -1564,85 +1218,64 @@ const ConfigEditModal = ({
   const fakePreset = isNsite ? { id: SERVICE_TYPE.NSITE, requiredConfig: fields } : null;
 
   const renderConfigField = (field: any) => (
-    <div key={field.id} className="mb-4">
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-ink">{field.name}</span>
-        <PresetConfigFieldInput
-          field={field}
-          value={values[field.id] ?? field.default ?? ''}
-          onChange={(next) => setValues((v) => ({ ...v, [field.id]: next }))}
-        />
-      </label>
-      {field.description && (
-        <p className="m-0 mt-1 text-xs leading-snug text-ink-muted">{field.description}</p>
-      )}
+    <div key={field.id} style={{ marginBottom: 'var(--mantine-spacing-md)' }}>
+      <TextInput
+        label={field.name}
+        description={field.description}
+        value={values[field.id] ?? field.default ?? ''}
+        onChange={(e) => setValues((v) => ({ ...v, [field.id]: e.target.value }))}
+      />
     </div>
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-      <div className="max-h-[85vh] w-full max-w-md overflow-auto rounded-lg border border-border bg-paper-elevated p-6 shadow-lg">
-        <h2 className="m-0 text-xl font-bold text-ink">Edit Config</h2>
-        <p className="mt-1 text-sm text-ink-muted">
+    <Modal opened onClose={onClose} title="Edit Config" size="md" centered styles={{ body: { maxHeight: '85vh', overflow: 'auto' } }}>
+      <Stack gap="md">
+        <Text size="sm" c="dimmed">
           {service ? `Update environment config for ${service.name}` : 'Loading service config...'}
-        </p>
+        </Text>
         {loading ? (
-          <p className="text-ink-muted">Loading...</p>
+          <Text c="dimmed">Loading...</Text>
         ) : fields.length === 0 ? (
           <>
-            <p className="text-ink-muted">No editable config fields for this service.</p>
-            <div className="mt-6 flex gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 rounded bg-ink px-4 py-2.5 text-sm text-paper-elevated hover:opacity-90"
-              >
-                Close
-              </button>
-            </div>
+            <Text c="dimmed">No editable config fields for this service.</Text>
+            <Button onClick={onClose} fullWidth>Close</Button>
           </>
         ) : (
           <form onSubmit={onSubmit}>
-            {isNsite && fakePreset ? (
-              <NsiteDeployFields
-                preset={fakePreset}
-                config={values}
-                setConfig={setValues}
-                ownerPubkeyHex={null}
-              />
-            ) : (
-              fields.map(renderConfigField)
-            )}
-            <div className="mt-6 flex gap-3">
-              <button
-                type="submit"
-                disabled={saving}
-                className="flex-1 rounded bg-success px-4 py-2.5 text-sm text-paper-elevated hover:opacity-90 disabled:cursor-not-allowed disabled:bg-border"
-              >
-                {saving ? 'Saving...' : 'Save + Redeploy'}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={saving}
-                className="flex-1 rounded bg-ink px-4 py-2.5 text-sm text-paper-elevated hover:opacity-90 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-            </div>
+            <Stack gap="md">
+              {isNsite && fakePreset ? (
+                <NsiteDeployFields
+                  preset={fakePreset}
+                  config={values}
+                  setConfig={setValues}
+                  ownerPubkeyHex={null}
+                />
+              ) : (
+                fields.map(renderConfigField)
+              )}
+              <Group grow>
+                <Button type="submit" color="green" loading={saving}>
+                  {saving ? 'Saving...' : 'Save + Redeploy'}
+                </Button>
+                <Button variant="default" onClick={onClose} disabled={saving}>
+                  Cancel
+                </Button>
+              </Group>
+            </Stack>
           </form>
         )}
-      </div>
-    </div>
+      </Stack>
+    </Modal>
   );
 };
 
 const DeploySection = () => (
-  <div className="mt-12">
-    <h2 className="text-2xl font-bold text-ink mb-1">Add service</h2>
-    <p className="text-ink-muted text-sm m-0 mb-4">Deploy a relay or media server into a group.</p>
+  <Stack gap="md" mt="xl">
+    <Title order={2}>Add service</Title>
+    <Text c="dimmed" size="sm">Deploy a relay or media server into a group.</Text>
     <AddServiceButton />
-  </div>
+  </Stack>
 );
 
 const LoginScreen = () => {
@@ -1663,69 +1296,54 @@ const LoginScreen = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-xl">Loading...</div>
-        </div>
-      </div>
+      <Stack align="center" justify="center" h="100vh">
+        <Text size="xl">Loading...</Text>
+      </Stack>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-paper">
-      <div className="max-w-md w-full p-8 bg-paper-elevated rounded-lg shadow-lg border border-border">
-        <h1 className="text-3xl font-bold mb-2 text-ink">RelayKit</h1>
-        <p className="text-ink-muted mb-8">Nostr service deployment platform</p>
+    <Stack align="center" justify="center" h="100vh" bg="paper.2">
+      <Paper withBorder p="xl" maw={400} w="100%">
+        <Title order={1} mb={8}>RelayKit</Title>
+        <Text c="dimmed" mb="xl">Nostr service deployment platform</Text>
 
         {!hasNostrExtension ? (
-          <div className="p-4 bg-warning-bg rounded-lg border border-warning/30">
-            <p className="font-semibold mb-2 text-warning-text">Nostr Extension Required</p>
-            <p className="text-sm text-ink-muted mb-4">
+          <Paper color="yellow" p="md" mb="md">
+            <Text fw={700} mb={8}>Nostr Extension Required</Text>
+            <Text size="sm" c="dimmed" mb="md">
               Please install a Nostr browser extension to continue:
-            </p>
-            <ul className="text-sm space-y-2">
-              <li>
-                <a
-                  href="https://getalby.com"
-                  target="_blank"
-                  className="text-primary hover:underline"
-                >
-                  Alby (Chrome, Firefox)
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com/fiatjaf/nos2x"
-                  target="_blank"
-                  className="text-primary hover:underline"
-                >
-                  nos2x (Chrome)
-                </a>
-              </li>
-            </ul>
-          </div>
+            </Text>
+            <Stack gap="xs">
+              <Anchor href="https://getalby.com" target="_blank">
+                Alby (Chrome, Firefox)
+              </Anchor>
+              <Anchor href="https://nos2x.org" target="_blank">
+                nos2x (Chrome, Firefox)
+              </Anchor>
+              <Anchor href="https://blockcore.net/wallet" target="_blank">
+                Blockcore (Chrome, Edge, Firefox, Brave)
+              </Anchor>
+            </Stack>
+          </Paper>
         ) : (
-          <button
-            onClick={handleLogin}
-            disabled={loggingIn}
-            className="w-full px-6 py-3 bg-primary text-paper-elevated rounded hover:bg-primary-hover disabled:bg-border disabled:cursor-not-allowed transition-colors font-medium"
-          >
-            {loggingIn ? 'Signing in...' : 'Sign in with Nostr'}
-          </button>
+          <Button size="lg" fullWidth onClick={handleLogin} loading={loggingIn} color="relay-orange">
+            Connect with Nostr
+          </Button>
         )}
-      </div>
-    </div>
+      </Paper>
+    </Stack>
   );
 };
 
 const DokployConnectionAlert = ({ message }: { message: string }) => (
-  <div className="p-6 bg-error-bg border border-error/40 rounded-lg" role="alert">
-    <p className="font-semibold text-error-text m-0">Dokploy connection problem</p>
-    <p className="text-error-text text-sm mt-2 m-0">{message}</p>
-    <p className="text-error-text/90 text-sm mt-2 m-0">
+  <Paper color="red" p="md">
+    <Text fw={700}>Dokploy connection problem</Text>
+    <Text size="sm" mt="xs">{message}</Text>
+    <Text size="sm" mt="xs" c="dimmed">
       To fix: run the setup script with your npub, or add a valid Dokploy API key to the bootstrap key file (see README).
-    </p>
-  </div>
+    </Text>
+  </Paper>
 );
 
 /** Runs initial listServices when mounted; sets dokployReady, or handles errors so we never hang on loading. */
@@ -1775,35 +1393,27 @@ const App = () => {
   }
 
   return (
-    <div className="p-8 max-w-3xl mx-auto min-h-screen">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h1 className="text-4xl font-bold text-ink">RelayKit</h1>
-          <p className="text-ink-muted">Nostr service deployment platform</p>
-        </div>
-        <div className="text-right">
-          <p className="text-sm text-ink-subtle mb-2">
-            {npub ? `${npub.slice(0, 8)}...${npub.slice(-4)}` : ''}
-          </p>
-          <button
-            onClick={logout}
-            className="text-sm text-ink-muted hover:text-ink underline"
-          >
-            Logout
-          </button>
-          <button
-            onClick={() => setShowDebug(!showDebug)}
-            className="text-xs text-ink-subtle hover:text-ink-muted underline ml-2"
-          >
-            {showDebug ? 'Hide' : 'Debug'}
-          </button>
-        </div>
-      </div>
+    <Stack gap="xl" p="xl" maw={1100} mx="auto">
+      <Group justify="space-between" align="flex-start">
+        <Stack gap={4}>
+          <Title order={1}>RelayKit</Title>
+          <Text c="dimmed">Nostr service deployment platform</Text>
+        </Stack>
+        <Stack gap={4} align="flex-end">
+          <Text size="sm" c="dimmed">{npub ? `${npub.slice(0, 8)}...${npub.slice(-4)}` : ''}</Text>
+          <Group gap="xs">
+            <Button variant="subtle" size="compact-xs" onClick={logout}>Logout</Button>
+            <Button variant="subtle" size="compact-xs" onClick={() => setShowDebug(!showDebug)}>{showDebug ? 'Hide' : 'Debug'}</Button>
+          </Group>
+        </Stack>
+      </Group>
       {showDebug && debugInfo && (
-        <div className="mb-4 p-4 bg-border-soft rounded text-xs font-mono text-ink-muted">
-          <div><strong className="text-ink">NPub:</strong> {debugInfo.npub}</div>
-          <div><strong className="text-ink">Dokploy Key:</strong> {debugInfo.dokployApiKey?.slice(0, 20)}...</div>
-        </div>
+        <Paper p="md" withBorder>
+          <Text size="xs" ff="monospace" c="dimmed">
+            <Text component="span" fw={700}>NPub:</Text> {debugInfo.npub}<br/>
+            <Text component="span" fw={700}>Dokploy Key:</Text> {debugInfo.dokployApiKey?.slice(0, 20)}...
+          </Text>
+        </Paper>
       )}
       {dokployConnectionError ? (
         <DokployConnectionAlert message={dokployConnectionError} />
@@ -1811,7 +1421,7 @@ const App = () => {
         <>
           <DokployInitialCheck />
           {!dokployReady ? (
-            <p className="text-ink-muted">Loading…</p>
+            <Text c="dimmed">Loading…</Text>
           ) : (
             <>
               <ServiceList />
@@ -1820,7 +1430,7 @@ const App = () => {
           )}
         </>
       )}
-    </div>
+    </Stack>
   );
 };
 

@@ -11,42 +11,9 @@ import {
   fetchNsite35128Dtags,
 } from '../../../shared/nsite';
 import { UrlListCsvEditor } from './UrlListCsvEditor';
+import { Select, TextInput, Stack, Text, Paper, Group, Button } from '@mantine/core';
 
 type ProfileStatus = 'idle' | 'loading' | 'ok' | 'error' | 'skipped';
-
-const PresetConfigFieldInput = ({
-  field,
-  value,
-  onChange,
-}: {
-  field: any;
-  value: string;
-  onChange: (next: string) => void;
-}) => {
-  if (field.type === 'boolean') {
-    return (
-      <select
-        value={value || 'false'}
-        onChange={(e) => onChange(e.target.value)}
-        required={field.required}
-        className="block w-full px-3 py-2 mt-1 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary bg-paper-elevated text-ink"
-      >
-        <option value="true">true</option>
-        <option value="false">false</option>
-      </select>
-    );
-  }
-  return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      required={field.required}
-      placeholder={field.placeholder || field.description}
-      className="block w-full px-3 py-2 mt-1 border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary bg-paper-elevated text-ink"
-    />
-  );
-};
 
 /** Initialise deploy config defaults for an nsite preset. */
 export const buildNsiteDeployDefaults = (preset: any, ownerPubkeyHex: string | null): Record<string, string> => {
@@ -167,18 +134,14 @@ export const NsiteDeployFields = ({
   };
 
   const renderField = (field: any) => (
-    <div key={field.id} className="mb-4">
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-ink">{field.name}</span>
-        <PresetConfigFieldInput
-          field={field}
-          value={config[field.id] ?? field.default ?? ''}
-          onChange={(next) => setConfig((c) => ({ ...c, [field.id]: next }))}
-        />
-      </label>
-      {field.description && (
-        <p className="m-0 mt-1 text-xs leading-snug text-ink-muted">{field.description}</p>
-      )}
+    <div key={field.id} style={{ marginBottom: 'var(--mantine-spacing-md)' }}>
+      <TextInput
+        label={field.name}
+        description={field.description}
+        required={field.required}
+        value={config[field.id] ?? field.default ?? ''}
+        onChange={(e) => setConfig((c) => ({ ...c, [field.id]: (e.target as HTMLInputElement).value }))}
+      />
     </div>
   );
 
@@ -198,20 +161,20 @@ export const NsiteDeployFields = ({
   );
 
   return (
-    <>
+    <Stack gap="md">
       {profileStatus !== 'idle' && (
-        <div className="mb-4 rounded-md border border-border-soft bg-paper px-3 py-2 text-xs leading-snug text-ink-muted">
+        <Paper withBorder p="md">
           {profileStatus === 'loading' && (
-            <span>Loading this site pubkey&apos;s kind 10002 (relays) and 10063 (Blossom)…</span>
+            <Text size="sm" c="dimmed">Loading this site pubkey&apos;s kind 10002 (relays) and 10063 (Blossom)…</Text>
           )}
           {profileStatus === 'ok' && (
-            <span className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-              <span>
+            <Stack gap="sm">
+              <Text size="sm" c="dimmed">
                 {profileMeta && !profileMeta.foundKind10002 && !profileMeta.foundKind10063 ? (
                   <>
-                    No kind <strong className="text-ink">10002</strong> or{' '}
-                    <strong className="text-ink">10063</strong> found for your pubkey on the relays we
-                    queried. Advanced fields show <strong className="text-ink">RelayKit defaults only</strong>.
+                    No kind <Text component="span" fw={700}>10002</Text> or{' '}
+                    <Text component="span" fw={700}>10063</Text> found for your pubkey on the relays we
+                    queried. Advanced fields show <Text component="span" fw={700}>RelayKit defaults only</Text>.
                     Publish NIP-65 / Blossom lists for that site pubkey, or tap refresh after they land on
                     relays.
                   </>
@@ -219,52 +182,38 @@ export const NsiteDeployFields = ({
                   (profileMeta.foundKind10002 || profileMeta.foundKind10063) ? (
                   <>
                     {profileMeta.foundKind10002 && (
-                      <>
-                        Merged <strong className="text-ink">{profileMeta.userRelayUrlCount}</strong> relay
-                        URL(s) from kind 10002.
-                      </>
+                      <>Merged <Text component="span" fw={700}>{profileMeta.userRelayUrlCount}</Text> relay URL(s) from kind 10002.</>
                     )}
                     {profileMeta.foundKind10002 && profileMeta.foundKind10063 ? ' ' : ''}
                     {profileMeta.foundKind10063 && (
-                      <>
-                        Merged <strong className="text-ink">{profileMeta.userBlossomUrlCount}</strong>{' '}
-                        Blossom base URL(s) from kind 10063.
-                      </>
+                      <>Merged <Text component="span" fw={700}>{profileMeta.userBlossomUrlCount}</Text> Blossom base URL(s) from kind 10063.</>
                     )}{' '}
                     Default relays stay appended for discovery.
                   </>
                 ) : (
                   <>Done loading profile hints.</>
                 )}
-              </span>
-              <button
-                type="button"
-                onClick={() => fetchProfile({ configSnapshot: config })}
-                className="shrink-0 rounded border border-border bg-paper-elevated px-2 py-1 text-xs font-medium text-ink hover:bg-border-soft"
-              >
+              </Text>
+              <Button size="xs" variant="outline" onClick={() => fetchProfile({ configSnapshot: config })}>
                 Refresh from profile
-              </button>
-            </span>
+              </Button>
+            </Stack>
           )}
           {profileStatus === 'error' && (
-            <span className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-              <span>Could not load profile events for this site pubkey from the network. Defaults remain in Advanced — you can edit there.</span>
-              <button
-                type="button"
-                onClick={() => fetchProfile({ configSnapshot: config })}
-                className="shrink-0 rounded border border-primary/40 bg-primary/5 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
-              >
+            <Stack gap="sm">
+              <Text size="sm" c="dimmed">Could not load profile events for this site pubkey from the network. Defaults remain in Advanced — you can edit there.</Text>
+              <Button size="xs" variant="outline" color="relay-orange" onClick={() => fetchProfile({ configSnapshot: config })}>
                 Retry
-              </button>
-            </span>
+              </Button>
+            </Stack>
           )}
           {profileStatus === 'skipped' && (
-            <span>
-              Enter a valid <strong className="text-ink">Publishing key</strong> (or sign in with a key we can fall
+            <Text size="sm" c="dimmed">
+              Enter a valid <Text component="span" fw={700}>Publishing key</Text> (or sign in with a key we can fall
               back to); then use Refresh, or set relay URLs manually in Advanced.
-            </span>
+            </Text>
           )}
-        </div>
+        </Paper>
       )}
 
       {primaryFields
@@ -272,72 +221,56 @@ export const NsiteDeployFields = ({
         .map(renderField)}
 
       {hostnamePreview && (
-        <div className="mb-4 rounded-md border border-border-soft bg-paper px-3 py-2 text-xs text-ink-muted">
+        <Paper withBorder p="md">
           {hostnamePreview.ok ? (
-            <>
-              <div>
-                <span className="font-medium text-ink">NIP-5A (gateway)</span>{' '}
-                <span className="font-mono text-ink break-all">{hostnamePreview.hostname}</span>
-              </div>
-              <div className="mt-1">
-                <span className="font-medium text-ink">DNS / TLS</span>{' '}
-                <span className="font-mono text-ink break-all">
+            <Stack gap="xs">
+              <Group gap="xs">
+                <Text size="sm" fw={500}>NIP-5A (gateway)</Text>
+                <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>{hostnamePreview.hostname}</Text>
+              </Group>
+              <Group gap="xs">
+                <Text size="sm" fw={500}>DNS / TLS</Text>
+                <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
                   {previewNsiteRouterHost(hostnamePreview.hostname, config.NSITE_VISITOR_HOST ?? '')}
-                </span>
-              </div>
-            </>
+                </Text>
+              </Group>
+            </Stack>
           ) : (
-            <span className="text-error-text">{hostnamePreview.error}</span>
+            <Text c="red">{hostnamePreview.error}</Text>
           )}
-        </div>
+        </Paper>
       )}
 
       {siteDField && (
-        <div className="mb-4">
+        <Stack gap="sm">
           {renderField(siteDField)}
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={runDiscover35128}
-              disabled={dDiscoverLoading}
-              className="rounded border border-border bg-paper-elevated px-2 py-1 text-xs font-medium text-ink hover:bg-border-soft disabled:opacity-50"
-            >
-              {dDiscoverLoading ? 'Querying…' : 'Discover site ids (kind 35128)'}
-            </button>
+          <Group gap="xs">
+            <Button size="xs" variant="outline" onClick={runDiscover35128} loading={dDiscoverLoading}>
+              Discover site ids (kind 35128)
+            </Button>
             {dDiscovered.length > 0 && (
-              <select
-                className="max-w-full rounded border border-border bg-paper-elevated px-2 py-1 text-xs text-ink"
-                value=""
-                onChange={(e) => {
-                  const v = e.target.value;
+              <Select
+                size="xs"
+                placeholder="Apply discovered id…"
+                data={dDiscovered.map((d) => ({ value: d, label: d }))}
+                onChange={(v) => {
                   if (v) setConfig((c) => ({ ...c, NSITE_SITE_D: v }));
                 }}
-              >
-                <option value="">Apply discovered id…</option>
-                {dDiscovered.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
+              />
             )}
-          </div>
-        </div>
+          </Group>
+        </Stack>
       )}
 
       {advancedFields.length > 0 && (
-        <details className="mb-4 rounded-md border border-border-soft bg-paper px-2 py-1">
-          <summary className="cursor-pointer select-none px-1 py-2 text-sm font-medium text-ink">
-            Advanced: relay &amp; Blossom URLs
-          </summary>
-          <div className="border-t border-border-soft px-1 pb-2 pt-3">
-            <p className="m-0 mb-3 text-xs leading-snug text-ink-muted">
-              Optional overrides — sensible defaults are already applied if you leave these as-is.
-            </p>
-            {advancedFields.map(renderUrlListField)}
-          </div>
-        </details>
+        <Paper withBorder p="md">
+          <Text fw={500} size="sm" mb="sm">Advanced: relay &amp; Blossom URLs</Text>
+          <Text size="xs" c="dimmed" mb="md">
+            Optional overrides — sensible defaults are already applied if you leave these as-is.
+          </Text>
+          {advancedFields.map(renderUrlListField)}
+        </Paper>
       )}
-    </>
+    </Stack>
   );
 };

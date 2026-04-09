@@ -7,6 +7,9 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@mantine/core": "7",
+    "@mantine/hooks": "7",
+    "@mantine/notifications": "7",
     "@noble/secp256k1": "^3.0.0",
     "@tanstack/react-query": "^5.17.0",
     "@trpc/client": "^10.45.0",
@@ -19,11 +22,9 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
-    "tailwindcss": "^4.0.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.8"
   }
