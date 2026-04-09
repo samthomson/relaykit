@@ -31,6 +31,14 @@ function getIdentityKeys(key: string | null): { hex: string | null; npub: string
   return { hex: null, npub: null };
 }
 
+const dnsRecordNameForHost = (host: string): { zone: string; name: string } => {
+  const parts = host.toLowerCase().trim().split('.');
+  if (parts.length < 2) return { zone: host, name: '@' };
+  const zone = parts.slice(-2).join('.');
+  const name = host.toLowerCase() === zone ? '@' : host.toLowerCase().slice(0, -(zone.length + 1));
+  return { zone, name };
+};
+
 const CogMenu = ({
   items,
   label,
@@ -634,20 +642,26 @@ const ServiceCard = ({
                 <Group gap="xs" align="flex-start">
                   <Text size="sm" fw={500} c="dimmed" w={100}>DNS</Text>
                   <Stack gap="xs" style={{ flex: 1 }}>
-                    {dnsHosts.map((h) => (
-                      <Paper key={h} withBorder p="xs" ff="monospace">
-                        <Group justify="space-between">
-                          <Text size="xs">
-                            {h} → {serverIp}
+                    {dnsHosts.map((h) => {
+                      const rec = dnsRecordNameForHost(h);
+                      return (
+                        <div key={h}>
+                          <Text size="xs" c="dimmed">
+                            A record for <Text component="span" fw={500}>{rec.zone}</Text>
                           </Text>
-                          <Tooltip label="Copy IP">
-                            <ActionIcon variant="subtle" onClick={() => onCopy(serverIp)}>
-                              <IconCopy size={12} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Paper>
-                    ))}
+                          <Paper withBorder p="xs" ff="monospace">
+                            <Group justify="space-between">
+                              <Text size="xs">
+                                <Text component="span" fw={500}>{rec.name}</Text> → {serverIp}
+                              </Text>
+                              <ActionIcon variant="subtle" onClick={() => onCopy(serverIp)} title="Copy IP address">
+                                <IconCopy size={12} />
+                              </ActionIcon>
+                            </Group>
+                          </Paper>
+                        </div>
+                      );
+                    })}
                   </Stack>
                 </Group>
               </Stack>
@@ -943,12 +957,7 @@ const ServiceList = () => {
       </Group>
 
       {grouped.length === 0 ? (
-        <Paper withBorder p="xl">
-          <Stack align="center" gap="sm">
-            <Text c="dimmed">No services yet.</Text>
-            <Text size="sm" c="dimmed">Deploy your first relay or media server.</Text>
-          </Stack>
-        </Paper>
+        <Text c="dimmed" fs="italic">No groups yet.</Text>
       ) : (
         <Accordion variant="separated" radius="md" multiple defaultValue={grouped.map((p: any) => p.projectId)}>
           {grouped.map((project: any) => {
