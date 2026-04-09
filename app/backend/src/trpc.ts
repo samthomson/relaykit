@@ -5,10 +5,19 @@ import fs from 'fs/promises'
 import path from 'path'
 import { createAuthContext, requireAuth, AuthContext } from './auth/middleware'
 import { getBootstrapKey } from './db'
-import { DOKPLOY_URL, CONFIG_PATH, PRESETS_DIR, DEFAULT_PROJECT_NAME, SERVICE_TYPE } from './constants'
+import {
+  DOKPLOY_URL,
+  CONFIG_PATH,
+  PRESETS_DIR,
+  DEFAULT_PROJECT_NAME,
+  SERVER_INSIGHTS,
+  SERVICE_TYPE,
+} from './constants'
 import { applyNsiteHostnameToEnv, finalizeNsiteRouterEnv } from '../../shared/nsite'
+import { createServerInsightsCollector } from '../../shared/insights'
 
 const t = initTRPC.context<{ auth: AuthContext | null; noBootstrapKey?: boolean; host?: string }>().create()
+const serverInsightsCollector = createServerInsightsCollector(SERVER_INSIGHTS)
 
 export const router = t.router
 export const publicProcedure = t.procedure
@@ -635,6 +644,10 @@ export const appRouter = router({
       if (!ip) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Could not resolve server IP.' })
       return { ip }
     }),
+
+  getServerInsights: protectedProcedure
+    .input(z.void())
+    .query(async () => serverInsightsCollector.getServerInsights()),
 
   testDnsRecord: protectedProcedure
     .input(z.object({ host: z.string().min(1), expectedIp: z.string().min(1) }))
