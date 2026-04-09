@@ -4,6 +4,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
+import { BrowserRouter, Routes, Route, NavLink as RouterNavLink } from 'react-router-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { nip19 } from 'nostr-tools';
@@ -14,7 +15,24 @@ import { useRefreshServices } from './contexts/RefreshServicesContext';
 import { SERVICE_TYPE } from '../../shared/serviceType';
 import { parsePubkeyHex } from '../../shared/nsite';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from './components/NsiteDeployFields';
-import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title } from '@mantine/core';
+import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+
+function getIdentityKeys(key: string | null): { hex: string | null; npub: string | null } {
+  if (!key) return { hex: null, npub: null };
+  
+  if (key.startsWith('npub1')) {
+    const bytes = nip19.decode(key).data as Uint8Array;
+    const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    return { hex, npub: key };
+  }
+  
+  if (/^[a-f0-9]{64}$/i.test(key)) {
+    return { hex: key, npub: nip19.npubEncode(key) };
+  }
+  
+  return { hex: null, npub: null };
+}
 
 // Small utility to render a set of config pills (labels) with color accents
 const ConfigPills = ({
@@ -1271,7 +1289,7 @@ const ConfigEditModal = ({
 };
 
 const DeploySection = () => (
-  <Stack gap="md" mt="xl">
+  <Stack gap="md" mt="xl" id="add-service">
     <Title order={2}>Add service</Title>
     <Text c="dimmed" size="sm">Deploy a relay or media server into a group.</Text>
     <AddServiceButton />
@@ -1346,6 +1364,94 @@ const DokployConnectionAlert = ({ message }: { message: string }) => (
   </Paper>
 );
 
+const AccountModal = ({ opened, onClose }: { opened: boolean; onClose: () => void }) => {
+  const { npub } = useAuth();
+  const { hex, npub: encodedNpub } = getIdentityKeys(npub);
+
+  return (
+    <Modal opened={opened} onClose={onClose} title="Identity" size="md" centered>
+      <Stack gap="md">
+        <Paper withBorder p="md">
+          <Text fw={500} mb="sm">Identity</Text>
+          <Stack gap="sm">
+            {hex && (
+              <Stack gap="xs">
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">hex</Text>
+                  <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(hex)}>Copy</Button>
+                </Group>
+                <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
+                  {hex}
+                </Text>
+              </Stack>
+            )}
+            {encodedNpub && (
+              <Stack gap="xs">
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">npub</Text>
+                  <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(encodedNpub)}>Copy</Button>
+                </Group>
+                <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
+                  {encodedNpub}
+                </Text>
+              </Stack>
+            )}
+          </Stack>
+        </Paper>
+      </Stack>
+    </Modal>
+  );
+};
+
+const DebugPage = () => {
+  const { npub, token } = useAuth();
+  const { hex, npub: encodedNpub } = getIdentityKeys(npub);
+
+  return (
+    <Stack gap="xl" p="xl">
+      <Title order={2}>Debug Info</Title>
+      <Paper withBorder p="md">
+        <Text fw={500} mb="sm">Identity</Text>
+        <Stack gap="sm">
+          {hex && (
+            <Stack gap="xs">
+              <Group justify="space-between">
+                <Text size="sm" c="dimmed">hex</Text>
+                <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(hex)}>Copy</Button>
+              </Group>
+              <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
+                {hex}
+              </Text>
+            </Stack>
+          )}
+          {encodedNpub && (
+            <Stack gap="xs">
+              <Group justify="space-between">
+                <Text size="sm" c="dimmed">npub</Text>
+                <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(encodedNpub)}>Copy</Button>
+              </Group>
+              <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
+                {encodedNpub}
+              </Text>
+            </Stack>
+          )}
+        </Stack>
+      </Paper>
+      <Paper withBorder p="md">
+        <Stack gap="xs">
+          <Group justify="space-between">
+            <Text fw={500}>Dokploy Key</Text>
+            <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(token || '')}>Copy</Button>
+          </Group>
+          <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
+            {token || '—'}
+          </Text>
+        </Stack>
+      </Paper>
+    </Stack>
+  );
+};
+
 /** Runs initial listServices when mounted; sets dokployReady, or handles errors so we never hang on loading. */
 const DokployInitialCheck = () => {
   const { setDokployConnectionError, setDokployReady } = useDokploy();
@@ -1367,22 +1473,11 @@ const DokployInitialCheck = () => {
   return null;
 };
 
-const App = () => {
-  const { isAuthenticated, isLoading, npub, logout, token } = useAuth();
+const AppContent = () => {
+  const { isAuthenticated, isLoading, logout } = useAuth();
   const { dokployConnectionError, dokployReady } = useDokploy();
-  const [showDebug, setShowDebug] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
-
-  useEffect(() => {
-    if (isAuthenticated && token) {
-      fetch('/auth/verify', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then(res => res.json())
-        .then(setDebugInfo)
-        .catch(console.error);
-    }
-  }, [isAuthenticated, token]);
+  const [mobileMenuOpened, { toggle: toggleMobileMenu, close: closeMobileMenu }] = useDisclosure(false);
+  const [accountModalOpen, { open: openAccountModal, close: closeAccountModal }] = useDisclosure(false);
 
   if (isLoading) {
     return null;
@@ -1392,29 +1487,8 @@ const App = () => {
     return <LoginScreen />;
   }
 
-  return (
-    <Stack gap="xl" p="xl" maw={1100} mx="auto">
-      <Group justify="space-between" align="flex-start">
-        <Stack gap={4}>
-          <Title order={1}>RelayKit</Title>
-          <Text c="dimmed">Nostr service deployment platform</Text>
-        </Stack>
-        <Stack gap={4} align="flex-end">
-          <Text size="sm" c="dimmed">{npub ? `${npub.slice(0, 8)}...${npub.slice(-4)}` : ''}</Text>
-          <Group gap="xs">
-            <Button variant="subtle" size="compact-xs" onClick={logout}>Logout</Button>
-            <Button variant="subtle" size="compact-xs" onClick={() => setShowDebug(!showDebug)}>{showDebug ? 'Hide' : 'Debug'}</Button>
-          </Group>
-        </Stack>
-      </Group>
-      {showDebug && debugInfo && (
-        <Paper p="md" withBorder>
-          <Text size="xs" ff="monospace" c="dimmed">
-            <Text component="span" fw={700}>NPub:</Text> {debugInfo.npub}<br/>
-            <Text component="span" fw={700}>Dokploy Key:</Text> {debugInfo.dokployApiKey?.slice(0, 20)}...
-          </Text>
-        </Paper>
-      )}
+  const mainContent = (
+    <Stack gap="xl" p="xl">
       {dokployConnectionError ? (
         <DokployConnectionAlert message={dokployConnectionError} />
       ) : (
@@ -1431,6 +1505,75 @@ const App = () => {
         </>
       )}
     </Stack>
+  );
+
+  return (
+    <>
+      <AppShell
+        header={{ height: 60 }}
+        navbar={{ width: 220, breakpoint: 'sm', collapsed: { mobile: !mobileMenuOpened } }}
+        padding="md"
+      >
+        <AppShell.Header>
+          <Group h="100%" px="md" justify="space-between">
+            <Group gap="xs">
+              <Burger opened={mobileMenuOpened} onClick={toggleMobileMenu} hiddenFrom="sm" size="sm" />
+              <Title order={3} c="relay-orange">RelayKit</Title>
+            </Group>
+            <Menu shadow="md" width={200}>
+              <Menu.Target>
+                <Button variant="default" size="sm" rightSection="▾">
+                  Profile
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item onClick={openAccountModal}>
+                  Identity
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item color="red" onClick={logout}>
+                  Logout
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          </Group>
+        </AppShell.Header>
+
+        <AppShell.Navbar p="md">
+          <AppShell.Section grow component={ScrollArea}>
+            <NavLink
+              component={RouterNavLink}
+              to="/"
+              label="Services"
+              onClick={closeMobileMenu}
+            />
+            <NavLink
+              component={RouterNavLink}
+              to="/debug"
+              label="Debug"
+              onClick={closeMobileMenu}
+            />
+          </AppShell.Section>
+        </AppShell.Navbar>
+
+        <AppShell.Main bg="paper.2">
+          <Routes>
+            <Route path="/" element={mainContent} />
+            <Route path="/debug" element={<DebugPage />} />
+          </Routes>
+        </AppShell.Main>
+      </AppShell>
+
+      <AccountModal opened={accountModalOpen} onClose={closeAccountModal} />
+    </>
+  );
+};
+
+const App = () => {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 };
 
