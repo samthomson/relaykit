@@ -268,7 +268,7 @@ const AddServiceButton = ({
       <Menu shadow="md" width={280} position="bottom-end">
         <Menu.Target>
           <Button
-            variant="filled"
+            variant="outline"
             color="relay-orange"
             size={compact ? 'xs' : 'sm'}
             rightSection={<IconChevronDown size={compact ? 12 : 14} />}
@@ -1170,7 +1170,7 @@ const ServiceList = () => {
             onChange={(e) => setNewProjectName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
           />
-          <Button color="relay-orange" onClick={handleCreateProject} loading={creatingProject} disabled={!newProjectName.trim()}>
+          <Button variant="outline" color="relay-orange" onClick={handleCreateProject} loading={creatingProject} disabled={!newProjectName.trim()}>
             Add group
           </Button>
         </Group>
@@ -1386,11 +1386,17 @@ const ConfigEditModal = ({
 };
 
 const DeploySection = () => (
-  <Stack gap="md" mt="xl" id="add-service">
-    <Title order={2}>Add service</Title>
-    <Text c="dimmed" size="sm">Deploy a relay or media server into a group.</Text>
-    <AddServiceButton />
-  </Stack>
+  <Paper withBorder p="md" id="add-service">
+    <Text fw={500} size="sm" mb={4}>
+      Add service
+    </Text>
+    <Text size="xs" c="dimmed" mb="md">
+      Deploy a relay or media server into a group.
+    </Text>
+    <Group justify="flex-start" wrap="wrap">
+      <AddServiceButton />
+    </Group>
+  </Paper>
 );
 
 const LoginScreen = () => {
