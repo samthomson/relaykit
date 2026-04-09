@@ -11,7 +11,7 @@ import { useRefreshServices } from './contexts/RefreshServicesContext';
 import { SERVICE_TYPE } from '../../shared/serviceType';
 import { parsePubkeyHex } from '../../shared/nsite';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from './components/NsiteDeployFields';
-import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl } from '@mantine/core';
+import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, rem } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconCopy, IconExternalLink } from '@tabler/icons-react';
 
@@ -982,21 +982,25 @@ const ServiceList = () => {
   return (
     <Stack gap="xl" mt="xl">
       <Group justify="space-between">
-        <Group gap="md">
-          <Title order={2}>Services</Title>
-          <SegmentedControl
-            size="xs"
-            value={showDetails ? 'details' : 'overview'}
-            onChange={(v) => setShowDetails(v === 'details')}
-            data={[
-              { label: 'Overview', value: 'overview' },
-              { label: 'Details', value: 'details' },
-            ]}
-          />
+        <Title order={2}>Services</Title>
+        <Group gap="xs">
+          <Group gap="xs">
+            <Text size="sm" c="dimmed">View:</Text>
+            <SegmentedControl
+              size="sm"
+              color="relay-orange"
+              value={showDetails ? 'details' : 'overview'}
+              onChange={(v) => setShowDetails(v === 'details')}
+              data={[
+                { label: 'Overview', value: 'overview' },
+                { label: 'Details', value: 'details' },
+              ]}
+            />
+          </Group>
+          <Button color="relay-orange" onClick={loadData} loading={loading} leftSection={loading ? undefined : '↻'}>
+            Refresh
+          </Button>
         </Group>
-        <Button color="relay-orange" onClick={loadData} loading={loading} leftSection={loading ? undefined : '↻'}>
-          Refresh
-        </Button>
       </Group>
 
       {grouped.length === 0 ? (
