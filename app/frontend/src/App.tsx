@@ -30,45 +30,41 @@ function getIdentityKeys(key: string | null): { hex: string | null; npub: string
   return { hex: null, npub: null };
 }
 
-const ServiceMenuCaret = () => <IconChevronDown size={14} />;
-
 const CogMenu = ({
   items,
-  variant = 'caret',
+  showLabel = false,
 }: {
   items: { label: string; onClick: () => void; danger?: boolean }[];
-  /** `actions`: bordered button + label. `caret`: same chevron icon only, for compact overview rows. */
-  variant?: 'actions' | 'caret';
-}) => {
-  return (
-    <Menu shadow="md" width={200} position="bottom-end">
-      <Menu.Target>
-        {variant === 'actions' ? (
-          <Button variant="default" size="sm" rightSection={<ServiceMenuCaret />}>
-            Actions
-          </Button>
-        ) : (
-          <Tooltip label="Actions" position="bottom">
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Actions">
-              <ServiceMenuCaret />
-            </ActionIcon>
-          </Tooltip>
-        )}
-      </Menu.Target>
-      <Menu.Dropdown>
-        {items.map((item, i) => (
-          <Menu.Item
-            key={i}
-            color={item.danger ? 'red' : undefined}
-            onClick={item.onClick}
-          >
-            {item.label}
-          </Menu.Item>
-        ))}
-      </Menu.Dropdown>
-    </Menu>
-  );
-};
+  /** Bordered “Actions” button; otherwise icon-only chevron (overview / tight rows). */
+  showLabel?: boolean;
+}) => (
+  <Menu shadow="md" width={200} position="bottom-end">
+    <Menu.Target>
+      {showLabel ? (
+        <Button variant="default" size="sm" rightSection={<IconChevronDown size={14} />}>
+          Actions
+        </Button>
+      ) : (
+        <Tooltip label="Actions" position="bottom">
+          <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Actions">
+            <IconChevronDown size={14} />
+          </ActionIcon>
+        </Tooltip>
+      )}
+    </Menu.Target>
+    <Menu.Dropdown>
+      {items.map((item, i) => (
+        <Menu.Item
+          key={i}
+          color={item.danger ? 'red' : undefined}
+          onClick={item.onClick}
+        >
+          {item.label}
+        </Menu.Item>
+      ))}
+    </Menu.Dropdown>
+  </Menu>
+);
 
 const ConfirmModal = ({
   title,
@@ -435,7 +431,7 @@ const ServiceCard = ({
                 <Text fw={700} size="lg" truncate>{domain ? domain.host : service.name}</Text>
                 <Badge variant="filled" color={statusColor} size="sm">{service.status}</Badge>
               </Group>
-              <CogMenu variant="actions" items={manageItems} />
+              <CogMenu showLabel items={manageItems} />
             </Group>
             <Stack mt="md">
               <ServiceDetailsContent {...detailsContentProps} />
@@ -458,7 +454,7 @@ const ServiceCard = ({
                     <Badge variant="filled" color={statusColor} size="xs" w="fit-content">{service.status}</Badge>
                   </Stack>
                 </Group>
-                <CogMenu variant="caret" items={manageItems} />
+                <CogMenu items={manageItems} />
               </Group>
               {domain ? (
                 <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0 }}>
@@ -510,7 +506,7 @@ const ServiceCard = ({
                   <Text fw={700} size="lg" truncate style={{ flex: 1, minWidth: 0 }}>
                     {domain ? domain.host : service.name}
                   </Text>
-                  <CogMenu variant="actions" items={manageItems} />
+                  <CogMenu showLabel items={manageItems} />
                 </Group>
               }
               size="lg"
@@ -1547,7 +1543,7 @@ const AppContent = () => {
             </Group>
             <Menu shadow="md" width={200}>
               <Menu.Target>
-                <Button variant="default" size="sm" rightSection={<ServiceMenuCaret />}>
+                <Button variant="default" size="sm" rightSection={<IconChevronDown size={14} />}>
                   Profile
                 </Button>
               </Menu.Target>
