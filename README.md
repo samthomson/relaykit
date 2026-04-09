@@ -158,7 +158,7 @@ RelayKit has two domain flows: **create a service (with domain in one go)** and 
 
 - [ ] convey real deployment status in UI (not assumed success) - especially as it starts up, to know when it's "ready"
 
-- [ ] one other relay type
+- [ ] haven and or other dm relays
 
 - [ ] can more things be exposed from stirfry, like whitelist kinds and users (and default blacklist all). and then how to reload to get this config?
 
@@ -171,3 +171,11 @@ RelayKit has two domain flows: **create a service (with domain in one go)** and 
 - [ ] in ui dns, make both values (name & ip) copyable
 
 - [ ] figure out full ssl for relaykit instance itself
+
+- [ ] ui rewrite
+   - [ ] add service button lost
+   - [ ] table for dns
+
+- [ ] perf stuff
+   - [ ] overall
+   - [ ] per service
