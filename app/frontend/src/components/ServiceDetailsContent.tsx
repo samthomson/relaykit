@@ -63,6 +63,14 @@ export const ServiceDetailsContent = ({
 
   return (
     <Stack gap="md">
+      <DetailBlock label="Service ID">
+        <Group gap="xs" wrap="wrap" align="flex-start">
+          <Text size="xs" ff="monospace" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={service.composeId}>
+            {service.composeId}
+          </Text>
+          <Button size="xs" variant="subtle" onClick={() => onCopy(service.composeId)}>Copy</Button>
+        </Group>
+      </DetailBlock>
       {domain ? (
         <>
           <DetailBlock label="HTTPS">
