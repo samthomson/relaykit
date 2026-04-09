@@ -184,19 +184,14 @@ const MoveServiceModal = ({
 const AddServiceButton = ({
   preselectedEnvironmentId,
   compact = false,
-  presets: presetsProp,
-  environments: environmentsProp,
 }: {
   preselectedEnvironmentId?: string;
   compact?: boolean;
-  /** When both are passed, skips fetching (e.g. list-embedded buttons). */
-  presets?: any[];
-  environments?: { environmentId: string; label: string }[];
 }) => {
-  const { triggerRefresh } = useRefreshServices();
+  const { triggerRefresh, refreshTrigger } = useRefreshServices();
   const { npub } = useAuth();
-  const [presetsLocal, setPresetsLocal] = useState<any[]>([]);
-  const [environmentsLocal, setEnvironmentsLocal] = useState<{ environmentId: string; label: string }[]>([]);
+  const [presets, setPresets] = useState<any[]>([]);
+  const [environments, setEnvironments] = useState<{ environmentId: string; label: string }[]>([]);
   const [deployModalOpen, setDeployModalOpen] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<any>(null);
   const [selectedEnvironmentId, setSelectedEnvironmentId] = useState('');
@@ -204,34 +199,31 @@ const AddServiceButton = ({
   const [deployResult, setDeployResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const useExternalLists = presetsProp !== undefined && environmentsProp !== undefined;
-  const presets = useExternalLists ? presetsProp! : presetsLocal;
-  const environments = useExternalLists ? environmentsProp! : environmentsLocal;
-
-  const loadData = async () => {
-    try {
-      const [presetsResult, projectsResult] = await Promise.all([
-        trpc.listPresets.query(undefined),
-        trpc.listProjects.query(),
-      ]);
-      setPresetsLocal(presetsResult);
-      setEnvironmentsLocal(
-        projectsResult.flatMap((p: any) =>
-          p.environments.map((e: any) => ({ environmentId: e.environmentId, label: `${p.name} → ${e.name}` }))
-        )
-      );
-    } catch (error) {
-      console.error('Error loading deploy data:', error);
-    }
-  };
-
   useEffect(() => {
-    if (useExternalLists) return;
-    void loadData();
-  }, [useExternalLists]);
+    let alive = true;
+    (async () => {
+      try {
+        const [presetsResult, projectsResult] = await Promise.all([
+          trpc.listPresets.query(undefined),
+          trpc.listProjects.query(),
+        ]);
+        if (!alive) return;
+        setPresets(presetsResult);
+        setEnvironments(
+          projectsResult.flatMap((p: any) =>
+            p.environments.map((e: any) => ({ environmentId: e.environmentId, label: `${p.name} → ${e.name}` })),
+          ),
+        );
+      } catch (error) {
+        console.error('Error loading deploy data:', error);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [refreshTrigger]);
 
   const handleSelectPreset = (preset: any) => {
-    if (!useExternalLists) void loadData();
     setSelectedPreset(preset);
     const isNsite = preset.id === SERVICE_TYPE.NSITE;
     const defaults = isNsite
@@ -616,7 +608,7 @@ const ServiceCard = ({
 };
 
 const ServiceList = () => {
-  const { refreshTrigger } = useRefreshServices();
+  const { refreshTrigger, triggerRefresh } = useRefreshServices();
   const { setDokployConnectionError, setDokployReady } = useDokploy();
   const { logout } = useAuth();
   const [services, setServices] = useState<any[]>([]);
@@ -642,7 +634,6 @@ const ServiceList = () => {
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameProjectValue, setRenameProjectValue] = useState('');
   const [confirmModal, setConfirmModal] = useState<{ type: 'deleteGroup'; projectId: string; name: string } | { type: 'deleteEnv'; environmentId: string; name: string } | { type: 'deleteService'; composeId: string; name: string } | null>(null);
-  const [deployPresets, setDeployPresets] = useState<any[]>([]);
 
   const allEnvironments: { environmentId: string; label: string }[] = projects.flatMap((p: any) =>
     p.environments.map((e: any) => ({ environmentId: e.environmentId, label: `${p.name} → ${e.name}` }))
@@ -652,16 +643,14 @@ const ServiceList = () => {
     setLoading(true);
     setDokployConnectionError(null);
     try {
-      const [svcResult, projResult, ipResult, presetsResult] = await Promise.all([
+      const [svcResult, projResult, ipResult] = await Promise.all([
         trpc.listServices.query(),
         trpc.listProjects.query(),
         trpc.getServerIp.query().catch(() => null),
-        trpc.listPresets.query().catch(() => []),
       ]);
       setServices(svcResult);
       setProjects(projResult);
       setServerIp(ipResult?.ip ?? null);
-      setDeployPresets(Array.isArray(presetsResult) ? presetsResult : []);
       setDokployReady(true);
     } catch (error: any) {
       const code = error?.data?.code;
@@ -673,7 +662,6 @@ const ServiceList = () => {
       setDokployConnectionError(msg || 'Could not load services. Run the setup script (see README).');
       setServices([]);
       setProjects([]);
-      setDeployPresets([]);
     } finally {
       setLoading(false);
     }
@@ -789,7 +777,7 @@ const ServiceList = () => {
       await trpc.createProject.mutate({ name: newProjectName.trim() });
       setNewProjectName('');
       toast.success('Group created');
-      await loadData();
+      triggerRefresh();
     } catch (error: any) {
       toast.error(`Failed to create group: ${error.message}`);
     } finally {
@@ -804,7 +792,7 @@ const ServiceList = () => {
       setNewEnvTarget(null);
       setNewEnvName('');
       toast.success('Environment created');
-      await loadData();
+      triggerRefresh();
     } catch (error: any) {
       toast.error(`Failed to create environment: ${error.message}`);
     }
@@ -905,7 +893,7 @@ const ServiceList = () => {
               ]}
             />
           </Group>
-          <Button color="relay-orange" onClick={loadData} loading={loading} leftSection={loading ? undefined : '↻'}>
+          <Button color="relay-orange" onClick={() => triggerRefresh()} loading={loading} leftSection={loading ? undefined : '↻'}>
             Refresh
           </Button>
         </Group>
@@ -1028,12 +1016,7 @@ const ServiceList = () => {
                               ))
                             )}
                             <Group justify="flex-end" wrap="wrap" gap="sm" align="center">
-                              <AddServiceButton
-                                compact
-                                preselectedEnvironmentId={env.environmentId}
-                                presets={deployPresets}
-                                environments={allEnvironments}
-                              />
+                              <AddServiceButton compact preselectedEnvironmentId={env.environmentId} />
                               {newEnvTarget === project.projectId ? (
                                 <>
                                   <TextInput
@@ -1135,12 +1118,7 @@ const ServiceList = () => {
                                 )}
                               </Group>
                               <Group justify="flex-end">
-                                <AddServiceButton
-                                  compact
-                                  preselectedEnvironmentId={env.environmentId}
-                                  presets={deployPresets}
-                                  environments={allEnvironments}
-                                />
+                                <AddServiceButton compact preselectedEnvironmentId={env.environmentId} />
                               </Group>
                               </Stack>
                             </Box>

@@ -175,6 +175,10 @@ RelayKit has two domain flows: **create a service (with domain in one go)** and 
 - [ ] ui rewrite
    - [ ] add service button lost
    - [ ] table for dns
+   - [ ] drop refresh button
+   - [ ] rubix state/loading component
+   - [ ] brand font
+   - [ ] aesthetic reset; colours, ui elements, look
 
 - [ ] perf stuff
    - [ ] overall
