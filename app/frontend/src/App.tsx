@@ -12,7 +12,7 @@ import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave 
 import { ServiceDetailsContent } from './components/ServiceDetailsContent';
 import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, rem } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconCopy, IconExternalLink } from '@tabler/icons-react';
+import { IconChevronDown, IconCopy, IconExternalLink } from '@tabler/icons-react';
 
 function getIdentityKeys(key: string | null): { hex: string | null; npub: string | null } {
   if (!key) return { hex: null, npub: null };
@@ -30,24 +30,30 @@ function getIdentityKeys(key: string | null): { hex: string | null; npub: string
   return { hex: null, npub: null };
 }
 
+const ServiceMenuCaret = () => <IconChevronDown size={14} />;
+
 const CogMenu = ({
   items,
-  label,
+  variant = 'caret',
 }: {
   items: { label: string; onClick: () => void; danger?: boolean }[];
-  label?: string;
+  /** `actions`: bordered button + label. `caret`: same chevron icon only, for compact overview rows. */
+  variant?: 'actions' | 'caret';
 }) => {
   return (
     <Menu shadow="md" width={200} position="bottom-end">
       <Menu.Target>
-        <Button
-          variant="subtle"
-          color="gray"
-          size="sm"
-          rightSection={label ? <span style={{ fontSize: '0.6rem' }}>▼</span> : undefined}
-        >
-          {label ?? "⋮"}
-        </Button>
+        {variant === 'actions' ? (
+          <Button variant="default" size="sm" rightSection={<ServiceMenuCaret />}>
+            Actions
+          </Button>
+        ) : (
+          <Tooltip label="Actions" position="bottom">
+            <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Actions">
+              <ServiceMenuCaret />
+            </ActionIcon>
+          </Tooltip>
+        )}
       </Menu.Target>
       <Menu.Dropdown>
         {items.map((item, i) => (
@@ -429,7 +435,7 @@ const ServiceCard = ({
                 <Text fw={700} size="lg" truncate>{domain ? domain.host : service.name}</Text>
                 <Badge variant="filled" color={statusColor} size="sm">{service.status}</Badge>
               </Group>
-              <CogMenu label="Manage" items={manageItems} />
+              <CogMenu variant="actions" items={manageItems} />
             </Group>
             <Stack mt="md">
               <ServiceDetailsContent {...detailsContentProps} />
@@ -452,7 +458,7 @@ const ServiceCard = ({
                     <Badge variant="filled" color={statusColor} size="xs" w="fit-content">{service.status}</Badge>
                   </Stack>
                 </Group>
-                <CogMenu items={manageItems} />
+                <CogMenu variant="caret" items={manageItems} />
               </Group>
               {domain ? (
                 <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0 }}>
@@ -499,10 +505,21 @@ const ServiceCard = ({
             <Modal
               opened={detailsModalOpen}
               onClose={() => setDetailsModalOpen(false)}
-              title={domain ? domain.host : service.name}
+              title={
+                <Group justify="space-between" align="center" gap="sm" wrap="nowrap" w="100%" maw="calc(100% - 2.5rem)">
+                  <Text fw={700} size="lg" truncate style={{ flex: 1, minWidth: 0 }}>
+                    {domain ? domain.host : service.name}
+                  </Text>
+                  <CogMenu variant="actions" items={manageItems} />
+                </Group>
+              }
               size="lg"
               centered
-              styles={{ body: { maxHeight: '85vh', overflow: 'auto' } }}
+              styles={{
+                header: { alignItems: 'center' },
+                title: { flex: 1, marginRight: 0, width: '100%' },
+                body: { maxHeight: '85vh', overflow: 'auto' },
+              }}
             >
               <ServiceDetailsContent {...detailsContentProps} />
             </Modal>
