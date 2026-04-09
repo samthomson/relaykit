@@ -1,13 +1,18 @@
 import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { nip19 } from 'nostr-tools';
 import { SERVICE_TYPE } from '../../../shared/serviceType';
 import { parsePubkeyHex } from '../../../shared/nsite';
-import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Paper, Badge } from '@mantine/core';
+import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Paper, Badge, Tabs, Box, Transition, rem } from '@mantine/core';
 import { IconCopy, IconExternalLink } from '@tabler/icons-react';
 import { InlineTextEditRow } from './InlineTextEditRow';
 
 const LABEL_COL = 100;
+
+const SHELL_H_MS = 480;
+const FADE_MS = 280;
+const HEIGHT_EASE = `${SHELL_H_MS / 1000}s cubic-bezier(0.33, 1, 0.68, 1)`;
 
 const monoBreakable = { wordBreak: 'break-all' as const, overflowWrap: 'anywhere' as const };
 
@@ -65,7 +70,7 @@ export const ServiceDetailsContent = ({
   const hasConfig = whitelistedKinds.length > 0 || blacklistedKinds.length > 0 || whitelistedPubkeys.length > 0 || requireNip42;
   const hasDNS = domain && serverIp;
 
-  return (
+  const infoPanel = (
     <Stack gap="md">
       <DetailBlock label="Service ID">
         <Group gap="xs" wrap="wrap" align="flex-start">
@@ -291,37 +296,6 @@ export const ServiceDetailsContent = ({
         </Stack>
       )}
 
-      {hasDNS && (() => {
-        const dnsHosts = [domain.host];
-        if (
-          service.type === SERVICE_TYPE.NSITE &&
-          service.nsiteCanonicalHost &&
-          service.nsiteCanonicalHost !== domain.host
-        ) {
-          dnsHosts.push(service.nsiteCanonicalHost);
-        }
-        return (
-          <DetailBlock label="DNS">
-            <Stack gap="xs">
-              {dnsHosts.map((h) => (
-                <Paper key={h} withBorder p="xs">
-                  <Group gap="xs" align="flex-start" wrap="nowrap" justify="space-between">
-                    <Text size="xs" ff="monospace" style={{ flex: 1, minWidth: 0, ...monoBreakable }}>
-                      {h} → {serverIp}
-                    </Text>
-                    <Tooltip label="Copy IP">
-                      <ActionIcon variant="subtle" size="sm" style={{ flexShrink: 0 }} onClick={() => onCopy(serverIp!)}>
-                        <IconCopy size={12} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                </Paper>
-              ))}
-            </Stack>
-          </DetailBlock>
-        );
-      })()}
-
       <DetailBlock label="Created">
         <Stack gap={2}>
           <Text size="sm">{createdStr}</Text>
@@ -329,5 +303,81 @@ export const ServiceDetailsContent = ({
         </Stack>
       </DetailBlock>
     </Stack>
+  );
+
+  const dnsHostRow = (host: string) => (
+    <Paper withBorder p="xs">
+      <Group gap="xs" align="flex-start" wrap="nowrap" justify="space-between">
+        <Text size="xs" ff="monospace" style={{ flex: 1, minWidth: 0, ...monoBreakable }}>
+          {host} → {serverIp}
+        </Text>
+        <Tooltip label="Copy IP">
+          <ActionIcon variant="subtle" size="sm" style={{ flexShrink: 0 }} onClick={() => onCopy(serverIp!)}>
+            <IconCopy size={12} />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
+    </Paper>
+  );
+
+  const dnsPanel = hasDNS ? (
+    <Stack gap="xs">
+      {dnsHostRow(domain!.host)}
+      {service.type === SERVICE_TYPE.NSITE &&
+        service.nsiteCanonicalHost &&
+        service.nsiteCanonicalHost !== domain!.host &&
+        dnsHostRow(service.nsiteCanonicalHost)}
+    </Stack>
+  ) : null;
+
+  const [section, setSection] = useState('info');
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [shellH, setShellH] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const measure = () => setShellH(Math.ceil(el.getBoundingClientRect().height));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <Box
+      style={{
+        height: shellH != null ? shellH : undefined,
+        transition: shellH != null ? `height ${HEIGHT_EASE}` : undefined,
+        overflow: 'hidden',
+      }}
+    >
+      <Box ref={innerRef}>
+        <Tabs
+          value={section}
+          onChange={(v) => v != null && setSection(v)}
+          orientation="vertical"
+          variant="outline"
+          styles={{
+            root: { width: '100%' },
+          }}
+        >
+          <Group align="flex-start" gap="lg" wrap="nowrap" w="100%">
+            <Tabs.List aria-label="Details sections" miw={rem(80)} style={{ flexShrink: 0 }}>
+              <Tabs.Tab value="info">Info</Tabs.Tab>
+              <Tabs.Tab value="dns">DNS</Tabs.Tab>
+            </Tabs.List>
+            <Box style={{ flex: 1, minWidth: 0, paddingTop: rem(2) }}>
+              <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'info'}>
+                {(tStyle) => <Box style={{ ...tStyle, minWidth: 0 }}>{infoPanel}</Box>}
+              </Transition>
+              <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'dns'}>
+                {(tStyle) => <Box style={{ ...tStyle, minWidth: 0 }}>{dnsPanel}</Box>}
+              </Transition>
+            </Box>
+          </Group>
+        </Tabs>
+      </Box>
+    </Box>
   );
 };
