@@ -636,6 +636,18 @@ export const appRouter = router({
       return { ip }
     }),
 
+  testDnsRecord: protectedProcedure
+    .input(z.object({ host: z.string().min(1), expectedIp: z.string().min(1) }))
+    .query(async ({ input }) => {
+      try {
+        const addrs = await dns.lookup(input.host, { family: 4, all: true, verbatim: true })
+        const ips = addrs.map((a) => a.address)
+        return { ok: ips.includes(input.expectedIp), ips }
+      } catch (e: any) {
+        return { ok: false, ips: [], error: e?.message || 'DNS lookup failed' }
+      }
+    }),
+
 
   deployService: protectedProcedure
     .input(z.object({

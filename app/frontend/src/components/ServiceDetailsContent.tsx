@@ -5,8 +5,9 @@ import { nip19 } from 'nostr-tools';
 import { SERVICE_TYPE } from '../../../shared/serviceType';
 import { parsePubkeyHex } from '../../../shared/nsite';
 import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, Box, Transition, Table, rem } from '@mantine/core';
-import { IconCopy, IconExternalLink } from '@tabler/icons-react';
+import { IconCopy, IconExternalLink, IconCheck, IconX } from '@tabler/icons-react';
 import { InlineTextEditRow } from './InlineTextEditRow';
+import { trpc } from '../trpc';
 
 const SHELL_H_MS = 480;
 const FADE_MS = 280;
@@ -40,53 +41,84 @@ const ServiceDetailsDns = ({
 }) => {
   const dnsCel = 'service-details-dns-cel';
   const dnsCopy = 'service-details-dns-copy';
+  const [testState, setTestState] = useState<Record<string, 'idle' | 'loading' | 'ok' | 'fail'>>({});
 
-  const dnsRow = (name: string) => (
-    <Table.Tr key={name}>
-      <Table.Td>
-        <Text size="xs" ff="monospace">
-          A
-        </Text>
-      </Table.Td>
-      <Table.Td className={dnsCel}>
-        <Group gap={0} wrap="nowrap" align="center">
-          <Text size="xs" ff="monospace" style={monoBreakable}>
-            {name}
+  const testDns = async (name: string) => {
+    setTestState((s) => ({ ...s, [name]: 'loading' }));
+    try {
+      const res = await trpc.testDnsRecord.query({ host: name, expectedIp: serverIp });
+      const ok = res.ok;
+      setTestState((s) => ({ ...s, [name]: ok ? 'ok' : 'fail' }));
+    } catch {
+      setTestState((s) => ({ ...s, [name]: 'fail' }));
+    }
+  };
+
+  const dnsRow = (name: string) => {
+    const state = testState[name] || 'idle';
+    return (
+      <Table.Tr key={name}>
+        <Table.Td>
+          <Text size="xs" ff="monospace">
+            A
           </Text>
-          <Tooltip label="Copy name">
-            <ActionIcon
-              variant="subtle"
-              size="sm"
-              className={dnsCopy}
-              onClick={() => onCopy(name)}
-              style={{ flexShrink: 0, marginLeft: rem(2) }}
-            >
-              <IconCopy size={12} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
-      </Table.Td>
-      <Table.Td className={dnsCel}>
-        <Group gap={0} wrap="nowrap" align="center">
-          <Text size="xs" ff="monospace" style={monoBreakable}>
-            {serverIp}
-          </Text>
-          <Tooltip label="Copy IP">
-            <ActionIcon
-              variant="subtle"
-              size="sm"
-              className={dnsCopy}
-              onClick={() => onCopy(serverIp)}
-              style={{ flexShrink: 0, marginLeft: rem(2) }}
-            >
-              <IconCopy size={12} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
-      </Table.Td>
-      <Table.Td />
-    </Table.Tr>
-  );
+        </Table.Td>
+        <Table.Td className={dnsCel}>
+          <Group gap={0} wrap="nowrap" align="center">
+            <Text size="xs" ff="monospace" style={monoBreakable}>
+              {name}
+            </Text>
+            <Tooltip label="Copy name">
+              <ActionIcon
+                variant="subtle"
+                size="sm"
+                className={dnsCopy}
+                onClick={() => onCopy(name)}
+                style={{ flexShrink: 0, marginLeft: rem(2) }}
+              >
+                <IconCopy size={12} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+        </Table.Td>
+        <Table.Td className={dnsCel}>
+          <Group gap={0} wrap="nowrap" align="center">
+            <Text size="xs" ff="monospace" style={monoBreakable}>
+              {serverIp}
+            </Text>
+            <Tooltip label="Copy IP">
+              <ActionIcon
+                variant="subtle"
+                size="sm"
+                className={dnsCopy}
+                onClick={() => onCopy(serverIp)}
+                style={{ flexShrink: 0, marginLeft: rem(2) }}
+              >
+                <IconCopy size={12} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+        </Table.Td>
+        <Table.Td>
+          <Group gap="xs" wrap="nowrap">
+            <Button size="xs" variant="light" loading={state === 'loading'} onClick={() => void testDns(name)}>
+              Test
+            </Button>
+            {state === 'ok' && (
+              <Badge size="xs" color="green" variant="filled" leftSection={<IconCheck size={10} />}>
+                OK
+              </Badge>
+            )}
+            {state === 'fail' && (
+              <Badge size="xs" color="red" variant="filled" leftSection={<IconX size={10} />}>
+                Fail
+              </Badge>
+            )}
+          </Group>
+        </Table.Td>
+      </Table.Tr>
+    );
+  };
 
   return (
     <>
