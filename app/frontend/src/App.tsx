@@ -1164,7 +1164,7 @@ const ServiceList = () => {
         pt="xl"
         mt="md"
         style={{
-          borderTop: '1px solid var(--mantine-color-gray-3)',
+          borderTop: '1px solid var(--mantine-color-gray-4)',
         }}
       >
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
