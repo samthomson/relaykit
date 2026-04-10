@@ -520,7 +520,6 @@ const ServiceCard = ({
       <Paper
         withBorder
         p={showDetails ? 'md' : 'sm'}
-        radius="md"
         style={showDetails ? undefined : { width: 260, maxWidth: '100%', flexShrink: 0 }}
       >
         {showDetails ? (
@@ -1259,7 +1258,7 @@ const ServiceList = () => {
                                 minWidth: rem(200),
                                 maxWidth: '100%',
                                 border: '1px solid var(--mantine-color-gray-4)',
-                                borderRadius: 'var(--mantine-radius-md)',
+                                borderRadius: 0,
                               }}
                             >
                               <Stack gap="sm" p="sm" pt="sm">

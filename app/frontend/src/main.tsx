@@ -29,6 +29,11 @@ const theme = createTheme({
   },
   fontFamily: '"SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
   components: {
+    Badge: {
+      defaultProps: {
+        radius: 0,
+      },
+    },
     SegmentedControl: {
       defaultProps: {
         color: 'relaykit',
