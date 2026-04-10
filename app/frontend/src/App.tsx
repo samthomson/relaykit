@@ -1942,13 +1942,17 @@ const AppContent = () => {
                 <Menu.Item onClick={openAccountModal}>
                   Identity
                 </Menu.Item>
-                <Menu.Item closeMenuOnClick={false}>
+                <Menu.Item
+                  closeMenuOnClick={false}
+                  onClick={() => setColorScheme(colorScheme === 'dark' ? 'light' : 'dark')}
+                >
                   <Group justify="space-between" wrap="nowrap" w="100%">
                     <Text size="sm">dark mode</Text>
                     <Switch
                       size="sm"
                       checked={colorScheme === 'dark'}
-                      onChange={(event) => setColorScheme(event.currentTarget.checked ? 'dark' : 'light')}
+                      readOnly
+                      tabIndex={-1}
                     />
                   </Group>
                 </Menu.Item>
