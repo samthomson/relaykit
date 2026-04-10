@@ -9,3 +9,4 @@
 - Style: define functions as const arrow, e.g. `const fn = async (x: T) => { ... }` not `async function fn(x: T) { ... }`.
 - Do not plan for failure: build features that work. No conditionals or fallback UIs for "when X fails". If something cannot be made to work, say so and we will change direction.
 - Put shared constants, enums, and config values in `app/backend/src/constants.ts` rather than scattering them in trpc or other modules.
+- Production runtime requires Playwright + Chromium for setup automation. Do not remove browser runtime dependencies from the prod image during optimizations.
