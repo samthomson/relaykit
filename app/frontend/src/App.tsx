@@ -1887,7 +1887,7 @@ const AppContent = () => {
               <Burger opened={mobileMenuOpened} onClick={toggleMobileMenu} hiddenFrom="sm" size="sm" />
               <Box style={{ lineHeight: 0, flexShrink: 0, height: 34, display: 'inline-flex', alignItems: 'center' }}>
                 <RubixLoader
-                  size={34}
+                  size={48}
                   speed={0.9}
                   colors={rubixLoaderColors}
                 />
