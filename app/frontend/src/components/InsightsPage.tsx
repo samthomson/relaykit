@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LineChart } from '@mantine/charts';
-import { Badge, Group, Paper, Progress, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Badge, Group, Paper, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconAlertOctagon, IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react';
 import { trpc } from '../trpc';
 import {
@@ -50,7 +50,6 @@ export const InsightsPage = () => {
   if (loading && !insights) {
     return (
       <Stack gap="xl" p="xl">
-        <Title order={2}>Insights</Title>
         <Text c="dimmed">Loading server insights…</Text>
       </Stack>
     );
@@ -59,7 +58,6 @@ export const InsightsPage = () => {
   if (error && !insights) {
     return (
       <Stack gap="xl" p="xl">
-        <Title order={2}>Insights</Title>
         <Paper withBorder p="md">
           <Text fw={500} c="red">Could not load insights</Text>
           <Text size="sm" c="dimmed" mt={6}>{error}</Text>
@@ -102,7 +100,6 @@ export const InsightsPage = () => {
     <Stack gap="xl" p="xl">
       <Group justify="space-between" align="flex-end">
         <div>
-          <Title order={2}>Insights</Title>
           <Text size="sm" c="dimmed">
             Server capacity and utilization trends (sampled every {Math.round(insights.sampleIntervalMs / 1000)} seconds)
           </Text>
