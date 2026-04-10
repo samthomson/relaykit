@@ -3,18 +3,19 @@ import { z } from 'zod'
 import dns from 'dns/promises'
 import fs from 'fs/promises'
 import path from 'path'
+import http from 'http'
 import { createAuthContext, requireAuth, AuthContext } from './auth/middleware'
-import { getBootstrapKey } from './db'
+import { getBootstrapKey, setBootstrapKey } from './db'
 import {
   DOKPLOY_URL,
-  CONFIG_PATH,
   PRESETS_DIR,
   DEFAULT_PROJECT_NAME,
   SERVER_INSIGHTS,
+  SERVICE_INSIGHTS,
   SERVICE_TYPE,
 } from './constants'
 import { applyNsiteHostnameToEnv, finalizeNsiteRouterEnv } from '../../shared/nsite'
-import { createServerInsightsCollector } from '../../shared/insights'
+import { createServerInsightsCollector, type ServiceInsightsResponse } from '../../shared/insights'
 
 const t = initTRPC.context<{ auth: AuthContext | null; noBootstrapKey?: boolean; host?: string }>().create()
 const serverInsightsCollector = createServerInsightsCollector(SERVER_INSIGHTS)
@@ -270,6 +271,190 @@ const dokployFetch = async (endpoint: string, options: RequestInit = {}) => {
       code: 'INTERNAL_SERVER_ERROR',
       message: `Invalid JSON from Dokploy: ${text.substring(0, 100)}`,
     })
+  }
+}
+
+const toFiniteNumber = (value: unknown): number => {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : 0
+}
+
+const estimateSampleIntervalMs = (history: { ts: number }[]): number => {
+  if (history.length < 2) return 5000
+  let totalDelta = 0
+  let count = 0
+  for (let i = 1; i < history.length; i += 1) {
+    const delta = history[i].ts - history[i - 1].ts
+    if (delta > 0) {
+      totalDelta += delta
+      count += 1
+    }
+  }
+  if (count === 0) return 5000
+  return Math.max(1000, Math.round(totalDelta / count))
+}
+
+const serviceInsightsHistory = new Map<string, ServiceInsightsResponse['history']>()
+const DOCKER_SOCKET_PATH = '/var/run/docker.sock'
+
+const dockerSocketGetJson = async (pathWithQuery: string): Promise<any> =>
+  new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        socketPath: DOCKER_SOCKET_PATH,
+        path: pathWithQuery,
+        method: 'GET',
+      },
+      (res) => {
+        let body = ''
+        res.setEncoding('utf8')
+        res.on('data', (chunk) => {
+          body += chunk
+        })
+        res.on('end', () => {
+          if ((res.statusCode || 500) >= 400) {
+            reject(new Error(`Docker API ${res.statusCode}: ${body.slice(0, 200)}`))
+            return
+          }
+          try {
+            resolve(JSON.parse(body))
+          } catch {
+            reject(new Error(`Invalid JSON from Docker API: ${body.slice(0, 200)}`))
+          }
+        })
+      }
+    )
+    req.on('error', reject)
+    req.end()
+  })
+
+const toOneDecimal = (n: number): number => Math.round(n * 10) / 10
+
+const getCpuPctFromStats = (stats: any): number => {
+  const cpuTotal = toFiniteNumber(stats?.cpu_stats?.cpu_usage?.total_usage)
+  const preCpuTotal = toFiniteNumber(stats?.precpu_stats?.cpu_usage?.total_usage)
+  const systemTotal = toFiniteNumber(stats?.cpu_stats?.system_cpu_usage)
+  const preSystemTotal = toFiniteNumber(stats?.precpu_stats?.system_cpu_usage)
+  const onlineCpus =
+    toFiniteNumber(stats?.cpu_stats?.online_cpus) ||
+    toFiniteNumber(stats?.cpu_stats?.cpu_usage?.percpu_usage?.length) ||
+    1
+
+  const cpuDelta = cpuTotal - preCpuTotal
+  const systemDelta = systemTotal - preSystemTotal
+  if (cpuDelta <= 0 || systemDelta <= 0) return 0
+  return toOneDecimal((cpuDelta / systemDelta) * onlineCpus * 100)
+}
+
+const getNetworkTotals = (stats: any): { inBytes: number; outBytes: number } => {
+  const networks = stats?.networks || {}
+  let inBytes = 0
+  let outBytes = 0
+  for (const net of Object.values(networks) as any[]) {
+    inBytes += toFiniteNumber(net?.rx_bytes)
+    outBytes += toFiniteNumber(net?.tx_bytes)
+  }
+  return { inBytes, outBytes }
+}
+
+const getBlockIoTotals = (stats: any): { readBytes: number; writeBytes: number } => {
+  const entries = Array.isArray(stats?.blkio_stats?.io_service_bytes_recursive)
+    ? stats.blkio_stats.io_service_bytes_recursive
+    : []
+  let readBytes = 0
+  let writeBytes = 0
+  for (const item of entries) {
+    const op = String(item?.op || '').toLowerCase()
+    const value = toFiniteNumber(item?.value)
+    if (op === 'read') readBytes += value
+    if (op === 'write') writeBytes += value
+  }
+  return { readBytes, writeBytes }
+}
+
+const loadComposeAppName = async (composeId: string): Promise<string> => {
+  const compose = await dokployFetch(`/api/compose.one?composeId=${composeId}`)
+  const appName = String(compose?.appName || '').trim()
+  if (!appName) {
+    throw new TRPCError({
+      code: 'NOT_FOUND',
+      message: 'Could not resolve runtime app name for this service.',
+    })
+  }
+  return appName
+}
+
+const getServiceInsightsFromDokploy = async (composeId: string): Promise<ServiceInsightsResponse> => {
+  try {
+    await fs.access(DOCKER_SOCKET_PATH)
+  } catch {
+    throw new TRPCError({
+      code: 'PRECONDITION_FAILED',
+      message: 'Service insights are unavailable: Docker runtime access is not configured.',
+    })
+  }
+
+  const appName = await loadComposeAppName(composeId)
+  const filters = encodeURIComponent(JSON.stringify({ label: [`com.docker.compose.project=${appName}`] }))
+  const containers = await dockerSocketGetJson(`/containers/json?all=0&filters=${filters}`)
+
+  if (!Array.isArray(containers) || containers.length === 0) {
+    throw new TRPCError({
+      code: 'PRECONDITION_FAILED',
+      message: 'Service insights are unavailable: service container is not running.',
+    })
+  }
+
+  const statsList = await Promise.all(
+    containers.map((container: any) => dockerSocketGetJson(`/containers/${container.Id}/stats?stream=false`))
+  )
+
+  let cpuPct = 0
+  let memoryUsedBytes = 0
+  let memoryTotalBytes = 0
+  let networkInBytes = 0
+  let networkOutBytes = 0
+  let blockReadBytes = 0
+  let blockWriteBytes = 0
+
+  for (const stats of statsList) {
+    cpuPct += getCpuPctFromStats(stats)
+    const memUsed = toFiniteNumber(stats?.memory_stats?.usage)
+    const memTotal = toFiniteNumber(stats?.memory_stats?.limit)
+    memoryUsedBytes += memUsed
+    memoryTotalBytes += memTotal
+    const net = getNetworkTotals(stats)
+    networkInBytes += net.inBytes
+    networkOutBytes += net.outBytes
+    const io = getBlockIoTotals(stats)
+    blockReadBytes += io.readBytes
+    blockWriteBytes += io.writeBytes
+  }
+
+  const ts = Date.now()
+  const current = {
+    ts,
+    cpuPct: toOneDecimal(Math.max(0, cpuPct)),
+    memoryUsedPct: memoryTotalBytes > 0 ? toOneDecimal((memoryUsedBytes / memoryTotalBytes) * 100) : 0,
+    memoryUsedBytes: Math.max(0, Math.round(memoryUsedBytes)),
+    memoryTotalBytes: Math.max(0, Math.round(memoryTotalBytes)),
+    networkInBytes: Math.max(0, Math.round(networkInBytes)),
+    networkOutBytes: Math.max(0, Math.round(networkOutBytes)),
+    blockReadBytes: Math.max(0, Math.round(blockReadBytes)),
+    blockWriteBytes: Math.max(0, Math.round(blockWriteBytes)),
+  }
+
+  const prev = serviceInsightsHistory.get(composeId) || []
+  const history = [...prev, current].slice(-SERVICE_INSIGHTS.historyLimit)
+  serviceInsightsHistory.set(composeId, history)
+
+  return {
+    composeId,
+    appName,
+    sampleIntervalMs: estimateSampleIntervalMs(history),
+    thresholds: SERVICE_INSIGHTS.thresholds,
+    current,
+    history,
   }
 }
 
@@ -620,8 +805,7 @@ export const appRouter = router({
           throw new Error('Invalid API key')
         }
 
-        // Save to file
-        await fs.writeFile(CONFIG_PATH, input.apiKey, 'utf-8')
+        await setBootstrapKey(input.apiKey)
         
         return {
           success: true,
@@ -648,6 +832,26 @@ export const appRouter = router({
   getServerInsights: protectedProcedure
     .input(z.void())
     .query(async () => serverInsightsCollector.getServerInsights()),
+
+  getServiceInsights: protectedProcedure
+    .input(z.object({ composeId: z.string().min(1) }))
+    .query(async ({ input }) => getServiceInsightsFromDokploy(input.composeId)),
+
+  getServicesInsights: protectedProcedure
+    .input(z.object({ composeIds: z.array(z.string().min(1)).min(1).max(200) }))
+    .query(async ({ input }) => {
+      const out: Record<string, ServiceInsightsResponse | null> = {}
+      await Promise.all(
+        input.composeIds.map(async (composeId) => {
+          try {
+            out[composeId] = await getServiceInsightsFromDokploy(composeId)
+          } catch {
+            out[composeId] = null
+          }
+        })
+      )
+      return out
+    }),
 
   testDnsRecord: protectedProcedure
     .input(z.object({ host: z.string().min(1), expectedIp: z.string().min(1) }))

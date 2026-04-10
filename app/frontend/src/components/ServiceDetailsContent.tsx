@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
+import { LineChart } from '@mantine/charts';
 import { nip19 } from 'nostr-tools';
 import { SERVICE_TYPE } from '../../../shared/serviceType';
 import { parsePubkeyHex } from '../../../shared/nsite';
-import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, Box, Transition, Table, rem } from '@mantine/core';
-import { IconCopy, IconExternalLink, IconCheck, IconX } from '@tabler/icons-react';
+import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, Box, Transition, Table, rem, Paper, SimpleGrid } from '@mantine/core';
+import { IconCopy, IconExternalLink, IconCheck, IconX, IconAlertOctagon, IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react';
 import { InlineTextEditRow } from './InlineTextEditRow';
 import { trpc } from '../trpc';
+import { formatBytes, formatBytesPerSecond, formatPercent, formatWindow, getInsightSeverity, getOverallSeverity, getSeverityColor } from '../../../shared/insights';
 
 const SHELL_H_MS = 480;
 const FADE_MS = 280;
@@ -437,10 +439,185 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
   );
 };
 
+const ServiceDetailsInsights = ({ composeId }: { composeId: string }) => {
+  const [insights, setInsights] = useState<Awaited<ReturnType<typeof trpc.getServiceInsights.query>> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const next = await trpc.getServiceInsights.query({ composeId });
+        if (!mounted) return;
+        setInsights(next);
+        setError(null);
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message || 'Could not load service insights');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    void load();
+    const poll = window.setInterval(() => {
+      void load();
+    }, 5000);
+    return () => {
+      mounted = false;
+      window.clearInterval(poll);
+    };
+  }, [composeId]);
+
+  if (loading && !insights) {
+    return <Text size="sm" c="dimmed">Loading service insights…</Text>;
+  }
+
+  if (error && !insights) {
+    return (
+      <Paper withBorder p="md">
+        <Text fw={500} c="red">Could not load service insights</Text>
+        <Text size="xs" c="dimmed" mt={4}>{error}</Text>
+      </Paper>
+    );
+  }
+
+  if (!insights) return null;
+
+  const { current, thresholds } = insights;
+  const cpuSeverity = getInsightSeverity(current.cpuPct, thresholds.cpu.warn, thresholds.cpu.critical);
+  const memSeverity = getInsightSeverity(current.memoryUsedPct, thresholds.memory.warn, thresholds.memory.critical);
+  const overallSeverity = getOverallSeverity([cpuSeverity, memSeverity]);
+  const overallHealth = overallSeverity === 'critical'
+    ? { label: 'Critical', color: 'red', icon: <IconAlertOctagon size={14} /> }
+    : overallSeverity === 'warn'
+      ? { label: 'Watch', color: 'yellow', icon: <IconAlertTriangle size={14} /> }
+      : { label: 'Healthy', color: 'green', icon: <IconCircleCheck size={14} /> };
+
+  const chartData = insights.history.map((point, idx, arr) => {
+    const prev = arr[idx - 1];
+    const deltaSec = prev ? Math.max(1, (point.ts - prev.ts) / 1000) : Math.max(1, insights.sampleIntervalMs / 1000);
+    const netRxRate = prev ? Math.max(0, (point.networkInBytes - prev.networkInBytes) / deltaSec) : 0;
+    const netTxRate = prev ? Math.max(0, (point.networkOutBytes - prev.networkOutBytes) / deltaSec) : 0;
+    const ioReadRate = prev ? Math.max(0, (point.blockReadBytes - prev.blockReadBytes) / deltaSec) : 0;
+    const ioWriteRate = prev ? Math.max(0, (point.blockWriteBytes - prev.blockWriteBytes) / deltaSec) : 0;
+    return {
+      time: new Date(point.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      cpu: Number(point.cpuPct.toFixed(1)),
+      memory: Number(point.memoryUsedPct.toFixed(1)),
+      rx: netRxRate,
+      tx: netTxRate,
+      ioRead: ioReadRate,
+      ioWrite: ioWriteRate,
+    };
+  });
+
+  const latest = chartData[chartData.length - 1];
+  const historyWindowSec = Math.max(0, Math.round((chartData.length * insights.sampleIntervalMs) / 1000));
+  const historyWindowLabel = formatWindow(historyWindowSec);
+
+  return (
+    <Stack gap="md">
+      <Group justify="space-between" align="flex-end">
+        <Stack gap={2}>
+          <Text fw={600}>Service runtime</Text>
+          <Text size="xs" c="dimmed">Container: {insights.appName}</Text>
+        </Stack>
+        <Badge variant="filled" color={overallHealth.color} leftSection={overallHealth.icon}>
+          Health: {overallHealth.label}
+        </Badge>
+      </Group>
+
+      {error && (
+        <Text size="xs" c="dimmed">Last refresh error: {error}</Text>
+      )}
+
+      <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+        <Paper withBorder p="md">
+          <Group justify="space-between" mb={6}>
+            <Text fw={600}>CPU</Text>
+            <Badge variant="filled" color={getSeverityColor(cpuSeverity)}>{cpuSeverity}</Badge>
+          </Group>
+          <Text size="xl" fw={700}>{formatPercent(current.cpuPct)}</Text>
+        </Paper>
+        <Paper withBorder p="md">
+          <Group justify="space-between" mb={6}>
+            <Text fw={600}>Memory</Text>
+            <Badge variant="filled" color={getSeverityColor(memSeverity)}>{memSeverity}</Badge>
+          </Group>
+          <Text size="xl" fw={700}>{formatPercent(current.memoryUsedPct)}</Text>
+          <Text size="xs" c="dimmed" mt={4}>
+            {formatBytes(current.memoryUsedBytes)} / {formatBytes(current.memoryTotalBytes)}
+          </Text>
+        </Paper>
+        <Paper withBorder p="md">
+          <Text fw={600}>Network + disk I/O</Text>
+          <Text size="sm" mt={8}>In: {formatBytesPerSecond(latest?.rx || 0)}</Text>
+          <Text size="sm">Out: {formatBytesPerSecond(latest?.tx || 0)}</Text>
+          <Text size="xs" c="dimmed" mt={8}>
+            Disk read {formatBytesPerSecond(latest?.ioRead || 0)} | write {formatBytesPerSecond(latest?.ioWrite || 0)}
+          </Text>
+        </Paper>
+      </SimpleGrid>
+
+      <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
+        <Paper withBorder p="md">
+          <Text fw={600} mb="sm">CPU trend</Text>
+          <LineChart
+            h={200}
+            data={chartData}
+            dataKey="time"
+            series={[{ name: 'cpu', color: 'relay-orange' }]}
+            withDots={false}
+            withLegend={false}
+            yAxisProps={{ domain: [0, 100] }}
+            tooltipProps={{ cursor: false }}
+            valueFormatter={(value) => formatPercent(value)}
+          />
+          <Text size="xs" c="dimmed" mt={8}>Window: last {historyWindowLabel}</Text>
+        </Paper>
+        <Paper withBorder p="md">
+          <Text fw={600} mb="sm">Memory trend</Text>
+          <LineChart
+            h={200}
+            data={chartData}
+            dataKey="time"
+            series={[{ name: 'memory', color: 'blue' }]}
+            withDots={false}
+            withLegend={false}
+            yAxisProps={{ domain: [0, 100] }}
+            tooltipProps={{ cursor: false }}
+            valueFormatter={(value) => formatPercent(value)}
+          />
+          <Text size="xs" c="dimmed" mt={8}>Window: last {historyWindowLabel}</Text>
+        </Paper>
+        <Paper withBorder p="md">
+          <Text fw={600} mb="sm">Network trend</Text>
+          <LineChart
+            h={200}
+            data={chartData}
+            dataKey="time"
+            series={[
+              { name: 'rx', color: 'teal', label: 'Inbound' },
+              { name: 'tx', color: 'grape', label: 'Outbound' },
+            ]}
+            withDots={false}
+            withLegend
+            tooltipProps={{ cursor: false }}
+            valueFormatter={(value) => formatBytesPerSecond(value)}
+          />
+          <Text size="xs" c="dimmed" mt={8}>Window: last {historyWindowLabel}</Text>
+        </Paper>
+      </SimpleGrid>
+    </Stack>
+  );
+};
+
 export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
   const { service, serverIp } = props;
   const domain = service.domains?.[0];
   const hasDNS = domain && serverIp;
+  const hasInsights = !!service.composeId;
 
   const [section, setSection] = useState('info');
   const innerRef = useRef<HTMLDivElement>(null);
@@ -478,6 +655,7 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
             <Tabs.List aria-label="Details sections" miw={rem(80)} style={{ flexShrink: 0 }}>
               <Tabs.Tab value="info">Info</Tabs.Tab>
               <Tabs.Tab value="dns">DNS</Tabs.Tab>
+              <Tabs.Tab value="insights">Insights</Tabs.Tab>
             </Tabs.List>
             <Box style={{ flex: 1, minWidth: 0, paddingTop: rem(2) }}>
               <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'info'}>
@@ -498,6 +676,13 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
                         onCopy={props.onCopy}
                       />
                     ) : null}
+                  </Box>
+                )}
+              </Transition>
+              <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'insights'}>
+                {(tStyle) => (
+                  <Box style={{ ...tStyle, minWidth: 0 }}>
+                    {hasInsights ? <ServiceDetailsInsights composeId={service.composeId} /> : null}
                   </Box>
                 )}
               </Transition>

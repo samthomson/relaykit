@@ -8,6 +8,7 @@ import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
 import { useRefreshServices } from './contexts/RefreshServicesContext';
 import { SERVICE_TYPE } from '../../shared/serviceType';
+import { formatPercent } from '../../shared/insights';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from './components/NsiteDeployFields';
 import { ServiceDetailsContent } from './components/ServiceDetailsContent';
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from './components/InlineTextEditRow';
@@ -349,6 +350,7 @@ const ServiceCard = ({
   onMove,
   allEnvironments,
   showDetails,
+  summary,
 }: {
   service: any;
   serverIp: string | null;
@@ -366,6 +368,7 @@ const ServiceCard = ({
   onMove: (composeId: string, targetEnvironmentId: string) => void;
   allEnvironments: { environmentId: string; label: string }[];
   showDetails: boolean;
+  summary?: { cpuPct: number; memoryUsedPct: number } | null;
 }) => {
   const [showExplorer, setShowExplorer] = useState(false);
   const [showBlossomExplorer, setShowBlossomExplorer] = useState(false);
@@ -513,6 +516,11 @@ const ServiceCard = ({
                       />
                     )}
                     <Badge variant="filled" color={statusColor} size="xs" w="fit-content">{service.status}</Badge>
+                    {summary && (
+                      <Text size="xs" c="dimmed">
+                        CPU {formatPercent(summary.cpuPct)} | Mem {formatPercent(summary.memoryUsedPct)}
+                      </Text>
+                    )}
                   </Stack>
                 </Group>
                 <CogMenu items={manageItems} />
@@ -616,6 +624,7 @@ const ServiceList = () => {
   const [projects, setProjects] = useState<any[]>([]);
   const [serverIp, setServerIp] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [serviceOverviewSummaries, setServiceOverviewSummaries] = useState<Record<string, { cpuPct: number; memoryUsedPct: number }>>({});
 
   const [editingDomain, setEditingDomain] = useState<{ composeId: string; domainId: string; currentHost: string } | null>(null);
   const [newDomainHost, setNewDomainHost] = useState('');
@@ -667,6 +676,47 @@ const ServiceList = () => {
   useEffect(() => {
     loadData();
   }, [refreshTrigger]);
+
+  useEffect(() => {
+    if (showDetails) return;
+    const runningComposeIds = services
+      .filter((s: any) => s.status === 'running' && s.composeId)
+      .map((s: any) => s.composeId);
+    if (runningComposeIds.length === 0) {
+      setServiceOverviewSummaries({});
+      return;
+    }
+
+    let mounted = true;
+    const loadSummaries = async () => {
+      try {
+        const result = await trpc.getServicesInsights.query({ composeIds: runningComposeIds });
+        if (!mounted) return;
+        const next: Record<string, { cpuPct: number; memoryUsedPct: number }> = {};
+        for (const composeId of runningComposeIds) {
+          const insight = result[composeId];
+          if (!insight) continue;
+          next[composeId] = {
+            cpuPct: insight.current.cpuPct,
+            memoryUsedPct: insight.current.memoryUsedPct,
+          };
+        }
+        setServiceOverviewSummaries(next);
+      } catch {
+        if (!mounted) return;
+        setServiceOverviewSummaries({});
+      }
+    };
+
+    void loadSummaries();
+    const poll = window.setInterval(() => {
+      void loadSummaries();
+    }, 7000);
+    return () => {
+      mounted = false;
+      window.clearInterval(poll);
+    };
+  }, [services, showDetails]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -1004,6 +1054,7 @@ const ServiceList = () => {
                                   onMove={handleMoveService}
                                   allEnvironments={allEnvironments}
                                   showDetails={showDetails}
+                                  summary={serviceOverviewSummaries[service.composeId] ?? null}
                                 />
                               ))
                             )}
@@ -1105,6 +1156,7 @@ const ServiceList = () => {
                                       onMove={handleMoveService}
                                       allEnvironments={allEnvironments}
                                       showDetails={showDetails}
+                                      summary={serviceOverviewSummaries[service.composeId] ?? null}
                                     />
                                   ))
                                 )}
@@ -1598,6 +1650,42 @@ const DokployInitialCheck = () => {
   return null;
 };
 
+const NavServerSummary = () => {
+  const [insights, setInsights] = useState<Awaited<ReturnType<typeof trpc.getServerInsights.query>> | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const next = await trpc.getServerInsights.query();
+        if (!mounted) return;
+        setInsights(next);
+      } catch {
+        // Keep nav quiet if insights endpoint is unavailable.
+      }
+    };
+
+    void load();
+    const poll = window.setInterval(() => {
+      void load();
+    }, 10000);
+    return () => {
+      mounted = false;
+      window.clearInterval(poll);
+    };
+  }, []);
+
+  if (!insights) return null;
+  return (
+    <Paper withBorder p="xs" mt="sm">
+      <Text size="xs" fw={600} mb={4}>Server</Text>
+      <Text size="xs" c="dimmed">CPU {formatPercent(insights.current.cpuPct)}</Text>
+      <Text size="xs" c="dimmed">Mem {formatPercent(insights.current.memoryUsedPct)}</Text>
+      <Text size="xs" c="dimmed">Disk {formatPercent(insights.current.diskUsedPct)}</Text>
+    </Paper>
+  );
+};
+
 const AppContent = () => {
   const { isAuthenticated, isLoading, logout } = useAuth();
   const [mobileMenuOpened, { toggle: toggleMobileMenu, close: closeMobileMenu }] = useDisclosure(false);
@@ -1663,6 +1751,9 @@ const AppContent = () => {
               label="Insights"
               onClick={closeMobileMenu}
             />
+          </AppShell.Section>
+          <AppShell.Section>
+            <NavServerSummary />
           </AppShell.Section>
         </AppShell.Navbar>
 
