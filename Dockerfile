@@ -1,6 +1,17 @@
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+
+COPY app/frontend/package.json app/frontend/yarn.lock ./
+RUN yarn install --frozen-lockfile --network-timeout 600000
+
+COPY app/frontend .
+COPY app/shared ../shared
+RUN yarn build
+
 FROM node:20-alpine
 
-# Install Playwright system dependencies
+# Playwright/Chromium are required in prod for setup automation.
 RUN apk add --no-cache \
     chromium \
     nss \
@@ -14,28 +25,21 @@ ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
 
-# Install root dependencies (concurrently)
+# Install root deps needed at runtime (includes playwright, excludes dev deps).
 COPY app/package.json app/yarn.lock* ./
-RUN yarn install
+RUN yarn install --production --frozen-lockfile
 
-# Install backend dependencies
+# Install backend runtime deps only.
 COPY app/backend/package.json app/backend/yarn.lock* ./backend/
-RUN cd backend && yarn install
+RUN cd backend && yarn install --production --frozen-lockfile
 
-# Install tsx globally so it's available even with volume mounts
+# Install tsx globally for backend runtime command.
 RUN yarn global add tsx
 
-# Install frontend dependencies in a cache-friendly layer.
-# This avoids re-fetching all frontend packages on every code change.
-COPY app/frontend/package.json app/frontend/yarn.lock* ./frontend/
-RUN cd frontend && yarn install --frozen-lockfile --network-timeout 600000
-
-# Copy full app source after dependency layers are cached
-COPY app .
-
-# Build frontend at image build time (not container startup).
-# Then drop frontend node_modules to keep the final image smaller/faster to export.
-RUN cd frontend && yarn build && rm -rf node_modules
+# Copy only runtime sources and built frontend.
+COPY app/backend ./backend
+COPY app/shared ./shared
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Copy scripts
 COPY scripts/automate-dokploy-setup.js /app/scripts/

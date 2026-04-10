@@ -7,10 +7,10 @@
     "start": "cd backend && yarn start"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "playwright": "^1.58.2"
+    "concurrently": "^8.2.2"
   },
   "dependencies": {
-    "nostr-tools": "^2.23.3"
+    "nostr-tools": "^2.23.3",
+    "playwright": "^1.58.2"
   }
 }
