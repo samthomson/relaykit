@@ -24,6 +24,20 @@ body {
   border: 1px solid var(--mantine-color-relaykit-6) !important;
 }
 
+.rk-toast-icon {
+  width: 52px !important;
+  min-width: 52px !important;
+  height: 52px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-right: 14px !important;
+}
+
+.rk-toast-content {
+  padding-left: 6px !important;
+}
+
 [data-mantine-color-scheme="dark"] .rk-toast {
   background: var(--mantine-color-dark-6) !important;
   color: var(--mantine-color-relaykit-1) !important;

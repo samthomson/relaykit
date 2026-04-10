@@ -1080,7 +1080,7 @@ const ServiceList = () => {
     name === 'relaykit.ungrouped' ? '' : name;
 
   return (
-    <Stack gap="xl" mt="xl">
+    <Stack gap="xl">
       <Group justify="flex-end">
         <Group gap="xs">
           <Text size="sm" c="dimmed">View:</Text>
@@ -1632,8 +1632,8 @@ const LoginScreen = () => {
   }
 
   return (
-    <Stack align="center" justify="center" h="100vh">
-      <Paper withBorder p="xl" maw={400} w="100%">
+    <Stack align="center" justify="center" h="100vh" bg="dark.8">
+      <Paper withBorder p="xl" maw={400} w="100%" bg="dark.7">
         <Title order={1} mb={8}>RelayKit</Title>
         <Text c="dimmed" mb="xl">Nostr service deployment platform</Text>
 

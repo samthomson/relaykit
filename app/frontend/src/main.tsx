@@ -56,17 +56,17 @@ const theme = createTheme({
   },
 });
 
-const toastIconSize = 34;
+const toastIconSize = 43;
 
 const ToastRubixIcon = ({ color, speed = 0.9 }: { color: string; speed?: number }) => (
   <div
     style={{
-      width: 40,
-      height: 40,
+      width: 50,
+      height: 50,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 10,
+      marginRight: 14,
       lineHeight: 0,
       flexShrink: 0,
     }}
@@ -95,6 +95,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               }}
               toastOptions={{
                 className: 'rk-toast',
+                classNames: {
+                  icon: 'rk-toast-icon',
+                  content: 'rk-toast-content',
+                },
               }}
             />
             <App />
