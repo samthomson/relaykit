@@ -118,6 +118,7 @@ services:
     volumes:
       - ./app:/app
       - relaykit_data:/app/.relaykit
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       dokploy:
         condition: service_started
@@ -132,6 +133,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
     volumes:
       - relaykit_data:/app/.relaykit
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - default
       - relaykit-network
