@@ -372,6 +372,22 @@ const getBlockIoTotals = (stats: any): { readBytes: number; writeBytes: number }
   return { readBytes, writeBytes }
 }
 
+const getRunningComposeProjects = async (): Promise<Set<string> | null> => {
+  try {
+    await fs.access(DOCKER_SOCKET_PATH)
+    const containers = await dockerSocketGetJson('/containers/json?all=0')
+    if (!Array.isArray(containers)) return null
+    const runningProjects = new Set<string>()
+    for (const container of containers) {
+      const project = String(container?.Labels?.['com.docker.compose.project'] || '').trim()
+      if (project) runningProjects.add(project)
+    }
+    return runningProjects
+  } catch {
+    return null
+  }
+}
+
 const loadComposeAppName = async (composeId: string): Promise<string> => {
   const compose = await dokployFetch(`/api/compose.one?composeId=${composeId}`)
   const appName = String(compose?.appName || '').trim()
@@ -580,6 +596,7 @@ export const appRouter = router({
     .input(z.void())
     .query(async ({ ctx }) => {
     const projects = await dokployFetch('/api/project.all')
+    const runningProjects = await getRunningComposeProjects()
     const services = []
     for (const project of projects) {
       for (const environment of project.environments || []) {
@@ -590,7 +607,13 @@ export const appRouter = router({
           if (!presetData.label) throw new Error(`Preset ${presetId} has no label`)
           const envVars = parseServiceEnvVarsString(compose.env)
           
-          const runtimeStatus = compose.composeStatus === 'done' ? 'running' : compose.composeStatus
+          let runtimeStatus = compose.composeStatus === 'done' ? 'running' : compose.composeStatus
+          if (compose.composeStatus === 'done' && runningProjects) {
+            const appName = String(compose.appName || '').trim()
+            if (appName) {
+              runtimeStatus = runningProjects.has(appName) ? 'running' : 'stopped'
+            }
+          }
           
           const domainKey = presetData.domainConfigKey ?? 'RELAY_HOST'
           const hostname =
