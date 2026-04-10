@@ -14,7 +14,7 @@ import { ServiceDetailsContent } from './components/ServiceDetailsContent';
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from './components/InlineTextEditRow';
 import { ServiceHostTitleView } from './components/ServiceHostTitleView';
 import { InsightsPage } from './components/InsightsPage';
-import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, SimpleGrid, rem } from '@mantine/core';
+import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, SimpleGrid, rem, useMantineColorScheme, Switch } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconCopy, IconExternalLink, IconPencil, IconCpu, IconDatabase, IconServer } from '@tabler/icons-react';
 
@@ -121,7 +121,7 @@ const ConfirmModal = ({
     </Text>
     <Group justify="flex-end">
       <Button variant="default" onClick={onCancel}>Cancel</Button>
-      <Button color={danger ? 'red' : 'relay-orange'} onClick={onConfirm}>
+      <Button color={danger ? 'red' : 'relaykit'} onClick={onConfirm}>
         {confirmLabel}
       </Button>
     </Group>
@@ -208,7 +208,7 @@ const MoveServiceModal = ({
                 <Badge
                   key={target.environmentId}
                   variant={selectedTarget?.environmentId === target.environmentId ? 'filled' : 'outline'}
-                  color={target.environmentId === currentEnvironmentId ? 'gray' : 'relay-orange'}
+                  color={target.environmentId === currentEnvironmentId ? 'gray' : 'relaykit'}
                   style={{ cursor: target.environmentId === currentEnvironmentId ? 'not-allowed' : 'pointer' }}
                   onClick={() => {
                     if (target.environmentId !== currentEnvironmentId) {
@@ -232,7 +232,7 @@ const MoveServiceModal = ({
             <Text component="span" fw={500}>{selectedTarget ? selectedTarget.fullLabel : '—'}</Text>
           </Text>
           <Button
-            color="relay-orange"
+            color="relaykit"
             disabled={!selectedTarget}
             onClick={() => selectedTarget && onSelect(selectedTarget.environmentId)}
           >
@@ -335,7 +335,7 @@ const AddServiceButton = ({
         <Menu.Target>
           <Button
             variant="outline"
-            color="relay-orange"
+            color="relaykit"
             size={compact ? 'xs' : 'sm'}
             rightSection={<IconChevronDown size={compact ? 12 : 14} />}
           >
@@ -520,7 +520,6 @@ const ServiceCard = ({
       <Paper
         withBorder
         p={showDetails ? 'md' : 'sm'}
-        bg="white"
         radius="md"
         style={showDetails ? undefined : { width: 260, maxWidth: '100%', flexShrink: 0 }}
       >
@@ -639,7 +638,7 @@ const ServiceCard = ({
               </Group>
               {domain ? (
                 <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0 }}>
-                  <Anchor href={httpsUrl} target="_blank" size="xs" c="relay-orange" truncate style={{ flex: 1, minWidth: 0 }} title={httpsUrl}>
+                  <Anchor href={httpsUrl} target="_blank" size="xs" c="relaykit" truncate style={{ flex: 1, minWidth: 0 }} title={httpsUrl}>
                     {httpsUrl} ↗
                   </Anchor>
                   <Tooltip label="Copy URL">
@@ -656,7 +655,7 @@ const ServiceCard = ({
                   <Button
                     size="xs"
                     variant="light"
-                    color="relay-orange"
+                    color="relaykit"
                     onClick={() => setShowExplorer(true)}
                     rightSection={<IconExternalLink size={12} />}
                   >
@@ -667,7 +666,7 @@ const ServiceCard = ({
                   <Button
                     size="xs"
                     variant="light"
-                    color="relay-orange"
+                    color="relaykit"
                     onClick={() => setShowBlossomExplorer(true)}
                     rightSection={<IconExternalLink size={12} />}
                   >
@@ -1089,7 +1088,7 @@ const ServiceList = () => {
           <Text size="sm" c="dimmed">View:</Text>
           <SegmentedControl
             size="sm"
-            color="relay-orange"
+            color="relaykit"
             value={showDetails ? 'details' : 'overview'}
             onChange={(v) => setShowDetails(v === 'details')}
             data={[
@@ -1112,7 +1111,7 @@ const ServiceList = () => {
           {grouped.map((project: any) => {
             const projectServiceCount = project.environments.reduce((acc: number, e: any) => acc + e.services.length, 0);
             return (
-              <Paper key={project.projectId} withBorder p="md" bg="white">
+              <Paper key={project.projectId} withBorder p="md">
                 <Group justify="space-between" mb="md" wrap="wrap" align="center" w="100%" style={{ minHeight: INLINE_TITLE_ROW_H }}>
                   {renamingProjectId === project.projectId ? (
                     <>
@@ -1161,7 +1160,7 @@ const ServiceList = () => {
                     project.environments.map((env: any) => {
                       const isDefaultEnv = env.isDefault === true;
                       return (
-                        <Card key={env.environmentId} withBorder padding="sm" bg="gray.0">
+                        <Card key={env.environmentId} withBorder padding="sm">
                           <Group justify="space-between" align="center" mb="xs" wrap="nowrap" w="100%" gap="xs" style={{ minHeight: INLINE_TITLE_ROW_H }}>
                             {renamingEnvId === env.environmentId ? (
                               <InlineTextEditRow
@@ -1177,7 +1176,7 @@ const ServiceList = () => {
                             ) : (
                               <>
                                 <Group gap={4} wrap="nowrap" align="center" style={{ minHeight: INLINE_TITLE_ROW_H }}>
-                                  <Badge variant="light" color="relay-orange" size="sm">{env.name}</Badge>
+                                  <Badge variant="light" color="relaykit" size="sm">{env.name}</Badge>
                                   {!isDefaultEnv && (
                                     <ActionIcon variant="subtle" size="xs" onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }} aria-label="Rename environment">
                                       <IconPencil size={14} />
@@ -1230,7 +1229,7 @@ const ServiceList = () => {
                                     style={{ width: 150 }}
                                     autoFocus
                                   />
-                                  <Button size="xs" color="relay-orange" onClick={() => handleCreateEnvironment(project.projectId)} disabled={!newEnvName.trim()}>Add</Button>
+                                  <Button size="xs" color="relaykit" onClick={() => handleCreateEnvironment(project.projectId)} disabled={!newEnvName.trim()}>Add</Button>
                                   <Button size="xs" variant="default" onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}>Cancel</Button>
                                 </>
                               ) : (
@@ -1279,7 +1278,7 @@ const ServiceList = () => {
                                   ) : (
                                     <>
                                       <Group gap={4} wrap="nowrap" align="center" style={{ minHeight: INLINE_TITLE_ROW_H }}>
-                                        <Badge variant="light" color="relay-orange" size="sm">{env.name}</Badge>
+                                        <Badge variant="light" color="relaykit" size="sm">{env.name}</Badge>
                                         {!isDefaultEnv && (
                                           <ActionIcon variant="subtle" size="xs" onClick={() => { setRenamingEnvId(env.environmentId); setRenameEnvValue(env.name); }} aria-label="Rename environment">
                                             <IconPencil size={14} />
@@ -1340,7 +1339,7 @@ const ServiceList = () => {
                               style={{ width: 150 }}
                               autoFocus
                             />
-                            <Button size="xs" color="relay-orange" onClick={() => handleCreateEnvironment(project.projectId)} disabled={!newEnvName.trim()}>Add</Button>
+                            <Button size="xs" color="relaykit" onClick={() => handleCreateEnvironment(project.projectId)} disabled={!newEnvName.trim()}>Add</Button>
                             <Button size="xs" variant="default" onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}>Cancel</Button>
                           </>
                         ) : (
@@ -1382,7 +1381,7 @@ const ServiceList = () => {
                 onChange={(e) => setNewProjectName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
               />
-              <Button variant="outline" color="relay-orange" onClick={handleCreateProject} loading={creatingProject} disabled={!newProjectName.trim()}>
+              <Button variant="outline" color="relaykit" onClick={handleCreateProject} loading={creatingProject} disabled={!newProjectName.trim()}>
                 Add group
               </Button>
             </Group>
@@ -1635,7 +1634,7 @@ const LoginScreen = () => {
   }
 
   return (
-    <Stack align="center" justify="center" h="100vh" bg="paper.2">
+    <Stack align="center" justify="center" h="100vh">
       <Paper withBorder p="xl" maw={400} w="100%">
         <Title order={1} mb={8}>RelayKit</Title>
         <Text c="dimmed" mb="xl">Nostr service deployment platform</Text>
@@ -1659,7 +1658,7 @@ const LoginScreen = () => {
             </Stack>
           </Paper>
         ) : (
-          <Button size="lg" fullWidth onClick={handleLogin} loading={loggingIn} color="relay-orange">
+          <Button size="lg" fullWidth onClick={handleLogin} loading={loggingIn} color="relaykit">
             Connect with Nostr
           </Button>
         )}
@@ -1863,6 +1862,7 @@ const NavServerSummary = () => {
 
 const AppContent = () => {
   const { isAuthenticated, isLoading, logout } = useAuth();
+  const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [mobileMenuOpened, { toggle: toggleMobileMenu, close: closeMobileMenu }] = useDisclosure(false);
   const [accountModalOpen, { open: openAccountModal, close: closeAccountModal }] = useDisclosure(false);
 
@@ -1883,26 +1883,50 @@ const AppContent = () => {
       >
         <AppShell.Header>
           <Group h="100%" px="md" justify="space-between">
-            <Group gap="xs">
+            <Group gap="sm" align="center">
               <Burger opened={mobileMenuOpened} onClick={toggleMobileMenu} hiddenFrom="sm" size="sm" />
-              <Box style={{ lineHeight: 0, flexShrink: 0 }}>
+              <Box style={{ lineHeight: 0, flexShrink: 0, height: 34, display: 'inline-flex', alignItems: 'center' }}>
                 <RubixLoader
-                  size={40}
+                  size={34}
                   speed={0.9}
                   colors={rubixLoaderColors}
                 />
               </Box>
-              <Title order={3} c="relay-orange" className="brand-title">RelayKit</Title>
+              <Title
+                order={3}
+                c="relaykit"
+                className="brand-title"
+                style={{
+                  fontSize: rem(30),
+                  lineHeight: '34px',
+                  margin: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  transform: 'translateY(2px)',
+                }}
+              >
+                RelayKit
+              </Title>
             </Group>
             <Menu shadow="md" width={200}>
               <Menu.Target>
                 <Button variant="default" size="sm" rightSection={<IconChevronDown size={14} />}>
-                  Profile
+                  init
                 </Button>
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Item onClick={openAccountModal}>
                   Identity
+                </Menu.Item>
+                <Menu.Item closeMenuOnClick={false}>
+                  <Group justify="space-between" wrap="nowrap" w="100%">
+                    <Text size="sm">dark mode</Text>
+                    <Switch
+                      size="sm"
+                      checked={colorScheme === 'dark'}
+                      onChange={(event) => setColorScheme(event.currentTarget.checked ? 'dark' : 'light')}
+                    />
+                  </Group>
                 </Menu.Item>
                 <Menu.Divider />
                 <Menu.Item color="red" onClick={logout}>
@@ -1939,7 +1963,7 @@ const AppContent = () => {
           </AppShell.Section>
         </AppShell.Navbar>
 
-        <AppShell.Main bg="paper.2">
+        <AppShell.Main>
           <Routes>
             <Route path="/" element={<ServicesPage />} />
             <Route path="/debug" element={<DebugPage />} />
