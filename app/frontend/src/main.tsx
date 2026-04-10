@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { RubixLoader } from '@samthomson/rubix-loader';
 import App from './App';
 import './index.css';
 import '@mantine/charts/styles.css';
@@ -55,6 +56,25 @@ const theme = createTheme({
   },
 });
 
+const toastIconSize = 34;
+
+const ToastRubixIcon = ({ color, speed = 0.9 }: { color: string; speed?: number }) => (
+  <div
+    style={{
+      width: 40,
+      height: 40,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 10,
+      lineHeight: 0,
+      flexShrink: 0,
+    }}
+  >
+    <RubixLoader size={toastIconSize} colors={[color]} speed={speed} />
+  </div>
+);
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <MantineProvider theme={theme} defaultColorScheme="auto">
@@ -65,6 +85,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Toaster
               position="top-right"
               richColors={false}
+              duration={7000}
+              icons={{
+                success: <ToastRubixIcon color="#22c55e" />,
+                warning: <ToastRubixIcon color="#f59e0b" />,
+                error: <ToastRubixIcon color="#ef4444" />,
+                info: <ToastRubixIcon color="#3b82f6" />,
+                loading: <ToastRubixIcon color="#a273f0" speed={1.15} />,
+              }}
               toastOptions={{
                 className: 'rk-toast',
               }}
