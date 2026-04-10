@@ -111,6 +111,7 @@ export type ServiceInsightPoint = {
   memoryUsedPct: number
   memoryUsedBytes: number
   memoryTotalBytes: number
+  storageUsedBytes: number
   networkInBytes: number
   networkOutBytes: number
   blockReadBytes: number

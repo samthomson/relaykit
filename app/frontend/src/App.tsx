@@ -1,4 +1,4 @@
-import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
+import { useState, useEffect, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, NavLink as RouterNavLink } from 'react-router-dom';
 import { toast } from 'sonner';
 import { nip19 } from 'nostr-tools';
@@ -8,7 +8,6 @@ import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
 import { useRefreshServices } from './contexts/RefreshServicesContext';
 import { SERVICE_TYPE } from '../../shared/serviceType';
-import { formatPercent } from '../../shared/insights';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from './components/NsiteDeployFields';
 import { ServiceDetailsContent } from './components/ServiceDetailsContent';
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from './components/InlineTextEditRow';
@@ -16,7 +15,7 @@ import { ServiceHostTitleView } from './components/ServiceHostTitleView';
 import { InsightsPage } from './components/InsightsPage';
 import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, SimpleGrid, rem } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconChevronDown, IconCopy, IconExternalLink, IconPencil } from '@tabler/icons-react';
+import { IconChevronDown, IconCopy, IconExternalLink, IconPencil, IconCpu, IconDatabase, IconServer } from '@tabler/icons-react';
 
 function getIdentityKeys(key: string | null): { hex: string | null; npub: string | null } {
   if (!key) return { hex: null, npub: null };
@@ -32,6 +31,28 @@ function getIdentityKeys(key: string | null): { hex: string | null; npub: string
   }
   
   return { hex: null, npub: null };
+}
+
+const formatPercentRounded = (value: number | null): string => {
+  if (value === null || !Number.isFinite(value)) return '—'
+  return `${Math.round(value)}%`
+}
+
+const formatBytesRounded = (bytes: number | null): string => {
+  if (bytes === null || !Number.isFinite(bytes)) return '—'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let size = Math.max(0, bytes)
+  let idx = 0
+  while (size >= 1024 && idx < units.length - 1) {
+    size /= 1024
+    idx += 1
+  }
+  return `${Math.round(size)}${units[idx]}`
+}
+
+const formatBytesPerSecondRounded = (bytesPerSec: number | null): string => {
+  if (bytesPerSec === null || !Number.isFinite(bytesPerSec)) return '—'
+  return `${formatBytesRounded(bytesPerSec)}/s`
 }
 
 const CogMenu = ({
@@ -97,6 +118,40 @@ const ConfirmModal = ({
     </Group>
   </Modal>
 );
+
+const InlineMetric = ({ label, value, icon }: { label: string; value: string; icon: ReactNode }) => (
+  <Tooltip label={label} withArrow>
+    <Group
+      gap={5}
+      wrap="nowrap"
+      style={{
+        width: 'fit-content',
+      }}
+    >
+      <Box c="dimmed" style={{ display: 'inline-flex', alignItems: 'center' }}>
+        {icon}
+      </Box>
+      <Text size="xs" c="dimmed" fw={500} lh={1.1} style={{ whiteSpace: 'nowrap' }}>{value}</Text>
+    </Group>
+  </Tooltip>
+);
+
+const FlowDot = ({ label, value, color }: { label: string; value: number | null; color: string }) => {
+  const active = Number(value) > 0
+  return (
+    <Tooltip label={`${label}: ${formatBytesPerSecondRounded(value)}`} withArrow>
+      <Box
+        style={{
+          width: 9,
+          height: 9,
+          borderRadius: 999,
+          border: '1px solid var(--mantine-color-gray-5)',
+          background: active ? `var(--mantine-color-${color}-5)` : 'transparent',
+        }}
+      />
+    </Tooltip>
+  )
+}
 
 const MoveServiceModal = ({
   serviceName,
@@ -368,7 +423,17 @@ const ServiceCard = ({
   onMove: (composeId: string, targetEnvironmentId: string) => void;
   allEnvironments: { environmentId: string; label: string }[];
   showDetails: boolean;
-  summary?: { cpuPct: number; memoryUsedPct: number } | null;
+  summary?: {
+    cpuPct: number | null;
+    memoryUsedPct: number | null;
+    memoryUsedBytes: number | null;
+    memoryTotalBytes: number | null;
+    storageUsedBytes: number | null;
+    networkInBps: number | null;
+    networkOutBps: number | null;
+    blockReadBps: number | null;
+    blockWriteBps: number | null;
+  } | null;
 }) => {
   const [showExplorer, setShowExplorer] = useState(false);
   const [showBlossomExplorer, setShowBlossomExplorer] = useState(false);
@@ -396,6 +461,17 @@ const ServiceCard = ({
   manageItems.push({ label: 'Delete', onClick: () => onDelete(service.composeId, service.name), danger: true });
 
   const statusColor = service.status === 'running' ? 'green' : service.status === 'error' ? 'red' : 'gray';
+  const summaryView = summary ?? {
+    cpuPct: null,
+    memoryUsedPct: null,
+    memoryUsedBytes: null,
+    memoryTotalBytes: null,
+    storageUsedBytes: null,
+    networkInBps: null,
+    networkOutBps: null,
+    blockReadBps: null,
+    blockWriteBps: null,
+  }
 
   const detailsContentProps = {
     service,
@@ -484,10 +560,10 @@ const ServiceCard = ({
         ) : (
           <>
             <Stack gap="sm">
-              <Group justify="space-between" align="center" wrap="nowrap" gap="xs" style={{ minHeight: INLINE_TITLE_ROW_H }}>
-                <Group align="center" gap="xs" style={{ minWidth: 0, flex: 1, minHeight: INLINE_TITLE_ROW_H }}>
+              <Group justify="space-between" align="flex-start" wrap="nowrap" gap="xs">
+                <Group align="flex-start" gap="xs" style={{ minWidth: 0, flex: 1 }}>
                   {service.icon && (
-                    <span style={{ display: 'inline-flex', width: 22, height: 22, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ display: 'inline-flex', width: 22, height: 22, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 3 }}>
                       {service.icon}
                     </span>
                   )}
@@ -516,14 +592,41 @@ const ServiceCard = ({
                       />
                     )}
                     <Badge variant="filled" color={statusColor} size="xs" w="fit-content">{service.status}</Badge>
-                    {summary && (
-                      <Text size="xs" c="dimmed">
-                        CPU {formatPercent(summary.cpuPct)} | Mem {formatPercent(summary.memoryUsedPct)}
-                      </Text>
+                    {service.status === 'running' && (
+                      <Stack gap={4}>
+                        <Group gap={8} wrap="nowrap">
+                          <InlineMetric
+                            label={`CPU usage: ${formatPercentRounded(summaryView.cpuPct)}`}
+                            value={formatPercentRounded(summaryView.cpuPct)}
+                            icon={<IconCpu size={12} />}
+                          />
+                          <Text size="xs" c="gray.5">•</Text>
+                          <InlineMetric
+                            label={`Memory used: ${formatBytesRounded(summaryView.memoryUsedBytes)} / ${formatBytesRounded(summaryView.memoryTotalBytes)} (${formatPercentRounded(summaryView.memoryUsedPct)})`}
+                            value={formatBytesRounded(summaryView.memoryUsedBytes)}
+                            icon={<IconServer size={12} />}
+                          />
+                          <Text size="xs" c="gray.5">•</Text>
+                          <InlineMetric
+                            label={`Storage used on disk: ${formatBytesRounded(summaryView.storageUsedBytes)} (writable layer)`}
+                            value={formatBytesRounded(summaryView.storageUsedBytes)}
+                            icon={<IconDatabase size={12} />}
+                          />
+                        </Group>
+                        <Group gap={7} wrap="nowrap">
+                          <FlowDot label="Network inbound throughput" value={summaryView.networkInBps} color="blue" />
+                          <FlowDot label="Network outbound throughput" value={summaryView.networkOutBps} color="blue" />
+                          <Text size="xs" c="gray.5">•</Text>
+                          <FlowDot label="Disk read throughput" value={summaryView.blockReadBps} color="grape" />
+                          <FlowDot label="Disk write throughput" value={summaryView.blockWriteBps} color="grape" />
+                        </Group>
+                      </Stack>
                     )}
                   </Stack>
                 </Group>
-                <CogMenu items={manageItems} />
+                <Box pt={2}>
+                  <CogMenu items={manageItems} />
+                </Box>
               </Group>
               {domain ? (
                 <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0 }}>
@@ -624,7 +727,19 @@ const ServiceList = () => {
   const [projects, setProjects] = useState<any[]>([]);
   const [serverIp, setServerIp] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [serviceOverviewSummaries, setServiceOverviewSummaries] = useState<Record<string, { cpuPct: number; memoryUsedPct: number }>>({});
+  const [serviceOverviewSummaries, setServiceOverviewSummaries] = useState<
+    Record<string, {
+      cpuPct: number | null;
+      memoryUsedPct: number | null;
+      memoryUsedBytes: number | null;
+      memoryTotalBytes: number | null;
+      storageUsedBytes: number | null;
+      networkInBps: number | null;
+      networkOutBps: number | null;
+      blockReadBps: number | null;
+      blockWriteBps: number | null;
+    }>
+  >({});
 
   const [editingDomain, setEditingDomain] = useState<{ composeId: string; domainId: string; currentHost: string } | null>(null);
   const [newDomainHost, setNewDomainHost] = useState('');
@@ -692,19 +807,54 @@ const ServiceList = () => {
       try {
         const result = await trpc.getServicesInsights.query({ composeIds: runningComposeIds });
         if (!mounted) return;
-        const next: Record<string, { cpuPct: number; memoryUsedPct: number }> = {};
+        const next: Record<string, {
+          cpuPct: number | null;
+          memoryUsedPct: number | null;
+          memoryUsedBytes: number | null;
+          memoryTotalBytes: number | null;
+          storageUsedBytes: number | null;
+          networkInBps: number | null;
+          networkOutBps: number | null;
+          blockReadBps: number | null;
+          blockWriteBps: number | null;
+        }> = {};
         for (const composeId of runningComposeIds) {
+          next[composeId] = {
+            cpuPct: null,
+            memoryUsedPct: null,
+            memoryUsedBytes: null,
+            memoryTotalBytes: null,
+            storageUsedBytes: null,
+            networkInBps: null,
+            networkOutBps: null,
+            blockReadBps: null,
+            blockWriteBps: null,
+          }
           const insight = result[composeId];
           if (!insight) continue;
+          const history = insight.history || [];
+          const curr = insight.current;
+          const prev = history.length >= 2 ? history[history.length - 2] : null;
+          const elapsedSec = prev ? Math.max((curr.ts - prev.ts) / 1000, 1) : 1;
+          const networkInBps = prev ? Math.max(0, (curr.networkInBytes - prev.networkInBytes) / elapsedSec) : 0;
+          const networkOutBps = prev ? Math.max(0, (curr.networkOutBytes - prev.networkOutBytes) / elapsedSec) : 0;
+          const blockReadBps = prev ? Math.max(0, (curr.blockReadBytes - prev.blockReadBytes) / elapsedSec) : 0;
+          const blockWriteBps = prev ? Math.max(0, (curr.blockWriteBytes - prev.blockWriteBytes) / elapsedSec) : 0;
           next[composeId] = {
-            cpuPct: insight.current.cpuPct,
-            memoryUsedPct: insight.current.memoryUsedPct,
+            cpuPct: curr.cpuPct,
+            memoryUsedPct: curr.memoryUsedPct,
+            memoryUsedBytes: curr.memoryUsedBytes,
+            memoryTotalBytes: curr.memoryTotalBytes,
+            storageUsedBytes: curr.storageUsedBytes,
+            networkInBps,
+            networkOutBps,
+            blockReadBps,
+            blockWriteBps,
           };
         }
         setServiceOverviewSummaries(next);
       } catch {
         if (!mounted) return;
-        setServiceOverviewSummaries({});
       }
     };
 
@@ -1679,9 +1829,25 @@ const NavServerSummary = () => {
   return (
     <Paper withBorder p="xs" mt="sm">
       <Text size="xs" fw={600} mb={4}>Server</Text>
-      <Text size="xs" c="dimmed">CPU {formatPercent(insights.current.cpuPct)}</Text>
-      <Text size="xs" c="dimmed">Mem {formatPercent(insights.current.memoryUsedPct)}</Text>
-      <Text size="xs" c="dimmed">Disk {formatPercent(insights.current.diskUsedPct)}</Text>
+      <Group gap={8} wrap="nowrap">
+        <InlineMetric
+          label={`CPU usage: ${formatPercentRounded(insights.current.cpuPct)} (load ${Math.round(insights.current.load1)}/${Math.round(insights.current.load5)}/${Math.round(insights.current.load15)})`}
+          value={formatPercentRounded(insights.current.cpuPct)}
+          icon={<IconCpu size={12} />}
+        />
+        <Text size="xs" c="gray.5">•</Text>
+        <InlineMetric
+          label={`Memory usage: ${formatBytesRounded(insights.current.memoryUsedBytes)} / ${formatBytesRounded(insights.current.memoryTotalBytes)} (${formatPercentRounded(insights.current.memoryUsedPct)})`}
+          value={formatBytesRounded(insights.current.memoryUsedBytes)}
+          icon={<IconServer size={12} />}
+        />
+        <Text size="xs" c="gray.5">•</Text>
+        <InlineMetric
+          label={`Disk usage: ${formatPercentRounded(insights.current.diskUsedPct)} (${formatBytesRounded(insights.current.diskUsedBytes)} / ${formatBytesRounded(insights.current.diskTotalBytes)})`}
+          value={formatBytesRounded(insights.current.diskUsedBytes)}
+          icon={<IconDatabase size={12} />}
+        />
+      </Group>
     </Paper>
   );
 };

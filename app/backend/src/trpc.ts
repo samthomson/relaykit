@@ -396,7 +396,7 @@ const getServiceInsightsFromDokploy = async (composeId: string): Promise<Service
 
   const appName = await loadComposeAppName(composeId)
   const filters = encodeURIComponent(JSON.stringify({ label: [`com.docker.compose.project=${appName}`] }))
-  const containers = await dockerSocketGetJson(`/containers/json?all=0&filters=${filters}`)
+  const containers = await dockerSocketGetJson(`/containers/json?all=0&size=1&filters=${filters}`)
 
   if (!Array.isArray(containers) || containers.length === 0) {
     throw new TRPCError({
@@ -416,8 +416,11 @@ const getServiceInsightsFromDokploy = async (composeId: string): Promise<Service
   let networkOutBytes = 0
   let blockReadBytes = 0
   let blockWriteBytes = 0
+  let storageUsedBytes = 0
 
-  for (const stats of statsList) {
+  for (let i = 0; i < statsList.length; i += 1) {
+    const stats = statsList[i]
+    const container = containers[i]
     cpuPct += getCpuPctFromStats(stats)
     const memUsed = toFiniteNumber(stats?.memory_stats?.usage)
     const memTotal = toFiniteNumber(stats?.memory_stats?.limit)
@@ -429,6 +432,7 @@ const getServiceInsightsFromDokploy = async (composeId: string): Promise<Service
     const io = getBlockIoTotals(stats)
     blockReadBytes += io.readBytes
     blockWriteBytes += io.writeBytes
+    storageUsedBytes += toFiniteNumber(container?.SizeRw)
   }
 
   const ts = Date.now()
@@ -438,6 +442,7 @@ const getServiceInsightsFromDokploy = async (composeId: string): Promise<Service
     memoryUsedPct: memoryTotalBytes > 0 ? toOneDecimal((memoryUsedBytes / memoryTotalBytes) * 100) : 0,
     memoryUsedBytes: Math.max(0, Math.round(memoryUsedBytes)),
     memoryTotalBytes: Math.max(0, Math.round(memoryTotalBytes)),
+    storageUsedBytes: Math.max(0, Math.round(storageUsedBytes)),
     networkInBytes: Math.max(0, Math.round(networkInBytes)),
     networkOutBytes: Math.max(0, Math.round(networkOutBytes)),
     blockReadBytes: Math.max(0, Math.round(blockReadBytes)),
