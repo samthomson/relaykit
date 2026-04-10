@@ -2,7 +2,6 @@ import { useState, useEffect, type Dispatch, type SetStateAction, type ReactNode
 import { BrowserRouter, Routes, Route, NavLink as RouterNavLink } from 'react-router-dom';
 import { toast } from 'sonner';
 import { nip19 } from 'nostr-tools';
-import pluralize from 'pluralize';
 import { RubixLoader, RubixLoaderColor } from '@samthomson/rubix-loader';
 import { trpc } from './trpc';
 import { useAuth } from './contexts/AuthContext';
@@ -1117,7 +1116,6 @@ const ServiceList = () => {
       ) : (
         <Stack gap="md">
           {grouped.map((project: any) => {
-            const projectServiceCount = project.environments.reduce((acc: number, e: any) => acc + e.services.length, 0);
             return (
               <Paper
                 key={project.projectId}
@@ -1141,12 +1139,9 @@ const ServiceList = () => {
                         inputStyle={{ flex: 1, minWidth: 120 }}
                         rowStyle={{ flex: 1, minWidth: 0 }}
                       />
-                      <Group gap="xs" wrap="nowrap" style={{ minHeight: INLINE_TITLE_ROW_H }} align="center">
-                        <Badge variant="filled" color="gray" size="sm">{projectServiceCount} {pluralize('service', projectServiceCount)}</Badge>
-                        <CogMenu items={[
-                          { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
-                        ]} />
-                      </Group>
+                      <CogMenu items={[
+                        { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
+                      ]} />
                     </>
                   ) : (
                     <>
@@ -1162,12 +1157,9 @@ const ServiceList = () => {
                           </ActionIcon>
                         )}
                       </Group>
-                      <Group gap="xs" wrap="nowrap" style={{ minHeight: INLINE_TITLE_ROW_H }} align="center">
-                        <Badge variant="filled" color="gray" size="sm">{projectServiceCount} {pluralize('service', projectServiceCount)}</Badge>
-                        <CogMenu items={[
-                          { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
-                        ]} />
-                      </Group>
+                      <CogMenu items={[
+                        { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
+                      ]} />
                     </>
                   )}
                 </Group>
