@@ -3,13 +3,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { LineChart } from '@mantine/charts';
 import { nip19 } from 'nostr-tools';
-import { RubixLoader, RubixLoaderColor } from '@samthomson/rubix-loader';
+import { RubixLoader } from '@samthomson/rubix-loader';
 import { SERVICE_TYPE } from '../../../shared/serviceType';
 import { parsePubkeyHex } from '../../../shared/nsite';
 import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, Box, Transition, Table, rem, Paper, SimpleGrid, useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { IconCopy, IconExternalLink, IconCheck, IconX, IconAlertOctagon, IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react';
 import { InlineTextEditRow } from './InlineTextEditRow';
 import { trpc } from '../trpc';
+import { serviceTypeToRubixLoaderColor } from '../lib/serviceTypeColor';
 import { formatBytes, formatBytesPerSecond, formatPercent, formatWindow, getInsightSeverity, getOverallSeverity, getSeverityColor } from '../../../shared/insights';
 
 const SHELL_H_MS = 480;
@@ -440,18 +441,11 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
   );
 };
 
-const serviceTypeLoaderColor = (serviceType?: string) => {
-  if (serviceType === SERVICE_TYPE.BLOSSOM) return RubixLoaderColor.Blossom;
-  if (serviceType === SERVICE_TYPE.NSITE) return RubixLoaderColor.Nsite;
-  if (serviceType === SERVICE_TYPE.RELAY) return RubixLoaderColor.NostrRs;
-  return RubixLoaderColor.RelayKit;
-};
-
 const ServiceDetailsInsights = ({ composeId, serviceType }: { composeId: string; serviceType?: string }) => {
   const [insights, setInsights] = useState<Awaited<ReturnType<typeof trpc.getServiceInsights.query>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const loaderColor = serviceTypeLoaderColor(serviceType);
+  const loaderColor = serviceTypeToRubixLoaderColor(serviceType);
 
   useEffect(() => {
     let mounted = true;
