@@ -1091,19 +1091,16 @@ const ServiceList = () => {
   return (
     <Stack gap="xl">
       <Group justify="flex-end">
-        <Group gap="xs">
-          <Text size="sm" c="dimmed">View:</Text>
-          <SegmentedControl
-            size="sm"
-            color="relaykit"
-            value={showDetails ? 'details' : 'overview'}
-            onChange={(v) => setShowDetails(v === 'details')}
-            data={[
-              { label: 'Overview', value: 'overview' },
-              { label: 'Details', value: 'details' },
-            ]}
-          />
-        </Group>
+        <SegmentedControl
+          size="xs"
+          color="relaykit"
+          value={showDetails ? 'details' : 'overview'}
+          onChange={(v) => setShowDetails(v === 'details')}
+          data={[
+            { label: 'overview', value: 'overview' },
+            { label: 'details', value: 'details' },
+          ]}
+        />
       </Group>
 
       {grouped.length === 0 ? (
