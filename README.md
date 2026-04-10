@@ -123,7 +123,20 @@ Then https://your-domain works in the browser and routes to the relay.
 
 ## Deploy
 
-Set `DEPLOY_HOST` (e.g. `root@1.2.3.4` or an SSH alias) and `DEPLOY_PATH` (repo path on server) in `.env`. Then: `./scripts/deploy.sh` or `./scripts/deploy.sh --rebuild`.
+Set `DEPLOY_HOST` (e.g. `root@1.2.3.4` or an SSH alias) and `DEPLOY_PATH` (repo path on server) in `.env`.
+
+- Legacy source-build deploy on server: `./scripts/deploy.sh`
+- Image-based deploy (recommended): `./scripts/deploy-image.sh`
+
+Image-based flow:
+1. GitHub Actions builds and pushes `ghcr.io/<owner>/relaykit-proto/relaykit` on pushes to `master`.
+2. Server pulls the image and recreates only `relaykit-prod`.
+
+Optional overrides for image deploy:
+- `IMAGE_TAG=<sha-or-tag> ./scripts/deploy-image.sh`
+- `IMAGE_NAME=ghcr.io/<owner>/relaykit-proto/relaykit ./scripts/deploy-image.sh`
+
+If GHCR package is private, run `docker login ghcr.io` on the server first (PAT with `read:packages`).
 
 ## Key Technical Details
 

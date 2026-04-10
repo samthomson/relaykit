@@ -124,9 +124,7 @@ services:
 
   relaykit-prod:
     profiles: ["prod"]
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${RELAYKIT_IMAGE:-ghcr.io/samthomson/relaykit-proto/relaykit:latest}
     restart: unless-stopped
     environment:
       - NODE_ENV=production
