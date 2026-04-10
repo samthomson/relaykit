@@ -202,7 +202,7 @@ export const NsiteDeployFields = ({
           {profileStatus === 'error' && (
             <Stack gap="sm">
               <Text size="sm" c="dimmed">Could not load profile events for this site pubkey from the network. Defaults remain in Advanced — you can edit there.</Text>
-              <Button size="xs" variant="outline" color="relay-orange" onClick={() => fetchProfile({ configSnapshot: config })}>
+              <Button size="xs" variant="outline" color="relaykit" onClick={() => fetchProfile({ configSnapshot: config })}>
                 Retry
               </Button>
             </Stack>

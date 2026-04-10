@@ -65,7 +65,7 @@ export const InlineTextEditRow = ({
         autoFocus={autoFocus}
       />
       <Tooltip label="Save">
-        <ActionIcon color="relay-orange" variant="light" size={actionSize} onClick={onSave} disabled={saveDisabled} aria-label="Save">
+        <ActionIcon color="relaykit" variant="light" size={actionSize} onClick={onSave} disabled={saveDisabled} aria-label="Save">
           <IconCheck size={iconPx} />
         </ActionIcon>
       </Tooltip>

@@ -232,7 +232,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                 <Button
                   size="xs"
                   variant="light"
-                  color="relay-orange"
+                  color="relaykit"
                   onClick={onOpenBlossomExplorer}
                   rightSection={<IconExternalLink size={12} />}
                 >
@@ -240,7 +240,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                 </Button>
               )}
               {service.type === SERVICE_TYPE.NSITE && (
-                <Anchor href={`${httpsUrl}/status`} target="_blank" size="xs" variant="light" color="relay-orange">Status</Anchor>
+                <Anchor href={`${httpsUrl}/status`} target="_blank" size="xs" variant="light" color="relaykit">Status</Anchor>
               )}
             </Group>
             {service.type === SERVICE_TYPE.NSITE && (
@@ -266,7 +266,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                   <Button
                     size="xs"
                     variant="light"
-                    color="relay-orange"
+                    color="relaykit"
                     onClick={onOpenRelayExplorer}
                     rightSection={<IconExternalLink size={12} />}
                   >
@@ -423,7 +423,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
           )}
           {requireNip42 && (
             <DetailBlock label="Auth">
-              <Badge color="relay-orange" variant="light">NIP-42 required</Badge>
+              <Badge color="relaykit" variant="light">NIP-42 required</Badge>
             </DetailBlock>
           )}
         </Stack>
@@ -567,7 +567,7 @@ const ServiceDetailsInsights = ({ composeId }: { composeId: string }) => {
             h={200}
             data={chartData}
             dataKey="time"
-            series={[{ name: 'cpu', color: 'relay-orange' }]}
+            series={[{ name: 'cpu', color: 'relaykit' }]}
             withDots={false}
             withLegend={false}
             yAxisProps={{ domain: [0, 100] }}

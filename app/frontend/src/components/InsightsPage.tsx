@@ -114,7 +114,7 @@ export const InsightsPage = () => {
           <Badge variant="filled" color={overallHealth.color} leftSection={overallHealth.icon}>
             Health: {overallHealth.label}
           </Badge>
-          <Badge variant="filled" color="relay-orange">Uptime: {formatUptime(current.uptimeSec)}</Badge>
+          <Badge variant="filled" color="relaykit">Uptime: {formatUptime(current.uptimeSec)}</Badge>
         </Group>
       </Group>
 
@@ -175,7 +175,7 @@ export const InsightsPage = () => {
             h={220}
             data={chartData}
             dataKey="time"
-            series={[{ name: 'cpu', color: 'relay-orange' }]}
+            series={[{ name: 'cpu', color: 'relaykit' }]}
             withDots={false}
             withLegend={false}
             yAxisProps={{ domain: [0, 100] }}
