@@ -1116,6 +1116,20 @@ const ServiceList = () => {
       ) : (
         <Stack gap="md">
           {grouped.map((project: any) => {
+            const projectItems = [
+              {
+                label: 'Add environment…',
+                onClick: () => {
+                  setNewEnvTarget(project.projectId);
+                  setNewEnvName('');
+                },
+              },
+              {
+                label: 'Delete group',
+                onClick: () => openDeleteGroupConfirm(project.projectId, project.name),
+                danger: true,
+              },
+            ];
             return (
               <Paper
                 key={project.projectId}
@@ -1139,9 +1153,7 @@ const ServiceList = () => {
                         inputStyle={{ flex: 1, minWidth: 120 }}
                         rowStyle={{ flex: 1, minWidth: 0 }}
                       />
-                      <CogMenu items={[
-                        { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
-                      ]} />
+                      <CogMenu items={projectItems} />
                     </>
                   ) : (
                     <>
@@ -1157,9 +1169,7 @@ const ServiceList = () => {
                           </ActionIcon>
                         )}
                       </Group>
-                      <CogMenu items={[
-                        { label: 'Delete group', onClick: () => openDeleteGroupConfirm(project.projectId, project.name), danger: true },
-                      ]} />
+                      <CogMenu items={projectItems} />
                     </>
                   )}
                 </Group>
@@ -1234,29 +1244,6 @@ const ServiceList = () => {
                             )}
                             <Group justify="flex-end" wrap="wrap" gap="sm" align="center">
                               <AddServiceButton compact preselectedEnvironmentId={env.environmentId} />
-                              {newEnvTarget === project.projectId ? (
-                                <>
-                                  <TextInput
-                                    size="xs"
-                                    placeholder="Environment name…"
-                                    value={newEnvName}
-                                    onChange={(e) => setNewEnvName(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleCreateEnvironment(project.projectId)}
-                                    style={{ width: 150 }}
-                                    autoFocus
-                                  />
-                                  <Button size="xs" color="relaykit" onClick={() => handleCreateEnvironment(project.projectId)} disabled={!newEnvName.trim()}>Add</Button>
-                                  <Button size="xs" variant="default" onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}>Cancel</Button>
-                                </>
-                              ) : (
-                                <Button
-                                  variant="subtle"
-                                  size="xs"
-                                  onClick={() => setNewEnvTarget(project.projectId)}
-                                >
-                                  + Add environment
-                                </Button>
-                              )}
                             </Group>
                           </Stack>
                         </Card>
@@ -1344,32 +1331,26 @@ const ServiceList = () => {
                           );
                         })}
                       </Group>
-                      <Group justify="flex-end">
-                        {newEnvTarget === project.projectId ? (
-                          <>
-                            <TextInput
-                              size="xs"
-                              placeholder="Environment name…"
-                              value={newEnvName}
-                              onChange={(e) => setNewEnvName(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && handleCreateEnvironment(project.projectId)}
-                              style={{ width: 150 }}
-                              autoFocus
-                            />
-                            <Button size="xs" color="relaykit" onClick={() => handleCreateEnvironment(project.projectId)} disabled={!newEnvName.trim()}>Add</Button>
-                            <Button size="xs" variant="default" onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}>Cancel</Button>
-                          </>
-                        ) : (
-                          <Button
-                            variant="subtle"
-                            size="xs"
-                            onClick={() => setNewEnvTarget(project.projectId)}
-                          >
-                            + Add environment
-                          </Button>
-                        )}
-                      </Group>
                     </>
+                  )}
+                  {newEnvTarget === project.projectId && (
+                    <Group justify="flex-end" wrap="wrap">
+                      <TextInput
+                        size="xs"
+                        placeholder="Environment name…"
+                        value={newEnvName}
+                        onChange={(e) => setNewEnvName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleCreateEnvironment(project.projectId)}
+                        style={{ width: 170 }}
+                        autoFocus
+                      />
+                      <Button size="xs" color="relaykit" onClick={() => handleCreateEnvironment(project.projectId)} disabled={!newEnvName.trim()}>
+                        Add
+                      </Button>
+                      <Button size="xs" variant="default" onClick={() => { setNewEnvTarget(null); setNewEnvName(''); }}>
+                        Cancel
+                      </Button>
+                    </Group>
                   )}
                 </Stack>
               </Paper>
@@ -1852,7 +1833,7 @@ const NavServerSummary = () => {
   if (!insights) return null;
   return (
     <Paper withBorder p="xs" mt="sm">
-      <Text size="xs" fw={600} mb={4}>Server</Text>
+      <Text size="xs" fw={600} mb={4}>server</Text>
       <Group gap={8} wrap="nowrap">
         <InlineMetric
           label={`CPU usage: ${formatPercentRounded(insights.current.cpuPct)} (load ${Math.round(insights.current.load1)}/${Math.round(insights.current.load5)}/${Math.round(insights.current.load15)})`}
@@ -1932,7 +1913,7 @@ const AppContent = () => {
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Item onClick={openAccountModal}>
-                  Identity
+                  identity
                 </Menu.Item>
                 <Menu.Item
                   closeMenuOnClick={false}
@@ -1950,7 +1931,7 @@ const AppContent = () => {
                 </Menu.Item>
                 <Menu.Divider />
                 <Menu.Item color="red" onClick={logout}>
-                  Logout
+                  logout
                 </Menu.Item>
               </Menu.Dropdown>
             </Menu>
@@ -1962,19 +1943,19 @@ const AppContent = () => {
             <NavLink
               component={RouterNavLink}
               to="/"
-              label="Services"
+              label="services"
               onClick={closeMobileMenu}
             />
             <NavLink
               component={RouterNavLink}
               to="/debug"
-              label="Debug"
+              label="debug"
               onClick={closeMobileMenu}
             />
             <NavLink
               component={RouterNavLink}
               to="/insights"
-              label="Insights"
+              label="insights"
               onClick={closeMobileMenu}
             />
           </AppShell.Section>
