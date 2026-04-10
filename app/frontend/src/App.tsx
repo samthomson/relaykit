@@ -1210,6 +1210,7 @@ const ServiceList = () => {
                           style={{
                             backgroundColor: envBg,
                             borderColor: envBorderColor,
+                            borderStyle: 'dashed',
                           }}
                         >
                           <Group justify="space-between" align="center" mb="xs" wrap="nowrap" w="100%" gap="xs" style={{ minHeight: INLINE_TITLE_ROW_H }}>
@@ -1286,7 +1287,7 @@ const ServiceList = () => {
                                 flex: '0 1 auto',
                                 minWidth: rem(200),
                                 maxWidth: '100%',
-                                border: `1px solid ${envBorderColor}`,
+                                border: `1px dashed ${envBorderColor}`,
                                 borderRadius: 0,
                                 backgroundColor: envBg,
                               }}

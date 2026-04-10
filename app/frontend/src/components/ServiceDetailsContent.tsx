@@ -5,7 +5,7 @@ import { LineChart } from '@mantine/charts';
 import { nip19 } from 'nostr-tools';
 import { SERVICE_TYPE } from '../../../shared/serviceType';
 import { parsePubkeyHex } from '../../../shared/nsite';
-import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, Box, Transition, Table, rem, Paper, SimpleGrid } from '@mantine/core';
+import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, Box, Transition, Table, rem, Paper, SimpleGrid, useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { IconCopy, IconExternalLink, IconCheck, IconX, IconAlertOctagon, IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react';
 import { InlineTextEditRow } from './InlineTextEditRow';
 import { trpc } from '../trpc';
@@ -15,16 +15,16 @@ const SHELL_H_MS = 480;
 const FADE_MS = 280;
 const HEIGHT_EASE = `${SHELL_H_MS / 1000}s cubic-bezier(0.33, 1, 0.68, 1)`;
 
-const LABEL_COL = 100;
+const LABEL_COL = 124;
 
 const monoBreakable = { wordBreak: 'break-all' as const, overflowWrap: 'anywhere' as const };
 
 const DetailBlock = ({ label, children }: { label: string; children: ReactNode }) => (
-  <Group align="flex-start" gap="sm" wrap="nowrap">
+  <Group align="flex-start" gap="lg" wrap="nowrap">
     <Text size="sm" fw={500} c="dimmed" w={LABEL_COL} style={{ flexShrink: 0 }}>
       {label}
     </Text>
-    <Stack gap={6} style={{ flex: 1, minWidth: 0 }}>
+    <Stack gap={10} style={{ flex: 1, minWidth: 0 }}>
       {children}
     </Stack>
   </Group>
@@ -204,7 +204,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
   const hasConfig = whitelistedKinds.length > 0 || blacklistedKinds.length > 0 || whitelistedPubkeys.length > 0 || requireNip42;
 
   return (
-    <Stack gap="md">
+    <Stack gap="xl">
       <DetailBlock label="Service ID">
         <Group gap="xs" wrap="wrap" align="flex-start">
           <Text size="xs" ff="monospace" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={service.composeId}>
@@ -615,18 +615,48 @@ const ServiceDetailsInsights = ({ composeId }: { composeId: string }) => {
 
 export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
   const { service, serverIp } = props;
+  const theme = useMantineTheme();
+  const colorScheme = useComputedColorScheme('light');
   const domain = service.domains?.[0];
   const hasDNS = domain && serverIp;
   const hasInsights = !!service.composeId;
+  const activePanelBg = colorScheme === 'dark' ? theme.colors.dark[8] : theme.colors.gray[0];
+  const panelShadow = colorScheme === 'dark'
+    ? '0 4px 12px rgba(0,0,0,0.18)'
+    : '0 4px 12px rgba(15,23,42,0.06)';
+  const activeTabBg = activePanelBg;
+  const activeTabColor = colorScheme === 'dark' ? theme.white : theme.black;
+  const inactiveTabColor = colorScheme === 'dark' ? theme.colors.gray[4] : theme.colors.gray[7];
+  const tabsRailBg = 'transparent';
+  const inactiveTabHoverBg = colorScheme === 'dark' ? theme.colors.dark[7] : theme.colors.gray[1];
+  const activeTabAccent = theme.colors.relaykit[6];
+  const panelContentStyle = {
+    minWidth: 0,
+    paddingTop: rem(18),
+    paddingRight: rem(18),
+    paddingBottom: rem(18),
+    paddingLeft: rem(24),
+    background: activePanelBg,
+  };
+  const getTabStyle = (active: boolean) => ({
+    background: active ? activeTabBg : 'transparent',
+    color: active ? activeTabColor : inactiveTabColor,
+    boxShadow: active ? `inset 3px 0 0 ${activeTabAccent}` : 'none',
+  });
 
   const [section, setSection] = useState('info');
   const innerRef = useRef<HTMLDivElement>(null);
   const [shellH, setShellH] = useState<number | null>(null);
+  const [maxShellH, setMaxShellH] = useState<number>(0);
 
   useLayoutEffect(() => {
     const el = innerRef.current;
     if (!el) return;
-    const measure = () => setShellH(Math.ceil(el.getBoundingClientRect().height));
+    const measure = () => {
+      const h = Math.ceil(el.getBoundingClientRect().height);
+      setShellH(h);
+      setMaxShellH((prev) => (h > prev ? h : prev));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -636,7 +666,7 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
   return (
     <Box
       style={{
-        height: shellH != null ? shellH : undefined,
+        height: shellH != null ? Math.max(shellH, maxShellH) : undefined,
         transition: shellH != null ? `height ${HEIGHT_EASE}` : undefined,
         overflow: 'hidden',
       }}
@@ -646,28 +676,48 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
           value={section}
           onChange={(v) => v != null && setSection(v)}
           orientation="vertical"
-          variant="outline"
+          variant="unstyled"
           styles={{
             root: { width: '100%' },
+            list: {
+              border: 'none',
+              background: tabsRailBg,
+            },
+            tab: {
+              color: inactiveTabColor,
+              fontWeight: 500,
+              paddingInline: rem(22),
+              paddingBlock: rem(13),
+              transition: 'background-color 120ms ease, color 120ms ease',
+              '&:hover': {
+                background: inactiveTabHoverBg,
+              },
+            },
           }}
         >
-          <Group align="flex-start" gap="lg" wrap="nowrap" w="100%">
-            <Tabs.List aria-label="Details sections" miw={rem(80)} style={{ flexShrink: 0 }}>
-              <Tabs.Tab value="info">Info</Tabs.Tab>
-              <Tabs.Tab value="dns">DNS</Tabs.Tab>
-              <Tabs.Tab value="insights">Insights</Tabs.Tab>
+          <Group align="stretch" gap={0} wrap="nowrap" w="100%">
+            <Tabs.List aria-label="Details sections" miw={rem(132)} style={{ flexShrink: 0 }}>
+              <Tabs.Tab value="info" style={getTabStyle(section === 'info')}>Info</Tabs.Tab>
+              <Tabs.Tab value="dns" style={getTabStyle(section === 'dns')}>DNS</Tabs.Tab>
+              <Tabs.Tab value="insights" style={getTabStyle(section === 'insights')}>Insights</Tabs.Tab>
             </Tabs.List>
-            <Box style={{ flex: 1, minWidth: 0, paddingTop: rem(2) }}>
+            <Box
+              style={{
+                flex: 1,
+                minWidth: 0,
+                boxShadow: panelShadow,
+              }}
+            >
               <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'info'}>
                 {(tStyle) => (
-                  <Box style={{ ...tStyle, minWidth: 0 }}>
+                  <Box style={{ ...panelContentStyle, ...tStyle }}>
                     <ServiceDetailsInfo {...props} />
                   </Box>
                 )}
               </Transition>
               <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'dns'}>
                 {(tStyle) => (
-                  <Box style={{ ...tStyle, minWidth: 0 }}>
+                  <Box style={{ ...panelContentStyle, ...tStyle }}>
                     {hasDNS ? (
                       <ServiceDetailsDns
                         service={service}
@@ -681,7 +731,7 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
               </Transition>
               <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'insights'}>
                 {(tStyle) => (
-                  <Box style={{ ...tStyle, minWidth: 0 }}>
+                  <Box style={{ ...panelContentStyle, ...tStyle }}>
                     {hasInsights ? <ServiceDetailsInsights composeId={service.composeId} /> : null}
                   </Box>
                 )}
