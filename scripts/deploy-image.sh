@@ -39,6 +39,10 @@ run_remote() {
   ssh "$DEPLOY_HOST" "cd \"$DEPLOY_PATH\" && $1"
 }
 
+echo "==> Syncing deploy config from git..."
+run_remote "git pull --ff-only"
+echo ""
+
 echo "==> Pulling image and recreating relaykit-prod..."
 run_remote "RELAYKIT_IMAGE=\"$FULL_IMAGE\" docker compose --profile prod pull relaykit-prod && RELAYKIT_IMAGE=\"$FULL_IMAGE\" docker compose --profile prod up -d --no-deps relaykit-prod"
 echo ""
