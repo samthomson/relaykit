@@ -446,7 +446,7 @@ const ServiceCard = ({
 }) => {
   const theme = useMantineTheme();
   const colorScheme = useComputedColorScheme('light');
-  const serviceCardBg = colorScheme === 'dark' ? theme.colors.dark[6] : theme.colors.gray[1];
+  const serviceCardBg = colorScheme === 'dark' ? theme.colors.dark[5] : theme.white;
   const [showExplorer, setShowExplorer] = useState(false);
   const [showBlossomExplorer, setShowBlossomExplorer] = useState(false);
   const [showMoveModal, setShowMoveModal] = useState(false);
@@ -731,6 +731,12 @@ const ServiceCard = ({
 };
 
 const ServiceList = () => {
+  const theme = useMantineTheme();
+  const colorScheme = useComputedColorScheme('light');
+  const projectBorderColor = colorScheme === 'dark' ? theme.colors.dark[4] : theme.colors.gray[4];
+  const projectBg = colorScheme === 'dark' ? theme.colors.dark[8] : theme.colors.gray[0];
+  const envBorderColor = colorScheme === 'dark' ? theme.colors.dark[3] : theme.colors.gray[4];
+  const envBg = colorScheme === 'dark' ? theme.colors.dark[7] : theme.colors.gray[1];
   const { refreshTrigger, triggerRefresh } = useRefreshServices();
   const { setDokployConnectionError, setDokployReady } = useDokploy();
   const { logout } = useAuth();
@@ -1113,7 +1119,15 @@ const ServiceList = () => {
           {grouped.map((project: any) => {
             const projectServiceCount = project.environments.reduce((acc: number, e: any) => acc + e.services.length, 0);
             return (
-              <Paper key={project.projectId} withBorder p="md">
+              <Paper
+                key={project.projectId}
+                withBorder
+                p="md"
+                style={{
+                  backgroundColor: projectBg,
+                  borderColor: projectBorderColor,
+                }}
+              >
                 <Group justify="space-between" mb="md" wrap="wrap" align="center" w="100%" style={{ minHeight: INLINE_TITLE_ROW_H }}>
                   {renamingProjectId === project.projectId ? (
                     <>
@@ -1162,7 +1176,15 @@ const ServiceList = () => {
                     project.environments.map((env: any) => {
                       const isDefaultEnv = env.isDefault === true;
                       return (
-                        <Card key={env.environmentId} withBorder padding="sm">
+                        <Card
+                          key={env.environmentId}
+                          withBorder
+                          padding="sm"
+                          style={{
+                            backgroundColor: envBg,
+                            borderColor: envBorderColor,
+                          }}
+                        >
                           <Group justify="space-between" align="center" mb="xs" wrap="nowrap" w="100%" gap="xs" style={{ minHeight: INLINE_TITLE_ROW_H }}>
                             {renamingEnvId === env.environmentId ? (
                               <InlineTextEditRow
@@ -1260,8 +1282,9 @@ const ServiceList = () => {
                                 flex: '0 1 auto',
                                 minWidth: rem(200),
                                 maxWidth: '100%',
-                                border: '1px solid var(--mantine-color-gray-4)',
+                                border: `1px solid ${envBorderColor}`,
                                 borderRadius: 0,
+                                backgroundColor: envBg,
                               }}
                             >
                               <Stack gap="sm" p="sm" pt="sm">
