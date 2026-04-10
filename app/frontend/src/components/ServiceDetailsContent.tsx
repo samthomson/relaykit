@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { LineChart } from '@mantine/charts';
 import { nip19 } from 'nostr-tools';
+import { RubixLoader, RubixLoaderColor } from '@samthomson/rubix-loader';
 import { SERVICE_TYPE } from '../../../shared/serviceType';
 import { parsePubkeyHex } from '../../../shared/nsite';
 import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, Box, Transition, Table, rem, Paper, SimpleGrid, useComputedColorScheme, useMantineTheme } from '@mantine/core';
@@ -439,10 +440,18 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
   );
 };
 
-const ServiceDetailsInsights = ({ composeId }: { composeId: string }) => {
+const serviceTypeLoaderColor = (serviceType?: string) => {
+  if (serviceType === SERVICE_TYPE.BLOSSOM) return RubixLoaderColor.Blossom;
+  if (serviceType === SERVICE_TYPE.NSITE) return RubixLoaderColor.Nsite;
+  if (serviceType === SERVICE_TYPE.RELAY) return RubixLoaderColor.NostrRs;
+  return RubixLoaderColor.RelayKit;
+};
+
+const ServiceDetailsInsights = ({ composeId, serviceType }: { composeId: string; serviceType?: string }) => {
   const [insights, setInsights] = useState<Awaited<ReturnType<typeof trpc.getServiceInsights.query>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loaderColor = serviceTypeLoaderColor(serviceType);
 
   useEffect(() => {
     let mounted = true;
@@ -470,7 +479,12 @@ const ServiceDetailsInsights = ({ composeId }: { composeId: string }) => {
   }, [composeId]);
 
   if (loading && !insights) {
-    return <Text size="sm" c="dimmed">Loading service insights…</Text>;
+    return (
+      <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(220) }}>
+        <RubixLoader size={42} colors={[loaderColor]} speed={1.35} />
+        <Text size="sm" c="dimmed">Loading service insights…</Text>
+      </Stack>
+    );
   }
 
   if (error && !insights) {
@@ -733,7 +747,7 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
               <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'insights'}>
                 {(tStyle) => (
                   <Box style={{ ...panelContentStyle, ...tStyle }}>
-                    {hasInsights ? <ServiceDetailsInsights composeId={service.composeId} /> : null}
+                    {hasInsights ? <ServiceDetailsInsights composeId={service.composeId} serviceType={service.type} /> : null}
                   </Box>
                 )}
               </Transition>
