@@ -34,6 +34,13 @@ const theme = createTheme({
         radius: 0,
       },
     },
+    Notification: {
+      defaultProps: {
+        radius: 0,
+        color: 'relaykit',
+        withBorder: true,
+      },
+    },
     SegmentedControl: {
       defaultProps: {
         color: 'relaykit',
@@ -55,7 +62,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <DokployProvider>
           <RefreshServicesProvider>
             <Notifications position="top-right" />
-            <Toaster position="top-right" richColors />
+            <Toaster
+              position="top-right"
+              richColors={false}
+              toastOptions={{
+                className: 'rk-toast',
+              }}
+            />
             <App />
           </RefreshServicesProvider>
         </DokployProvider>

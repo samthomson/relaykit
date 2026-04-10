@@ -17,3 +17,74 @@ body {
   font-family: "Ethnocentric", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   letter-spacing: 0.02em;
 }
+
+/* Sonner toast styling: square + relaykit palette */
+.rk-toast {
+  border-radius: 0 !important;
+  border: 1px solid var(--mantine-color-relaykit-6) !important;
+}
+
+[data-mantine-color-scheme="dark"] .rk-toast {
+  background: var(--mantine-color-dark-6) !important;
+  color: var(--mantine-color-relaykit-1) !important;
+}
+
+[data-mantine-color-scheme="light"] .rk-toast {
+  background: var(--mantine-color-relaykit-0) !important;
+  color: var(--mantine-color-relaykit-9) !important;
+}
+
+.rk-toast[data-type="success"],
+.rk-toast[data-type="info"],
+.rk-toast[data-type="warning"],
+.rk-toast[data-type="error"] {
+  border-color: var(--mantine-color-relaykit-5) !important;
+}
+
+[data-mantine-color-scheme="dark"] .rk-toast[data-type="success"] {
+  background: #132219 !important;
+  color: #c6f6d5 !important;
+  border-color: var(--mantine-color-green-6) !important;
+}
+
+[data-mantine-color-scheme="dark"] .rk-toast[data-type="info"] {
+  background: #161b2a !important;
+  color: #dbe4ff !important;
+  border-color: var(--mantine-color-blue-6) !important;
+}
+
+[data-mantine-color-scheme="dark"] .rk-toast[data-type="warning"] {
+  background: #2a220f !important;
+  color: #fde68a !important;
+  border-color: var(--mantine-color-yellow-6) !important;
+}
+
+[data-mantine-color-scheme="dark"] .rk-toast[data-type="error"] {
+  background: #2a1518 !important;
+  color: #fecaca !important;
+  border-color: var(--mantine-color-red-6) !important;
+}
+
+[data-mantine-color-scheme="light"] .rk-toast[data-type="success"] {
+  background: #eefcf2 !important;
+  color: #1f6d3a !important;
+  border-color: var(--mantine-color-green-6) !important;
+}
+
+[data-mantine-color-scheme="light"] .rk-toast[data-type="info"] {
+  background: #eef3ff !important;
+  color: #2b4a8a !important;
+  border-color: var(--mantine-color-blue-6) !important;
+}
+
+[data-mantine-color-scheme="light"] .rk-toast[data-type="warning"] {
+  background: #fff8e8 !important;
+  color: #8a6b1f !important;
+  border-color: var(--mantine-color-yellow-6) !important;
+}
+
+[data-mantine-color-scheme="light"] .rk-toast[data-type="error"] {
+  background: #fff0f0 !important;
+  color: #8a2f3b !important;
+  border-color: var(--mantine-color-red-6) !important;
+}
