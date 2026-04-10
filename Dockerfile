@@ -39,6 +39,7 @@ RUN yarn global add tsx
 
 # Copy only runtime sources and built frontend.
 COPY app/backend ./backend
+COPY app/presets ./presets
 COPY app/shared ./shared
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
