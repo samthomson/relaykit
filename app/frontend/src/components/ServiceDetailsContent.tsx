@@ -705,6 +705,7 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
               style={{
                 flex: 1,
                 minWidth: 0,
+                background: activePanelBg,
                 boxShadow: panelShadow,
               }}
             >
