@@ -12,8 +12,8 @@ export const SERVER_INSIGHTS = {
   sampleIntervalMs: 5000,
   historyMaxPoints: 120,
   thresholds: {
-    cpu: { warn: 70, critical: 90 },
-    memory: { warn: 75, critical: 90 },
-    disk: { warn: 80, critical: 92 },
+    cpu: { warn: 70, critical: 85 },
+    memory: { warn: 70, critical: 85 },
+    disk: { warn: 70, critical: 85 },
   },
 } as const
