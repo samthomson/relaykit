@@ -29,6 +29,8 @@ export const formatBytes = (bytes: number): string => {
   return `${size.toFixed(1)} ${units[idx]}`
 }
 
+export const formatBytesPerSecond = (bytesPerSec: number): string => `${formatBytes(bytesPerSec)}/s`
+
 export const formatUptime = (uptimeSec: number): string => {
   const days = Math.floor(uptimeSec / 86400)
   const hours = Math.floor((uptimeSec % 86400) / 3600)
@@ -101,6 +103,30 @@ export type ServerInsightsResponse = {
   thresholds: ServerInsightsConfig['thresholds']
   current: ServerInsightSnapshot
   history: ServerInsightPoint[]
+}
+
+export type ServiceInsightPoint = {
+  ts: number
+  cpuPct: number
+  memoryUsedPct: number
+  memoryUsedBytes: number
+  memoryTotalBytes: number
+  networkInBytes: number
+  networkOutBytes: number
+  blockReadBytes: number
+  blockWriteBytes: number
+}
+
+export type ServiceInsightsResponse = {
+  composeId: string
+  appName: string
+  sampleIntervalMs: number
+  thresholds: {
+    cpu: { warn: number; critical: number }
+    memory: { warn: number; critical: number }
+  }
+  current: ServiceInsightPoint
+  history: ServiceInsightPoint[]
 }
 
 export const createServerInsightsCollector = (config: ServerInsightsConfig) => {
