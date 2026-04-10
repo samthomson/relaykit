@@ -14,7 +14,7 @@ import { ServiceDetailsContent } from './components/ServiceDetailsContent';
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from './components/InlineTextEditRow';
 import { ServiceHostTitleView } from './components/ServiceHostTitleView';
 import { InsightsPage } from './components/InsightsPage';
-import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, SimpleGrid, rem, useMantineColorScheme, Switch } from '@mantine/core';
+import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, SimpleGrid, rem, useMantineColorScheme, Switch, useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconCopy, IconExternalLink, IconPencil, IconCpu, IconDatabase, IconServer } from '@tabler/icons-react';
 
@@ -444,6 +444,9 @@ const ServiceCard = ({
     blockWriteBps: number | null;
   } | null;
 }) => {
+  const theme = useMantineTheme();
+  const colorScheme = useComputedColorScheme('light');
+  const serviceCardBg = colorScheme === 'dark' ? theme.colors.dark[6] : theme.colors.gray[1];
   const [showExplorer, setShowExplorer] = useState(false);
   const [showBlossomExplorer, setShowBlossomExplorer] = useState(false);
   const [showMoveModal, setShowMoveModal] = useState(false);
@@ -520,6 +523,7 @@ const ServiceCard = ({
       <Paper
         withBorder
         p={showDetails ? 'md' : 'sm'}
+        bg={serviceCardBg}
         style={showDetails ? undefined : { width: 260, maxWidth: '100%', flexShrink: 0 }}
       >
         {showDetails ? (
