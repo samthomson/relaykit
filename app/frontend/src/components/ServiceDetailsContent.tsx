@@ -517,7 +517,7 @@ const ServiceDetailsInsights = ({ composeId }: { composeId: string }) => {
   const historyWindowLabel = formatWindow(historyWindowSec);
 
   return (
-    <Stack gap="md">
+    <Stack gap="lg">
       <Group justify="space-between" align="flex-end">
         <Stack gap={2}>
           <Text fw={600}>Service runtime</Text>
@@ -532,15 +532,15 @@ const ServiceDetailsInsights = ({ composeId }: { composeId: string }) => {
         <Text size="xs" c="dimmed">Last refresh error: {error}</Text>
       )}
 
-      <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
-        <Paper withBorder p="md">
+      <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
+        <Paper withBorder p="lg">
           <Group justify="space-between" mb={6}>
             <Text fw={600}>CPU</Text>
             <Badge variant="filled" color={getSeverityColor(cpuSeverity)}>{cpuSeverity}</Badge>
           </Group>
           <Text size="xl" fw={700}>{formatPercent(current.cpuPct)}</Text>
         </Paper>
-        <Paper withBorder p="md">
+        <Paper withBorder p="lg">
           <Group justify="space-between" mb={6}>
             <Text fw={600}>Memory</Text>
             <Badge variant="filled" color={getSeverityColor(memSeverity)}>{memSeverity}</Badge>
@@ -550,7 +550,7 @@ const ServiceDetailsInsights = ({ composeId }: { composeId: string }) => {
             {formatBytes(current.memoryUsedBytes)} / {formatBytes(current.memoryTotalBytes)}
           </Text>
         </Paper>
-        <Paper withBorder p="md">
+        <Paper withBorder p="lg">
           <Text fw={600}>Network + disk I/O</Text>
           <Text size="sm" mt={8}>In: {formatBytesPerSecond(latest?.rx || 0)}</Text>
           <Text size="sm">Out: {formatBytesPerSecond(latest?.tx || 0)}</Text>
@@ -560,8 +560,8 @@ const ServiceDetailsInsights = ({ composeId }: { composeId: string }) => {
         </Paper>
       </SimpleGrid>
 
-      <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
-        <Paper withBorder p="md">
+      <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
+        <Paper withBorder p="lg">
           <Text fw={600} mb="sm">CPU trend</Text>
           <LineChart
             h={200}
@@ -576,7 +576,7 @@ const ServiceDetailsInsights = ({ composeId }: { composeId: string }) => {
           />
           <Text size="xs" c="dimmed" mt={8}>Window: last {historyWindowLabel}</Text>
         </Paper>
-        <Paper withBorder p="md">
+        <Paper withBorder p="lg">
           <Text fw={600} mb="sm">Memory trend</Text>
           <LineChart
             h={200}
@@ -591,7 +591,7 @@ const ServiceDetailsInsights = ({ composeId }: { composeId: string }) => {
           />
           <Text size="xs" c="dimmed" mt={8}>Window: last {historyWindowLabel}</Text>
         </Paper>
-        <Paper withBorder p="md">
+        <Paper withBorder p="lg">
           <Text fw={600} mb="sm">Network trend</Text>
           <LineChart
             h={200}

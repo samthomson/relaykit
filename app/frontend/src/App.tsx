@@ -712,7 +712,7 @@ const ServiceCard = ({
                   <CogMenu showLabel items={manageItems} />
                 </Group>
               }
-              size="lg"
+              size="82vw"
               centered
               styles={{
                 header: { alignItems: 'center' },
