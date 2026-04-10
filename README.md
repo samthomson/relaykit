@@ -144,6 +144,12 @@ If GHCR package is private, run `docker login ghcr.io` on the server first (PAT 
 - Backend calls Dokploy's REST API (need to find API docs)
 - Dokploy runs on `http://dokploy:3000` (accessible via Docker network)
 
+## Branding Assets
+
+- Header wordmark uses `Ethnocentric-Regular.otf` in `app/frontend/src/assets/fonts/`.
+- Source archive was provided as `~/Desktop/ethnocentric.zip`.
+- License reference is included at `app/frontend/src/assets/fonts/Typodermic Desktop EULA 2023.pdf`.
+
 RelayKit has two domain flows: **create a service (with domain in one go)** and **change a service's domain later**.
 
 | RelayKit action | Dokploy APIs (in order) |

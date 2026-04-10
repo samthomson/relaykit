@@ -1885,25 +1885,14 @@ const AppContent = () => {
           <Group h="100%" px="md" justify="space-between">
             <Group gap="xs">
               <Burger opened={mobileMenuOpened} onClick={toggleMobileMenu} hiddenFrom="sm" size="sm" />
-              <Box
-                style={{
-                  // width: 30,
-                  // height: 30,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  lineHeight: 0,
-                  flexShrink: 0,
-                  transform: 'translateY(1px)',
-                }}
-              >
+              <Box style={{ lineHeight: 0, flexShrink: 0 }}>
                 <RubixLoader
                   size={40}
                   speed={0.9}
                   colors={rubixLoaderColors}
                 />
               </Box>
-              <Title order={3} c="relay-orange">RelayKit</Title>
+              <Title order={3} c="relay-orange" className="brand-title">RelayKit</Title>
             </Group>
             <Menu shadow="md" width={200}>
               <Menu.Target>
