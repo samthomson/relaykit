@@ -12,6 +12,7 @@ import { RefreshServicesProvider } from './contexts/RefreshServicesContext';
 
 const theme = createTheme({
   primaryColor: 'relaykit',
+  defaultRadius: 0,
   colors: {
     relaykit: [
       '#f4efff',
@@ -28,19 +29,15 @@ const theme = createTheme({
   },
   fontFamily: '"SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
   components: {
-    Button: {
+    SegmentedControl: {
       defaultProps: {
-        radius: 'md',
+        color: 'relaykit',
       },
     },
-    Card: {
+    NavLink: {
       defaultProps: {
-        radius: 'md',
-      },
-    },
-    Modal: {
-      defaultProps: {
-        radius: 'md',
+        variant: 'light',
+        color: 'relaykit',
       },
     },
   },
