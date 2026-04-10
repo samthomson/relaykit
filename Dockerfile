@@ -6,7 +6,8 @@ COPY app/frontend/package.json app/frontend/yarn.lock ./
 RUN yarn install --frozen-lockfile --network-timeout 600000
 
 COPY app/frontend .
-COPY app/shared ../shared
+COPY app/shared ./shared
+RUN ln -s /app/frontend/shared /app/shared
 RUN yarn build
 
 FROM node:20-alpine
