@@ -70,7 +70,7 @@ relaykit-proto/
 
 **Dev:** Everything runs in Docker
 - `docker compose --profile dev up --build`
-- Dokploy: http://localhost:3000
+- Dokploy: http://localhost:3020
 - RelayKit Frontend: http://localhost:5173
 - RelayKit Backend: http://localhost:4000
 
