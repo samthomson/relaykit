@@ -1081,8 +1081,7 @@ const ServiceList = () => {
 
   return (
     <Stack gap="xl" mt="xl">
-      <Group justify="space-between">
-        <Title order={2}>Services</Title>
+      <Group justify="flex-end">
         <Group gap="xs">
           <Text size="sm" c="dimmed">View:</Text>
           <SegmentedControl
@@ -1744,7 +1743,6 @@ const DebugPage = () => {
 
   return (
     <Stack gap="xl" p="xl">
-      <Title order={2}>Debug Info</Title>
       <Paper withBorder p="md">
         <Text fw={500} mb="sm">Identity</Text>
         <Stack gap="sm">
