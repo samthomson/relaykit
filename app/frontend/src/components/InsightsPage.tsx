@@ -88,7 +88,7 @@ export const InsightsPage = () => {
     disk: Number(p.diskUsedPct.toFixed(1)),
   }));
   const historyWindowSec = Math.max(0, Math.round((chartData.length * insights.sampleIntervalMs) / 1000));
-  const historyWindowLabel = formatUptime(historyWindowSec);
+  const historyWindowLabel = formatWindow(historyWindowSec);
   const rssPressure = getPressure(processRssPct);
   const heapPressure = getPressure(processHeapPct);
   const overallSeverity = getOverallSeverity([cpuSeverity, memSeverity, diskSeverity]);
