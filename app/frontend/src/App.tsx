@@ -1087,20 +1087,48 @@ const ServiceList = () => {
 
   const displayProjectName = (name: string) => 
     name === 'relaykit.ungrouped' ? '' : name;
+  const viewToggleBg = colorScheme === 'dark' ? '#111315' : theme.colors.gray[1];
 
   return (
     <Stack gap="xl">
       <Group justify="flex-end">
-        <SegmentedControl
-          size="xs"
-          color="relaykit"
-          value={showDetails ? 'details' : 'overview'}
-          onChange={(v) => setShowDetails(v === 'details')}
-          data={[
-            { label: 'overview', value: 'overview' },
-            { label: 'details', value: 'details' },
-          ]}
-        />
+        <Box
+          style={{
+            border: 'none',
+            background: viewToggleBg,
+            paddingTop: 3,
+            paddingBottom: 4,
+            paddingInline: 4,
+          }}
+        >
+          <SegmentedControl
+            size="xs"
+            color="relaykit"
+            value={showDetails ? 'details' : 'overview'}
+            onChange={(v) => setShowDetails(v === 'details')}
+            data={[
+              { label: 'overview', value: 'overview' },
+              { label: 'details', value: 'details' },
+            ]}
+            styles={{
+              root: {
+                border: 'none',
+                background: 'transparent',
+                padding: 0,
+              },
+              indicator: {
+                border: 'none',
+                boxShadow: 'none',
+              },
+              control: {
+                border: 'none',
+              },
+              label: {
+                paddingInline: 18,
+              },
+            }}
+          />
+        </Box>
       </Group>
 
       {grouped.length === 0 ? (
