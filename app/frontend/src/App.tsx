@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, NavLink as RouterNavLink } from 'react-ro
 import { toast } from 'sonner';
 import { nip19 } from 'nostr-tools';
 import pluralize from 'pluralize';
+import { RubixLoader, RubixLoaderColor } from '@samthomson/rubix-loader';
 import { trpc } from './trpc';
 import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
@@ -54,6 +55,14 @@ const formatBytesPerSecondRounded = (bytesPerSec: number | null): string => {
   if (bytesPerSec === null || !Number.isFinite(bytesPerSec)) return '—'
   return `${formatBytesRounded(bytesPerSec)}/s`
 }
+
+const rubixLoaderColors = [
+  RubixLoaderColor.RelayKit,
+  RubixLoaderColor.Strfry,
+  RubixLoaderColor.NostrRs,
+  RubixLoaderColor.Blossom,
+  RubixLoaderColor.Nsite,
+]
 
 const CogMenu = ({
   items,
@@ -1876,6 +1885,24 @@ const AppContent = () => {
           <Group h="100%" px="md" justify="space-between">
             <Group gap="xs">
               <Burger opened={mobileMenuOpened} onClick={toggleMobileMenu} hiddenFrom="sm" size="sm" />
+              <Box
+                style={{
+                  // width: 30,
+                  // height: 30,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 0,
+                  flexShrink: 0,
+                  transform: 'translateY(1px)',
+                }}
+              >
+                <RubixLoader
+                  size={40}
+                  speed={0.9}
+                  colors={rubixLoaderColors}
+                />
+              </Box>
               <Title order={3} c="relay-orange">RelayKit</Title>
             </Group>
             <Menu shadow="md" width={200}>
