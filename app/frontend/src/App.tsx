@@ -15,7 +15,7 @@ import { ServiceHostTitleView } from './components/ServiceHostTitleView';
 import { InsightsPage } from './components/InsightsPage';
 import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, SimpleGrid, rem, useMantineColorScheme, Switch, useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconChevronDown, IconCopy, IconExternalLink, IconPencil, IconCpu, IconDatabase, IconServer } from '@tabler/icons-react';
+import { IconChevronDown, IconCopy, IconExternalLink, IconPencil, IconCpu, IconDatabase, IconServer, IconKey } from '@tabler/icons-react';
 
 function getIdentityKeys(key: string | null): { hex: string | null; npub: string | null } {
   if (!key) return { hex: null, npub: null };
@@ -472,6 +472,20 @@ const ServiceCard = ({
   manageItems.push({ label: 'Delete', onClick: () => onDelete(service.composeId, service.name), danger: true });
 
   const statusColor = service.status === 'running' ? 'green' : service.status === 'error' ? 'red' : 'gray';
+  const showNip42Badge = service.type === SERVICE_TYPE.RELAY && String(service.serviceType || '').toLowerCase() === 'nostr-rs-relay';
+  const nip42Enabled = !!service.requireNip42;
+  const nip42Badge = showNip42Badge ? (
+    <Badge
+      variant="light"
+      color={nip42Enabled ? 'green' : 'gray'}
+      size="xs"
+      w="fit-content"
+      leftSection={<IconKey size={11} />}
+      style={nip42Enabled ? undefined : { textDecoration: 'line-through' }}
+    >
+      nip-42
+    </Badge>
+  ) : null;
   const summaryView = summary ?? {
     cpuPct: null,
     memoryUsedPct: null,
@@ -557,7 +571,12 @@ const ServiceCard = ({
                     onEditDomain={onEditDomain}
                     onEditConfig={onEditConfig}
                     rowStyle={{ flex: 1, minWidth: 0 }}
-                    trailing={<Badge variant="filled" color={statusColor} size="sm">{service.status}</Badge>}
+                    trailing={
+                      <Group gap={6} wrap="nowrap">
+                        <Badge variant="filled" color={statusColor} size="sm">{service.status}</Badge>
+                        {nip42Badge}
+                      </Group>
+                    }
                   />
                 )}
               </Group>
@@ -601,7 +620,10 @@ const ServiceCard = ({
                         rowStyle={{ minWidth: 0, flex: 1 }}
                       />
                     )}
-                    <Badge variant="filled" color={statusColor} size="xs" w="fit-content">{service.status}</Badge>
+                    <Group gap={6} wrap="wrap">
+                      <Badge variant="filled" color={statusColor} size="xs" w="fit-content">{service.status}</Badge>
+                      {nip42Badge}
+                    </Group>
                     {service.status === 'running' && (
                       <Stack gap={4}>
                         <Group gap={8} wrap="nowrap">
@@ -707,6 +729,7 @@ const ServiceCard = ({
                       onEditDomain={onEditDomain}
                       onEditConfig={onEditConfig}
                       rowStyle={{ flex: 1, minWidth: 0 }}
+                      trailing={nip42Badge}
                     />
                   )}
                   <CogMenu showLabel items={manageItems} />
