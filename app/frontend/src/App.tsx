@@ -1,4 +1,4 @@
-import { useState, useEffect, type Dispatch, type SetStateAction, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, NavLink as RouterNavLink } from 'react-router-dom';
 import { toast } from 'sonner';
 import { nip19 } from 'nostr-tools';
@@ -15,6 +15,7 @@ import { ServiceHostTitleView } from './components/ServiceHostTitleView';
 import { InsightsPage } from './components/InsightsPage';
 import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, SimpleGrid, rem, useMantineColorScheme, Switch, useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { useForm } from '@mantine/form';
 import { IconChevronDown, IconCopy, IconExternalLink, IconPencil, IconCpu, IconDatabase, IconServer, IconKey } from '@tabler/icons-react';
 
 function getIdentityKeys(key: string | null): { hex: string | null; npub: string | null } {
@@ -295,7 +296,7 @@ const AddServiceButton = ({
       ? buildNsiteDeployDefaults(preset, npub)
       : Object.fromEntries(
           preset.requiredConfig
-            .filter((f: any) => f.default)
+            .filter((f: any) => f.default !== undefined && f.default !== null && String(f.default).length > 0)
             .map((f: any) => [f.id, f.default]),
         );
     setDeployConfig(defaults);
@@ -304,17 +305,16 @@ const AddServiceButton = ({
     setDeployModalOpen(true);
   };
 
-  const handleDeploy = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleDeploy = async (payload: { environmentId: string; config: Record<string, string> }) => {
     setLoading(true);
     setDeployResult(null);
     try {
       const isNsite = selectedPreset.id === SERVICE_TYPE.NSITE;
-      const config = isNsite ? prepareNsiteConfigForSave(deployConfig) : deployConfig;
+      const config = isNsite ? prepareNsiteConfigForSave(payload.config) : payload.config;
       await trpc.deployService.mutate({
         presetId: selectedPreset.id,
         config,
-        environmentId: selectedEnvironmentId || undefined,
+        environmentId: payload.environmentId || undefined,
       });
       toast.success('Service deployment started!');
       setDeployModalOpen(false);
@@ -362,15 +362,13 @@ const AddServiceButton = ({
       {deployModalOpen && selectedPreset && (
         <DeployModal
           preset={selectedPreset}
-          deployConfig={deployConfig}
-          setDeployConfig={setDeployConfig}
+          initialConfig={deployConfig}
           loading={loading}
           deployResult={deployResult}
           onSubmit={handleDeploy}
           onClose={() => setDeployModalOpen(false)}
           environments={environments}
-          selectedEnvironmentId={selectedEnvironmentId}
-          setSelectedEnvironmentId={setSelectedEnvironmentId}
+          initialEnvironmentId={selectedEnvironmentId}
           ownerPubkeyHex={npub}
         />
       )}
@@ -981,15 +979,14 @@ const ServiceList = () => {
     }
   };
 
-  const handleSaveConfig = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveConfig = async (nextValues: Record<string, string>) => {
     if (!editingConfigService) return;
     setSavingConfig(true);
     try {
       const configToSave =
         editingConfigService.type === SERVICE_TYPE.NSITE
-          ? prepareNsiteConfigForSave(editingConfigValues)
-          : editingConfigValues;
+          ? prepareNsiteConfigForSave(nextValues)
+          : nextValues;
       await trpc.updateServiceConfig.mutate({
         composeId: editingConfigService.composeId,
         config: configToSave,
@@ -1466,8 +1463,7 @@ const ServiceList = () => {
           loading={loadingConfigModal}
           service={editingConfigService}
           fields={editingConfigFields}
-          values={editingConfigValues}
-          setValues={setEditingConfigValues}
+          initialValues={editingConfigValues}
           onSubmit={handleSaveConfig}
           onClose={() => {
             if (savingConfig) return;
@@ -1484,27 +1480,23 @@ const ServiceList = () => {
 
 const DeployModal = ({
   preset,
-  deployConfig,
-  setDeployConfig,
+  initialConfig,
   loading,
   deployResult,
   onSubmit,
   onClose,
   environments,
-  selectedEnvironmentId,
-  setSelectedEnvironmentId,
+  initialEnvironmentId,
   ownerPubkeyHex,
 }: {
   preset: any;
-  deployConfig: Record<string, string>;
-  setDeployConfig: (c: Record<string, string> | ((p: Record<string, string>) => Record<string, string>)) => void;
+  initialConfig: Record<string, string>;
   loading: boolean;
   deployResult: any;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (payload: { environmentId: string; config: Record<string, string> }) => void | Promise<void>;
   onClose: () => void;
   environments: { environmentId: string; label: string }[];
-  selectedEnvironmentId: string;
-  setSelectedEnvironmentId: (id: string) => void;
+  initialEnvironmentId: string;
   ownerPubkeyHex: string | null;
 }) => {
   const byGroup = environments.reduce<Record<string, { environmentId: string; label: string }[]>>((acc, env) => {
@@ -1515,18 +1507,58 @@ const DeployModal = ({
   }, {});
   const groupNames = Object.keys(byGroup);
   const isNsite = preset.id === SERVICE_TYPE.NSITE;
+  const form = useForm<Record<string, string>>({
+    initialValues: { environmentId: initialEnvironmentId || '', ...initialConfig },
+    validateInputOnChange: true,
+    validate: (values: Record<string, string>) => {
+      const errors: Record<string, string> = {};
+      if (!(values.environmentId || '').trim()) {
+        errors.environmentId = 'Environment is required';
+      }
+      if (!isNsite) {
+        for (const field of preset.requiredConfig || []) {
+          if (!field.required || field.type === 'boolean') continue;
+          if (!(values[field.id] || '').trim()) {
+            errors[field.id] = `${field.name} is required`;
+          }
+        }
+      }
+      return errors;
+    },
+  });
 
-  const renderField = (field: any) => (
-    <div key={field.id} style={{ marginBottom: 'var(--mantine-spacing-md)' }}>
+  useEffect(() => {
+    form.setValues({ environmentId: initialEnvironmentId || '', ...initialConfig });
+    form.clearErrors();
+  }, [initialEnvironmentId, initialConfig]);
+
+  const canSubmit = !loading && form.isValid();
+
+  const renderField = (field: any) => {
+    if (field.type === 'boolean') {
+      const checked = (form.values[field.id] || String(field.default || 'false')).toLowerCase() === 'true';
+      return (
+        <Switch
+          key={field.id}
+          label={field.name}
+          description={field.description}
+          checked={checked}
+          onChange={(e) => form.setFieldValue(field.id, e.currentTarget.checked ? 'true' : 'false')}
+        />
+      );
+    }
+
+    return (
       <TextInput
+        key={field.id}
         label={field.name}
         description={field.description}
         required={field.required}
-        value={deployConfig[field.id] ?? field.default ?? ''}
-        onChange={(e) => setDeployConfig((c) => ({ ...c, [field.id]: e.target.value }))}
+        {...form.getInputProps(field.id)}
+        value={form.values[field.id] ?? String(field.default ?? '')}
       />
-    </div>
-  );
+    );
+  };
 
   return (
     <Modal opened onClose={onClose} title={
@@ -1537,13 +1569,19 @@ const DeployModal = ({
     } size="md" centered styles={{ body: { maxHeight: '85vh', overflow: 'auto' } }}>
       <Stack gap="md">
         {preset.description && <Text size="sm" c="dimmed">{preset.description}</Text>}
-        <form onSubmit={onSubmit}>
+        <form
+          onSubmit={form.onSubmit((values: Record<string, string>) => {
+            const { environmentId, ...config } = values;
+            void onSubmit({ environmentId, config });
+          })}
+        >
           <Stack gap="md">
             <Select
               label="Deploy into"
               placeholder="Select environment…"
-              value={selectedEnvironmentId}
-              onChange={(v) => setSelectedEnvironmentId(v || '')}
+              value={form.values.environmentId || null}
+              onChange={(v) => form.setFieldValue('environmentId', v || '')}
+              error={form.errors.environmentId}
               required
               data={groupNames.flatMap((groupName) => [
                 { group: groupName, items: byGroup[groupName].map((env) => ({ value: env.environmentId, label: env.label })) }
@@ -1552,8 +1590,14 @@ const DeployModal = ({
             {isNsite ? (
               <NsiteDeployFields
                 preset={preset}
-                config={deployConfig}
-                setConfig={setDeployConfig}
+                config={Object.fromEntries(Object.entries(form.values).filter(([k]) => k !== 'environmentId')) as Record<string, string>}
+                setConfig={(next) => {
+                  const prev = Object.fromEntries(Object.entries(form.values).filter(([k]) => k !== 'environmentId')) as Record<string, string>;
+                  const resolved = typeof next === 'function' ? next(prev) : next;
+                  for (const [key, value] of Object.entries(resolved)) {
+                    form.setFieldValue(key, String(value ?? ''));
+                  }
+                }}
                 ownerPubkeyHex={ownerPubkeyHex}
                 autoFetchProfile
               />
@@ -1566,12 +1610,12 @@ const DeployModal = ({
                 <pre style={{ fontSize: 12, whiteSpace: 'pre-wrap' }}>{JSON.stringify(deployResult, null, 2)}</pre>
               </Paper>
             )}
-            <Group grow>
-              <Button type="submit" color="green" loading={loading} disabled={!selectedEnvironmentId}>
-                {loading ? 'Deploying...' : 'Deploy'}
-              </Button>
+            <Group justify="space-between">
               <Button variant="default" onClick={onClose} disabled={loading}>
                 Cancel
+              </Button>
+              <Button type="submit" color="green" loading={loading} disabled={!canSubmit}>
+                {loading ? 'Deploying...' : 'Deploy'}
               </Button>
             </Group>
           </Stack>
@@ -1585,8 +1629,7 @@ const ConfigEditModal = ({
   loading,
   service,
   fields,
-  values,
-  setValues,
+  initialValues,
   onSubmit,
   onClose,
   saving,
@@ -1594,25 +1637,61 @@ const ConfigEditModal = ({
   loading: boolean;
   service: any | null;
   fields: any[];
-  values: Record<string, string>;
-  setValues: Dispatch<SetStateAction<Record<string, string>>>;
-  onSubmit: (e: React.FormEvent) => void;
+  initialValues: Record<string, string>;
+  onSubmit: (values: Record<string, string>) => void | Promise<void>;
   onClose: () => void;
   saving: boolean;
 }) => {
   const isNsite = service?.type === SERVICE_TYPE.NSITE;
   const fakePreset = isNsite ? { id: SERVICE_TYPE.NSITE, requiredConfig: fields } : null;
+  const form = useForm<Record<string, string>>({
+    initialValues,
+    validateInputOnChange: true,
+    validate: (vals: Record<string, string>) => {
+      const errors: Record<string, string> = {};
+      if (isNsite) return errors;
+      for (const field of fields) {
+        if (!field.required || field.type === 'boolean') continue;
+        if (!(vals[field.id] || '').trim()) {
+          errors[field.id] = `${field.name} is required`;
+        }
+      }
+      return errors;
+    },
+  });
 
-  const renderConfigField = (field: any) => (
-    <div key={field.id} style={{ marginBottom: 'var(--mantine-spacing-md)' }}>
+  useEffect(() => {
+    form.setValues(initialValues);
+    form.clearErrors();
+  }, [initialValues]);
+
+  const canSubmit = !saving && form.isValid();
+
+  const renderConfigField = (field: any) => {
+    if (field.type === 'boolean') {
+      const checked = (form.values[field.id] || String(field.default || 'false')).toLowerCase() === 'true';
+      return (
+        <Switch
+          key={field.id}
+          label={field.name}
+          description={field.description}
+          checked={checked}
+          onChange={(e) => form.setFieldValue(field.id, e.currentTarget.checked ? 'true' : 'false')}
+        />
+      );
+    }
+
+    return (
       <TextInput
+        key={field.id}
         label={field.name}
         description={field.description}
-        value={values[field.id] ?? field.default ?? ''}
-        onChange={(e) => setValues((v) => ({ ...v, [field.id]: e.target.value }))}
+        required={field.required}
+        {...form.getInputProps(field.id)}
+        value={form.values[field.id] ?? String(field.default ?? '')}
       />
-    </div>
-  );
+    );
+  };
 
   return (
     <Modal opened onClose={onClose} title="Edit Config" size="md" centered styles={{ body: { maxHeight: '85vh', overflow: 'auto' } }}>
@@ -1628,24 +1707,29 @@ const ConfigEditModal = ({
             <Button onClick={onClose} fullWidth>Close</Button>
           </>
         ) : (
-          <form onSubmit={onSubmit}>
+          <form onSubmit={form.onSubmit((vals: Record<string, string>) => void onSubmit(vals))}>
             <Stack gap="md">
               {isNsite && fakePreset ? (
                 <NsiteDeployFields
                   preset={fakePreset}
-                  config={values}
-                  setConfig={setValues}
+                  config={form.values}
+                  setConfig={(next) => {
+                    const resolved = typeof next === 'function' ? next(form.values) : next;
+                    for (const [key, value] of Object.entries(resolved)) {
+                      form.setFieldValue(key, String(value ?? ''));
+                    }
+                  }}
                   ownerPubkeyHex={null}
                 />
               ) : (
                 fields.map(renderConfigField)
               )}
-              <Group grow>
-                <Button type="submit" color="green" loading={saving}>
-                  {saving ? 'Saving...' : 'Save + Redeploy'}
-                </Button>
+              <Group justify="space-between">
                 <Button variant="default" onClick={onClose} disabled={saving}>
                   Cancel
+                </Button>
+                <Button type="submit" color="green" loading={saving} disabled={!canSubmit}>
+                  {saving ? 'Saving...' : 'Save + Redeploy'}
                 </Button>
               </Group>
             </Stack>
