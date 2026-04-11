@@ -198,5 +198,6 @@ RelayKit has two domain flows: **create a service (with domain in one go)** and 
    - [ ] aesthetic reset; colours, ui elements, look
 
 - [ ] perf stuff
-   - [ ] overall
-   - [ ] per service
+   - [x] overall
+   - [x] per service
+   - [ ] 21 mins
