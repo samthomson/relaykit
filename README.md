@@ -39,6 +39,7 @@ Browser → RelayKit App → Dokploy API
 | Service         | Repo | Notes |
 |-----------------|------|-------|
 | nostr-rs-relay  | [scsibug/nostr-rs-relay](https://github.com/scsibug/nostr-rs-relay) | |
+| nogringo/nostr-relay | [nogringo/nostr-relay](https://github.com/nogringo/nostr-relay) | NIP-17/59 relay with NIP-42 auth-gated gift-wrap reads (`kind:1059`). |
 | Strfry          | [hoytech/strfry](https://github.com/hoytech/strfry) | |
 | Blossom         | [hzrd149/blossom](https://github.com/hzrd149/blossom) | |
 | nsite gateway   | [hzrd149/nsite-gateway](https://github.com/hzrd149/nsite-gateway) | Static sites on Nostr (NIP-5A). Deploys two containers: the gateway itself and a Caddy sidecar that rewrites the `Host` header to the canonical NIP-5A hostname before proxying to the gateway. This lets users set a friendly custom domain while the gateway still resolves the correct site. |
@@ -58,6 +59,7 @@ relaykit-proto/
     └── presets/      (service docker-compose templates)
         ├── strfry-relay/
         ├── nostr-rs-relay/
+        ├── nogringo-nostr-relay/
         ├── blossom/
         └── nsite/
             ├── docker-compose.yml
@@ -186,6 +188,11 @@ next:
 - [ ] what happens if I try to create a project with a domain already in use on another project?
 - [ ] figure out full ssl for relaykit instance itself
 - [ ] haven and or other dm relays
+- [ ] service logs
+- [ ] way better relay explorer app
+- [ ] improve blossom app
+- [ ] improve/make nsite app
+- [ ] negentropy app
 
 maybe later:
 - [ ] expose volumes to user so they can manage (view/delete/optional: create service from volume)
