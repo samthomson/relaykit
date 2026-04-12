@@ -175,24 +175,25 @@ RelayKit has two domain flows: **create a service (with domain in one go)** and 
 
 ## todo
 
-- [ ] convey real deployment status in UI (not assumed success) - especially as it starts up, to know when it's "ready"
+issues:
+- [ ] dns check in prod not working right
 
+next:
+- [ ] convey real deployment status in UI (not assumed success) - especially as it starts up, to know when it's "ready"
+   - [ ] inc adding a new service, doesn't appear immediately in the ui
+   - [ ] restart ui option. 
+   - [ ] loader while service comes online, until started (and healthy?)
+- [ ] what happens if I try to create a project with a domain already in use on another project?
+- [ ] figure out full ssl for relaykit instance itself
 - [ ] haven and or other dm relays
 
-- [ ] can more things be exposed from stirfry, like whitelist kinds and users (and default blacklist all). and then how to reload to get this config?
-
+maybe later:
 - [ ] expose volumes to user so they can manage (view/delete/optional: create service from volume)
 
-- [ ] what happens if I try to create a project with a domain already in use on another project?
 
-- [ ] some high level things per service (disk space used, maybe cpu/mem usage too? network traffic?)
-
-- [ ] in ui dns, make both values (name & ip) copyable
-
-- [ ] figure out full ssl for relaykit instance itself
 
 - [ ] ui rewrite
-   - [ ] table for dns
+   - [x] table for dns
    - [ ] rubix state/loading component
    - [ ] brand font
    - [ ] aesthetic reset; colours, ui elements, look
@@ -201,3 +202,4 @@ RelayKit has two domain flows: **create a service (with domain in one go)** and 
    - [x] overall
    - [x] per service
    - [ ] 21 mins
+   
