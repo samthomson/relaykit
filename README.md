@@ -198,12 +198,13 @@ maybe later:
 - [ ] expose volumes to user so they can manage (view/delete/optional: create service from volume)
 
 
-
 - [ ] ui rewrite
    - [x] table for dns
    - [ ] rubix state/loading component
    - [ ] brand font
    - [ ] aesthetic reset; colours, ui elements, look
+   - [ ] wss not exposed in overview
+   - [ ] tidy up service details modal
 
 - [ ] perf stuff
    - [x] overall
