@@ -1,7 +1,7 @@
 {
   "id": "npanel",
   "name": "nPanel",
-  "label": "npanel",
+  "label": "nPanel",
   "repo": "https://github.com/hzrd149/nsite-gateway",
   "icon": "◈",
   "description": "nPanel: nsite gateway + built-in NIP-05 names on the same domain.",
