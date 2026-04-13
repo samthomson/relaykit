@@ -191,7 +191,7 @@ next:
 - [ ] service logs
 - [ ] way better relay explorer app
 - [ ] improve blossom app
-- [ ] improve/make npanel app
+- [ ] improve/make nPanel app
 - [ ] negentropy app
 
 maybe later:
