@@ -452,11 +452,19 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
   );
 };
 
-const ServiceDetailsInsights = ({ composeId, serviceType }: { composeId: string; serviceType?: string }) => {
+const ServiceDetailsInsights = ({
+  composeId,
+  serviceType,
+  presetLabel,
+}: {
+  composeId: string;
+  serviceType?: string | null;
+  presetLabel?: string | null;
+}) => {
   const [insights, setInsights] = useState<Awaited<ReturnType<typeof trpc.getServiceInsights.query>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const loaderColor = serviceTypeToRubixLoaderColor(serviceType);
+  const loaderColor = serviceTypeToRubixLoaderColor(serviceType, presetLabel);
 
   useEffect(() => {
     let mounted = true;
@@ -752,7 +760,13 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
               <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'insights'}>
                 {(tStyle) => (
                   <Box style={{ ...panelContentStyle, ...tStyle }}>
-                    {hasInsights ? <ServiceDetailsInsights composeId={service.composeId} serviceType={service.type} /> : null}
+                    {hasInsights ? (
+                      <ServiceDetailsInsights
+                        composeId={service.composeId}
+                        serviceType={service.type}
+                        presetLabel={service.serviceType}
+                      />
+                    ) : null}
                   </Box>
                 )}
               </Transition>

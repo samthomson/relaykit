@@ -61,7 +61,7 @@ const rubixLoaderColors = [
   RubixLoaderColor.Strfry,
   RubixLoaderColor.NostrRs,
   RubixLoaderColor.Blossom,
-  RubixLoaderColor.Nsite,
+  RubixLoaderColor.Npanel,
 ]
 
 const CogMenu = ({

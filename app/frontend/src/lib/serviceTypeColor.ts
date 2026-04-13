@@ -1,10 +1,18 @@
 import { RubixLoaderColor } from '@samthomson/rubix-loader';
 import { SERVICE_TYPE, isNpanelType, type ServiceType } from '../../../shared/serviceType';
 
-export const serviceTypeToRubixLoaderColor = (serviceType?: string | null) => {
-  if (serviceType === SERVICE_TYPE.BLOSSOM) return RubixLoaderColor.Blossom;
-  if (isNpanelType(serviceType)) return RubixLoaderColor.Nsite;
-  if (serviceType === SERVICE_TYPE.RELAY) return RubixLoaderColor.NostrRs;
+export const serviceTypeToRubixLoaderColor = (
+  type?: string | null,
+  presetLabel?: string | null,
+) => {
+  if (type === SERVICE_TYPE.BLOSSOM) return RubixLoaderColor.Blossom;
+  if (isNpanelType(type)) return RubixLoaderColor.Npanel;
+  if (type === SERVICE_TYPE.RELAY) {
+    const key = (presetLabel || '').trim().toLowerCase();
+    if (key.includes('strfry') || key === 'stirfry') return RubixLoaderColor.Strfry;
+    if (key.includes('nostr-rs') || key.includes('nostr_rs')) return RubixLoaderColor.NostrRs;
+    return RubixLoaderColor.NostrRs;
+  }
   return RubixLoaderColor.RelayKit;
 };
 
