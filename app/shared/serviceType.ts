@@ -3,3 +3,6 @@ export type ServiceType = (typeof SERVICE_TYPE)[keyof typeof SERVICE_TYPE]
 
 export const isNpanelType = (serviceType?: string | null): boolean =>
   serviceType === SERVICE_TYPE.NPANEL
+
+export const isRelayType = (serviceType?: string | null): boolean =>
+  serviceType === SERVICE_TYPE.RELAY

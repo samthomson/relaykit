@@ -7,12 +7,13 @@ import { trpc } from './trpc';
 import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
 import { useRefreshServices } from './contexts/RefreshServicesContext';
-import { SERVICE_TYPE, isNpanelType } from '../../shared/serviceType';
+import { SERVICE_TYPE, isNpanelType, isRelayType } from '../../shared/serviceType';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from './components/NsiteDeployFields';
 import { ServiceDetailsContent } from './components/ServiceDetailsContent';
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from './components/InlineTextEditRow';
 import { ServiceHostTitleView } from './components/ServiceHostTitleView';
 import { InsightsPage } from './components/InsightsPage';
+import { serviceTypeToRubixLoaderColor } from './lib/serviceTypeColor';
 import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, SimpleGrid, rem, useMantineColorScheme, Switch, useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useForm } from '@mantine/form';
@@ -63,6 +64,35 @@ const rubixLoaderColors = [
   RubixLoaderColor.Blossom,
   RubixLoaderColor.Npanel,
 ]
+
+const ServiceTypeIcon = ({ service, size, marginRight }: { service: any; size: number; marginRight?: number }) => {
+  if (!service.icon) return null;
+  const accent = serviceTypeToRubixLoaderColor(service.type, service.presetId);
+  const tip = service.brokenPreset
+    ? 'misconfigured service'
+    : String(service.serviceType || service.type || 'service');
+  return (
+    <Tooltip label={tip} withArrow>
+      <Box
+        component="span"
+        style={{
+          display: 'inline-flex',
+          width: size,
+          height: size,
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          marginRight: marginRight ?? 0,
+          marginTop: size >= 22 ? 3 : undefined,
+          color: accent,
+          lineHeight: 1,
+        }}
+      >
+        <span style={{ fontSize: Math.max(12, size - 6), lineHeight: 1 }}>{service.icon}</span>
+      </Box>
+    </Tooltip>
+  );
+};
 
 const CogMenu = ({
   items,
@@ -451,6 +481,7 @@ const ServiceCard = ({
   const domain = service.domains?.[0];
   const isEditing = editingDomain?.domainId === domain?.domainId;
   const httpsUrl = domain ? `https://${domain.host}` : '';
+  const statusNorm = String(service.status ?? '').toLowerCase();
   const moveTargets = allEnvironments.filter((env) => env.environmentId !== service.environmentId);
   const manageItems: { label: string; onClick: () => void; danger?: boolean }[] = [];
   if (domain && !isEditing) {
@@ -459,7 +490,7 @@ const ServiceCard = ({
   if (service.canEditConfig) {
     manageItems.push({ label: 'Edit Config', onClick: () => onEditConfig(service) });
   }
-  if (service.status === 'running') {
+  if (statusNorm === 'running') {
     manageItems.push({ label: 'Stop', onClick: () => onStop(service.composeId) });
   } else {
     manageItems.push({ label: 'Start', onClick: () => onStart(service.composeId) });
@@ -469,14 +500,9 @@ const ServiceCard = ({
   }
   manageItems.push({ label: 'Delete', onClick: () => onDelete(service.composeId, service.name), danger: true });
 
-  const statusColor = service.status === 'running' ? 'green' : service.status === 'error' ? 'red' : 'gray';
+  const statusColor = statusNorm === 'running' ? 'green' : statusNorm === 'error' ? 'red' : 'gray';
   const isBrokenPreset = !!service.brokenPreset;
-  const brokenCardStyle = isBrokenPreset
-    ? {
-        borderColor: 'var(--mantine-color-red-5)',
-        background: 'rgba(255, 59, 48, 0.08)',
-      }
-    : undefined;
+  const brokenCardStyle = isBrokenPreset ? { background: 'rgba(255, 59, 48, 0.06)' } : undefined;
   const brokenContentStyle = isBrokenPreset ? { opacity: 0.35, pointerEvents: 'none' as const } : undefined;
   const brokenOverlay = isBrokenPreset ? (
     <Box
@@ -491,17 +517,17 @@ const ServiceCard = ({
         zIndex: 2,
       }}
     >
-      <Paper withBorder p="sm" style={{ borderColor: 'var(--mantine-color-red-6)', background: 'rgba(255,255,255,0.9)' }}>
+      <Paper p="sm" shadow="sm" style={{ background: 'rgba(255,255,255,0.95)' }}>
         <Group gap={6} align="center" justify="center" wrap="nowrap">
           <IconAlertTriangle size={16} color="var(--mantine-color-red-7)" />
           <Text size="sm" fw={700} c="red">
-            Misconfigured
+            misconfigured
           </Text>
       </Group>
       </Paper>
     </Box>
   ) : null;
-  const showNip42Badge = service.type === SERVICE_TYPE.RELAY && String(service.serviceType || '').toLowerCase() === 'nostr-rs-relay';
+  const showNip42Badge = isRelayType(service.type) && service.presetId === 'nostr-rs-relay';
   const nip42Enabled = !!service.requireNip42;
   const nip42Badge = showNip42Badge ? (
     <Badge
@@ -589,11 +615,7 @@ const ServiceCard = ({
                 wrap="nowrap"
                 style={{ minWidth: 0, flex: 1, minHeight: INLINE_TITLE_ROW_H, ...brokenContentStyle }}
               >
-                {service.icon && (
-                  <span style={{ display: 'inline-flex', width: 20, height: 20, alignItems: 'center', justifyContent: 'center', marginRight: 6, flexShrink: 0 }}>
-                    {service.icon}
-                  </span>
-                )}
+                <ServiceTypeIcon service={service} size={20} marginRight={6} />
                 {isEditing && domain ? (
                   <InlineTextEditRow
                     value={newDomainHost}
@@ -604,7 +626,7 @@ const ServiceCard = ({
                     density="comfortable"
                     inputStyle={{ flex: 1, minWidth: 0 }}
                     rowStyle={{ flex: 1, minWidth: 0 }}
-                    trailing={<Badge variant="filled" color={statusColor} size="sm">{service.status}</Badge>}
+                    trailing={<Badge variant="filled" color={statusColor} size="sm">{statusNorm}</Badge>}
                   />
                 ) : (
                   <ServiceHostTitleView
@@ -619,7 +641,7 @@ const ServiceCard = ({
                     rowStyle={{ flex: 1, minWidth: 0 }}
                     trailing={
                       <Group gap={6} wrap="nowrap">
-                        <Badge variant="filled" color={statusColor} size="sm">{service.status}</Badge>
+                        <Badge variant="filled" color={statusColor} size="sm">{statusNorm}</Badge>
                         {nip42Badge}
                       </Group>
                     }
@@ -639,11 +661,7 @@ const ServiceCard = ({
             <Stack gap="sm">
               <Group justify="space-between" align="flex-start" wrap="nowrap" gap="xs">
                 <Group align="flex-start" gap="xs" style={{ minWidth: 0, flex: 1, ...brokenContentStyle }}>
-                  {service.icon && (
-                    <span style={{ display: 'inline-flex', width: 22, height: 22, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 3 }}>
-                      {service.icon}
-                    </span>
-                  )}
+                  <ServiceTypeIcon service={service} size={22} />
                   <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
                     {isEditing && domain ? (
                       <InlineTextEditRow
@@ -669,10 +687,10 @@ const ServiceCard = ({
                       />
                     )}
                     <Group gap={6} wrap="wrap">
-                      <Badge variant="filled" color={statusColor} size="xs" w="fit-content">{service.status}</Badge>
+                      <Badge variant="filled" color={statusColor} size="xs" w="fit-content">{statusNorm}</Badge>
                       {nip42Badge}
                     </Group>
-                    {service.status === 'running' && (
+                    {statusNorm === 'running' && (
                       <Stack gap={4}>
                         <Group gap={8} wrap="nowrap">
                           <InlineMetric
@@ -724,7 +742,7 @@ const ServiceCard = ({
                   <Text size="xs" c="dimmed" fs="italic">No domain configured</Text>
                 )}
                 <Group gap="xs" wrap="wrap">
-                  {domain && service.type === SERVICE_TYPE.RELAY && (
+                  {domain && isRelayType(service.type) && (
                     <Button
                       size="xs"
                       variant="light"
@@ -732,7 +750,7 @@ const ServiceCard = ({
                       onClick={() => setShowExplorer(true)}
                       rightSection={<IconExternalLink size={12} />}
                     >
-                      Explorer
+                      explorer
                     </Button>
                   )}
                   {domain && service.type === SERVICE_TYPE.BLOSSOM && (
@@ -743,11 +761,11 @@ const ServiceCard = ({
                       onClick={() => setShowBlossomExplorer(true)}
                       rightSection={<IconExternalLink size={12} />}
                     >
-                      Explorer
+                      explorer
                     </Button>
                   )}
                   <Button size="xs" variant="light" color="gray" onClick={() => setDetailsModalOpen(true)}>
-                    Details
+                    details
                   </Button>
                 </Group>
               </Box>

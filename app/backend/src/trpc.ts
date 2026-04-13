@@ -12,7 +12,6 @@ import {
   DEFAULT_PROJECT_NAME,
   SERVER_INSIGHTS,
   SERVICE_INSIGHTS,
-  SERVICE_TYPE,
 } from './constants'
 import { isNpanelType } from '../../shared/serviceType'
 import { applyNsiteHostnameToEnv, finalizeNsiteRouterEnv, normalizeNpanelNip05UsersEnv, NPANEL_NIP05_USERS_ENV_KEY } from '../../shared/nsite'
@@ -613,7 +612,8 @@ export const appRouter = router({
             services.push({
               composeId: compose.composeId,
               name: compose.name,
-              serviceType: `Misconfigured (${presetId})`,
+              presetId,
+              serviceType: `misconfigured (${presetId})`,
               status: 'error',
               createdAt: compose.createdAt,
               hostname: compose.domains?.[0]?.host || 'No hostname configured',
@@ -654,8 +654,9 @@ export const appRouter = router({
           services.push({
             composeId: compose.composeId,
             name: compose.name,
+            presetId: presetData.id,
             serviceType: presetData.label,
-            status: runtimeStatus,
+            status: String(runtimeStatus).toLowerCase(),
             createdAt: compose.createdAt,
             hostname: hostname || 'No hostname configured',
             domains: compose.domains || [],

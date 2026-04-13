@@ -4,7 +4,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { LineChart } from '@mantine/charts';
 import { nip19 } from 'nostr-tools';
 import { RubixLoader } from '@samthomson/rubix-loader';
-import { SERVICE_TYPE, isNpanelType } from '../../../shared/serviceType';
+import { SERVICE_TYPE, isNpanelType, isRelayType } from '../../../shared/serviceType';
 import { parsePubkeyHex } from '../../../shared/nsite';
 import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, Box, Transition, Table, rem, Paper, SimpleGrid, useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { IconCopy, IconExternalLink, IconCheck, IconX, IconAlertOctagon, IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react';
@@ -263,7 +263,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
               </Text>
             )}
           </DetailBlock>
-          {service.type === SERVICE_TYPE.RELAY && (
+          {isRelayType(service.type) && (
             <DetailBlock label="WSS">
               <Group gap="xs" wrap="wrap" align="flex-start">
                 <Text size="xs" ff="monospace" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={wssUrl}>
@@ -455,16 +455,16 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
 const ServiceDetailsInsights = ({
   composeId,
   serviceType,
-  presetLabel,
+  presetId,
 }: {
   composeId: string;
   serviceType?: string | null;
-  presetLabel?: string | null;
+  presetId?: string | null;
 }) => {
   const [insights, setInsights] = useState<Awaited<ReturnType<typeof trpc.getServiceInsights.query>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const loaderColor = serviceTypeToRubixLoaderColor(serviceType, presetLabel);
+  const loaderColor = serviceTypeToRubixLoaderColor(serviceType, presetId);
 
   useEffect(() => {
     let mounted = true;
@@ -764,7 +764,7 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
                       <ServiceDetailsInsights
                         composeId={service.composeId}
                         serviceType={service.type}
-                        presetLabel={service.serviceType}
+                        presetId={service.presetId}
                       />
                     ) : null}
                   </Box>

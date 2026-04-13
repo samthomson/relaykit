@@ -1,17 +1,20 @@
 import { RubixLoaderColor } from '@samthomson/rubix-loader';
-import { SERVICE_TYPE, isNpanelType, type ServiceType } from '../../../shared/serviceType';
+import { SERVICE_TYPE, isNpanelType, isRelayType, type ServiceType } from '../../../shared/serviceType';
 
-export const serviceTypeToRubixLoaderColor = (
-  type?: string | null,
-  presetLabel?: string | null,
-) => {
+type RubixColor = (typeof RubixLoaderColor)[keyof typeof RubixLoaderColor];
+
+/** Preset folder id (`metadata.id`) → cube color. New relays: add a row here. */
+const RELAY_PRESET_RUBIX: Partial<Record<string, RubixColor>> = {
+  stirfry: RubixLoaderColor.Strfry,
+  'nostr-rs-relay': RubixLoaderColor.NostrRs,
+};
+
+export const serviceTypeToRubixLoaderColor = (type?: string | null, presetId?: string | null) => {
   if (type === SERVICE_TYPE.BLOSSOM) return RubixLoaderColor.Blossom;
   if (isNpanelType(type)) return RubixLoaderColor.Npanel;
-  if (type === SERVICE_TYPE.RELAY) {
-    const key = (presetLabel || '').trim().toLowerCase();
-    if (key.includes('strfry') || key === 'stirfry') return RubixLoaderColor.Strfry;
-    if (key.includes('nostr-rs') || key.includes('nostr_rs')) return RubixLoaderColor.NostrRs;
-    return RubixLoaderColor.NostrRs;
+  if (isRelayType(type)) {
+    const key = (presetId || '').trim();
+    return (key && RELAY_PRESET_RUBIX[key]) || RubixLoaderColor.NostrRs;
   }
   return RubixLoaderColor.RelayKit;
 };
