@@ -42,7 +42,7 @@ Browser → RelayKit App → Dokploy API
 | nogringo/nostr-relay | [nogringo/nostr-relay](https://github.com/nogringo/nostr-relay) | NIP-17/59 relay with NIP-42 auth-gated gift-wrap reads (`kind:1059`). |
 | Strfry          | [hoytech/strfry](https://github.com/hoytech/strfry) | |
 | Blossom         | [hzrd149/blossom](https://github.com/hzrd149/blossom) | |
-| nsite gateway   | [hzrd149/nsite-gateway](https://github.com/hzrd149/nsite-gateway) | Static sites on Nostr (NIP-5A). Deploys two containers: the gateway itself and a Caddy sidecar that rewrites the `Host` header to the canonical NIP-5A hostname before proxying to the gateway. This lets users set a friendly custom domain while the gateway still resolves the correct site. |
+| nPanel          | [hzrd149/nsite-gateway](https://github.com/hzrd149/nsite-gateway) | Static sites on Nostr (NIP-5A) plus same-domain NIP-05 responses. Deploys nsite-gateway, a NIP-05 JSON sidecar, and a Caddy sidecar that serves `/.well-known/nostr.json` while rewriting `Host` for gateway traffic. |
 
 ## Project Structure
 
@@ -61,7 +61,7 @@ relaykit-proto/
         ├── nostr-rs-relay/
         ├── nogringo-nostr-relay/
         ├── blossom/
-        └── nsite/
+        └── npanel/
             ├── docker-compose.yml
             └── metadata.json
 ```
@@ -191,7 +191,7 @@ next:
 - [ ] service logs
 - [ ] way better relay explorer app
 - [ ] improve blossom app
-- [ ] improve/make nsite app
+- [ ] improve/make npanel app
 - [ ] negentropy app
 
 maybe later:

@@ -13,8 +13,9 @@ import {
   SERVER_INSIGHTS,
   SERVICE_INSIGHTS,
   SERVICE_TYPE,
+  isNpanelType,
 } from './constants'
-import { applyNsiteHostnameToEnv, finalizeNsiteRouterEnv } from '../../shared/nsite'
+import { applyNsiteHostnameToEnv, finalizeNsiteRouterEnv, normalizeNpanelNip05UsersEnv, NPANEL_NIP05_USERS_ENV_KEY } from '../../shared/nsite'
 import { createServerInsightsCollector, type ServiceInsightsResponse } from '../../shared/insights'
 
 const t = initTRPC.context<{ auth: AuthContext | null; noBootstrapKey?: boolean; host?: string }>().create()
@@ -103,7 +104,8 @@ const getEditablePresetFields = (preset: PresetMetadata): PresetField[] => {
 }
 
 const getPresetMetadata = async (presetId: string) => {
-  const metadata = await fs.readFile(path.join(PRESETS_DIR, presetId, 'metadata.json'), 'utf-8')
+  const normalizedPresetId = presetId === 'nsite' ? SERVICE_TYPE.NPANEL : presetId
+  const metadata = await fs.readFile(path.join(PRESETS_DIR, normalizedPresetId, 'metadata.json'), 'utf-8')
   return JSON.parse(metadata) as PresetMetadata
 }
 
@@ -486,6 +488,7 @@ export const appRouter = router({
     const presets = []
     try {
       for (const dir of await fs.readdir(PRESETS_DIR)) {
+        if (dir === 'nsite') continue
         try {
           presets.push(await getPresetMetadata(dir))
         } catch {
@@ -603,7 +606,15 @@ export const appRouter = router({
         for (const compose of environment.compose || []) {
           const presetId = compose.description
           if (!presetId) throw new Error(`Service ${compose.name} has no preset ID`)
-          const presetData = await getPresetMetadata(presetId)
+          let presetData: PresetMetadata
+          try {
+            presetData = await getPresetMetadata(presetId)
+          } catch (error: any) {
+            console.warn(
+              `Skipping compose ${compose.composeId} (${compose.name}) because preset metadata is missing for "${presetId}": ${error?.message || 'unknown error'}`,
+            )
+            continue
+          }
           if (!presetData.label) throw new Error(`Preset ${presetId} has no label`)
           const envVars = parseServiceEnvVarsString(compose.env)
           
@@ -617,7 +628,7 @@ export const appRouter = router({
           
           const domainKey = presetData.domainConfigKey ?? 'RELAY_HOST'
           const hostname =
-            presetData.id === SERVICE_TYPE.NSITE
+            isNpanelType(presetData.id)
               ? envVars.NSITE_ROUTER_HOST || envVars.NSITE_DOMAIN || envVars[domainKey]
               : envVars[domainKey]
           services.push({
@@ -772,13 +783,14 @@ export const appRouter = router({
         envVars[key] = coerceConfigValueToString(field, rawValue)
       }
 
-      if (preset.id === SERVICE_TYPE.NSITE) {
+      if (isNpanelType(preset.id)) {
         if ((envVars.NSITE_PARENT_DOMAIN ?? '').trim()) {
           envVars = applyNsiteHostnameToEnv(envVars)
         }
         envVars = finalizeNsiteRouterEnv(envVars)
+        envVars[NPANEL_NIP05_USERS_ENV_KEY] = normalizeNpanelNip05UsersEnv(envVars[NPANEL_NIP05_USERS_ENV_KEY] ?? '')
       }
-      if (preset.id === SERVICE_TYPE.NSITE) {
+      if (isNpanelType(preset.id)) {
         await syncNsiteDokployDomains(input.composeId, envVars, preset)
       }
 
@@ -905,12 +917,15 @@ export const appRouter = router({
         const presetDir = path.join(PRESETS_DIR, input.presetId)
         const composeContent = await fs.readFile(path.join(presetDir, 'docker-compose.yml'), 'utf-8')
         let configForDeploy = { ...input.config }
-        if (input.presetId === SERVICE_TYPE.NSITE) {
+        if (isNpanelType(input.presetId)) {
           if (!(configForDeploy.NSITE_PARENT_DOMAIN ?? '').trim()) {
             throw new Error('Site domain is required (the suffix after the site label, e.g. relayk.it).')
           }
           configForDeploy = applyNsiteHostnameToEnv(configForDeploy)
           configForDeploy = finalizeNsiteRouterEnv(configForDeploy)
+          configForDeploy[NPANEL_NIP05_USERS_ENV_KEY] = normalizeNpanelNip05UsersEnv(
+            configForDeploy[NPANEL_NIP05_USERS_ENV_KEY] ?? '',
+          )
         }
         const envString = stringifyEnvVars(configForDeploy)
         const environmentId = input.environmentId ?? (await ensureADefaultProjectExistsForServices()).environmentId
@@ -943,7 +958,7 @@ export const appRouter = router({
         const nsiteCanon = (configForDeploy.NSITE_DOMAIN || '').trim()
         if (hostname && presetData.serviceName) {
           await registerDomain(createCompose.composeId, hostname, presetData)
-          if (input.presetId === SERVICE_TYPE.NSITE && nsiteCanon && nsiteCanon !== hostname) {
+          if (isNpanelType(input.presetId) && nsiteCanon && nsiteCanon !== hostname) {
             await registerDomain(createCompose.composeId, nsiteCanon, presetData)
           }
         }

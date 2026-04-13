@@ -3,6 +3,8 @@ import { toast } from 'sonner';
 import {
   getNsiteDefaultRelayEnv,
   mergeNsiteRelayDefaults,
+  normalizeNpanelNip05UsersEnv,
+  NPANEL_NIP05_USERS_ENV_KEY,
   NSITE_RELAY_ENV_KEYS,
   tryBuildNsitePublicHostname,
   previewNsiteRouterHost,
@@ -28,7 +30,14 @@ export const buildNsiteDeployDefaults = (preset: any, ownerPubkeyHex: string | n
 
 /** Merge relay defaults before sending to backend (fills blank relay fields). */
 export const prepareNsiteConfigForSave = (config: Record<string, string>): Record<string, string> =>
-  mergeNsiteRelayDefaults(config);
+  (() => {
+    const merged = mergeNsiteRelayDefaults(config);
+    const normalizedUsers = normalizeNpanelNip05UsersEnv(merged[NPANEL_NIP05_USERS_ENV_KEY] ?? '');
+    return {
+      ...merged,
+      [NPANEL_NIP05_USERS_ENV_KEY]: normalizedUsers,
+    };
+  })();
 
 /**
  * Nsite-specific fields for the deploy or edit-config modal.
@@ -48,7 +57,9 @@ export const NsiteDeployFields = ({
   autoFetchProfile?: boolean;
 }) => {
   const relayKeySet = new Set<string>(NSITE_RELAY_ENV_KEYS);
-  const primaryFields = preset.requiredConfig.filter((f: { id: string }) => !relayKeySet.has(f.id));
+  const primaryFields = preset.requiredConfig.filter(
+    (f: { id: string }) => !relayKeySet.has(f.id) && f.id !== NPANEL_NIP05_USERS_ENV_KEY,
+  );
   const advancedFields = preset.requiredConfig.filter((f: { id: string }) => relayKeySet.has(f.id));
   const siteDField = preset.requiredConfig.find((f: { id: string }) => f.id === 'NSITE_SITE_D');
 
@@ -61,6 +72,35 @@ export const NsiteDeployFields = ({
   } | null>(null);
   const [dDiscoverLoading, setDDiscoverLoading] = useState(false);
   const [dDiscovered, setDDiscovered] = useState<string[]>([]);
+  const [nip05Rows, setNip05Rows] = useState<Array<{ name: string; pubkey: string }>>([{ name: '', pubkey: '' }]);
+
+  useEffect(() => {
+    const raw = (config[NPANEL_NIP05_USERS_ENV_KEY] ?? '').trim();
+    if (!raw) {
+      setNip05Rows([{ name: '', pubkey: '' }]);
+      return;
+    }
+    const rows = raw
+      .split(/[\n,]+/g)
+      .map((token) => token.trim())
+      .filter(Boolean)
+      .map((token) => {
+        const i = token.indexOf('=');
+        if (i <= 0) return { name: token, pubkey: '' };
+        return { name: token.slice(0, i).trim(), pubkey: token.slice(i + 1).trim() };
+      });
+    setNip05Rows(rows.length > 0 ? rows : [{ name: '', pubkey: '' }]);
+  }, [config[NPANEL_NIP05_USERS_ENV_KEY]]);
+
+  const syncNip05Rows = (rows: Array<{ name: string; pubkey: string }>) => {
+    setNip05Rows(rows);
+    const compact = rows
+      .map((row) => ({ name: row.name.trim(), pubkey: row.pubkey.trim() }))
+      .filter((row) => row.name || row.pubkey)
+      .map((row) => `${row.name}=${row.pubkey}`)
+      .join(',');
+    setConfig((prev) => ({ ...prev, [NPANEL_NIP05_USERS_ENV_KEY]: compact }));
+  };
 
   const fetchProfile = useCallback(
     (opts?: { silent?: boolean; configSnapshot?: Record<string, string> }) => {
@@ -261,6 +301,64 @@ export const NsiteDeployFields = ({
           </Group>
         </Stack>
       )}
+
+      <Paper withBorder p="md">
+        <Stack gap="sm">
+          <Text fw={500} size="sm">NIP-05 users (optional)</Text>
+          <Text size="xs" c="dimmed">
+            Add username + npub (or hex). We publish these as name@your-domain in /.well-known/nostr.json.
+          </Text>
+          {nip05Rows.map((row, index) => (
+            <Group key={`${index}-${row.name}-${row.pubkey}`} gap="xs" align="end" wrap="nowrap">
+              <TextInput
+                label="Username"
+                placeholder="sam"
+                value={row.name}
+                onChange={(e) => {
+                  const next = [...nip05Rows];
+                  next[index] = { ...next[index], name: e.currentTarget.value };
+                  syncNip05Rows(next);
+                }}
+                style={{ flex: 1 }}
+              />
+              <TextInput
+                label="npub / hex pubkey"
+                placeholder="npub1…"
+                value={row.pubkey}
+                onChange={(e) => {
+                  const next = [...nip05Rows];
+                  next[index] = { ...next[index], pubkey: e.currentTarget.value };
+                  syncNip05Rows(next);
+                }}
+                style={{ flex: 2 }}
+              />
+              <Button
+                size="xs"
+                variant="light"
+                color="red"
+                onClick={() => {
+                  if (nip05Rows.length <= 1) {
+                    syncNip05Rows([{ name: '', pubkey: '' }]);
+                    return;
+                  }
+                  syncNip05Rows(nip05Rows.filter((_, i) => i !== index));
+                }}
+              >
+                Remove
+              </Button>
+            </Group>
+          ))}
+          <Group>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => syncNip05Rows([...nip05Rows, { name: '', pubkey: '' }])}
+            >
+              Add user
+            </Button>
+          </Group>
+        </Stack>
+      </Paper>
 
       {advancedFields.length > 0 && (
         <Paper withBorder p="md">

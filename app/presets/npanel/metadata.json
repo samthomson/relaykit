@@ -1,13 +1,13 @@
 {
-  "id": "nsite",
-  "name": "nsite gateway",
-  "label": "nsite",
+  "id": "npanel",
+  "name": "nPanel",
+  "label": "npanel",
   "repo": "https://github.com/hzrd149/nsite-gateway",
   "icon": "◈",
-  "description": "Static sites on Nostr — gateway for NIP-5A nsites.",
+  "description": "nPanel: nsite gateway + built-in NIP-05 names on the same domain.",
   "version": "1.0.0",
-  "type": "nsite",
-  "serviceName": "nsite-caddy",
+  "type": "npanel",
+  "serviceName": "npanel-caddy",
   "internalPort": 8080,
   "domainConfigKey": "NSITE_ROUTER_HOST",
   "requiredConfig": [
@@ -16,7 +16,7 @@
       "name": "Site domain",
       "type": "string",
       "required": true,
-      "description": "Per deployment — whatever comes after the long site label in the URL. Examples: relayk.it for one gateway, testsub.example.com for another. RelayKit builds the full host as <npub or base36+d>.<this>. Not a global setting: each nsite service picks its own.",
+      "description": "Per deployment — whatever comes after the long site label in the URL. Examples: relayk.it for one gateway, testsub.example.com for another. RelayKit builds the full host as <npub or base36+d>.<this>. Not a global setting: each nPanel service picks its own.",
       "placeholder": "relayk.it or testsub.example.com"
     },
     {
@@ -40,8 +40,16 @@
       "name": "Public hostname (optional)",
       "type": "string",
       "required": false,
-      "description": "What visitors type and DNS should point at (e.g. blog.com). Leave empty to use only the long NIP-5A hostname. RelayKit registers routing and TLS for this host when you deploy or Save + Redeploy — check the service card HTTPS link matches before you rely on DNS.",
+      "description": "What visitors type and DNS should point at (e.g. relayk.it). Leave empty to use only the long NIP-5A hostname. RelayKit registers routing and TLS for this host when you deploy or Save + Redeploy.",
       "placeholder": "empty = use computed NIP-5A host"
+    },
+    {
+      "id": "NPANEL_NIP05_USERS",
+      "name": "NIP-05 users",
+      "type": "string",
+      "required": false,
+      "description": "Comma or newline separated name=npub|hex mappings (e.g. sam=npub1...,alex=hex...).",
+      "placeholder": "sam=npub1..."
     },
     {
       "id": "NOSTR_RELAYS",

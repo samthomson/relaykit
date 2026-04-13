@@ -26,6 +26,50 @@ export const parsePubkeyHex = (npubOrHex: string): string | null => {
   return null
 }
 
+export const NPANEL_NIP05_USERS_ENV_KEY = 'NPANEL_NIP05_USERS' as const
+
+export type NpanelNip05User = {
+  name: string
+  pubkey: string
+}
+
+export const parseNpanelNip05Users = (raw: string): NpanelNip05User[] => {
+  const tokens = raw
+    .split(/[\n,]+/g)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const users: NpanelNip05User[] = []
+  const seen = new Set<string>()
+  for (const token of tokens) {
+    const sep = token.indexOf('=')
+    if (sep <= 0) throw new Error(`Invalid NIP-05 user mapping "${token}" (expected name=npub|hex).`)
+    const name = token.slice(0, sep).trim().toLowerCase()
+    const pubkeyRaw = token.slice(sep + 1).trim()
+    if (!/^[a-z0-9_]+$/.test(name)) {
+      throw new Error(`Invalid NIP-05 username "${name}" (allowed: a-z, 0-9, underscore).`)
+    }
+    if (seen.has(name)) {
+      throw new Error(`Duplicate NIP-05 username "${name}".`)
+    }
+    const pubkey = parsePubkeyHex(pubkeyRaw)
+    if (!pubkey) {
+      throw new Error(`Invalid pubkey for NIP-05 username "${name}" (must be npub or 64-char hex).`)
+    }
+    users.push({ name, pubkey })
+    seen.add(name)
+  }
+  return users
+}
+
+export const stringifyNpanelNip05Users = (users: NpanelNip05User[]): string =>
+  users.map((u) => `${u.name}=${u.pubkey}`).join(',')
+
+export const normalizeNpanelNip05UsersEnv = (raw: string): string => {
+  const t = raw.trim()
+  if (!t) return ''
+  return stringifyNpanelNip05Users(parseNpanelNip05Users(t))
+}
+
 // ── Base36 / NIP-5A hostname ────────────────────────────────────────
 
 const B36 = '0123456789abcdefghijklmnopqrstuvwxyz'

@@ -4,7 +4,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { LineChart } from '@mantine/charts';
 import { nip19 } from 'nostr-tools';
 import { RubixLoader } from '@samthomson/rubix-loader';
-import { SERVICE_TYPE } from '../../../shared/serviceType';
+import { SERVICE_TYPE, isNpanelType } from '../../../shared/serviceType';
 import { parsePubkeyHex } from '../../../shared/nsite';
 import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, Box, Transition, Table, rem, Paper, SimpleGrid, useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { IconCopy, IconExternalLink, IconCheck, IconX, IconAlertOctagon, IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react';
@@ -152,7 +152,7 @@ const ServiceDetailsDns = ({
           </Table.Thead>
           <Table.Tbody>
             {dnsRow(domain.host)}
-            {service.type === SERVICE_TYPE.NSITE &&
+            {isNpanelType(service.type) &&
               service.nsiteCanonicalHost &&
               service.nsiteCanonicalHost !== domain.host &&
               dnsRow(service.nsiteCanonicalHost)}
@@ -241,11 +241,11 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                   Blossom Explorer
                 </Button>
               )}
-              {service.type === SERVICE_TYPE.NSITE && (
+              {isNpanelType(service.type) && (
                 <Anchor href={`${httpsUrl}/status`} target="_blank" size="xs" variant="light" color="relaykit">Status</Anchor>
               )}
             </Group>
-            {service.type === SERVICE_TYPE.NSITE && (
+            {isNpanelType(service.type) && (
               <Text size="xs" c="dimmed">
                 Republished the site? Use <Text component="span" fw={500}>Stop</Text> then <Text component="span" fw={500}>Start</Text> so
                 the gateway pulls fresh manifests (otherwise it may take ~10 minutes).
@@ -278,7 +278,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
               </Group>
             </DetailBlock>
           )}
-          {service.type === SERVICE_TYPE.NSITE &&
+          {isNpanelType(service.type) &&
             service.nsiteVisitorHost &&
             service.nsiteCanonicalHost &&
             service.nsiteCanonicalHost !== domain?.host && (() => {
@@ -305,7 +305,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
         </DetailBlock>
       )}
 
-      {service.type === SERVICE_TYPE.NSITE &&
+      {isNpanelType(service.type) &&
         (service.nsiteSiteNpub ||
           service.nsiteSiteD ||
           (!service.nsiteSiteNpub && service.nsiteManifestEventId)) && (

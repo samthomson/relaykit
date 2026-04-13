@@ -1,0 +1,92 @@
+# Traefik → npanel-caddy:8080.
+# npanel-caddy serves NIP-05 at /.well-known/nostr.json and proxies everything else to nsite-gateway with canonical Host rewrite.
+services:
+  nsite-gateway:
+    image: ghcr.io/hzrd149/nsite-gateway:master
+    restart: unless-stopped
+    environment:
+      PUBLIC_DOMAIN: ${NSITE_ROUTER_HOST}
+      CACHE_PATH: /cache/nsite.kv
+      NOSTR_RELAYS: ${NOSTR_RELAYS}
+      LOOKUP_RELAYS: ${LOOKUP_RELAYS}
+      BLOSSOM_SERVERS: ${BLOSSOM_SERVERS}
+    volumes:
+      - nsite_gateway_cache_{{DEPLOY_SUFFIX}}:/cache
+    expose:
+      - "3000"
+    networks:
+      - dokploy-network
+
+  npanel-nip05:
+    image: python:3.12-alpine
+    restart: unless-stopped
+    environment:
+      NPANEL_NIP05_USERS: ${NPANEL_NIP05_USERS}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mkdir -p /srv/.well-known &&
+        python - <<'PY'
+        import json
+        import os
+        import re
+
+        raw = os.environ.get("NPANEL_NIP05_USERS", "")
+        tokens = [part.strip() for part in raw.replace("\n", ",").split(",") if part.strip()]
+        names = {}
+        for token in tokens:
+          if "=" not in token:
+            raise SystemExit(f"Invalid NPANEL_NIP05_USERS token: {token} (expected name=hex)")
+          name, pubkey = token.split("=", 1)
+          name = name.strip().lower()
+          pubkey = pubkey.strip().lower()
+          if not re.fullmatch(r"[a-z0-9_]+", name):
+            raise SystemExit(f"Invalid NIP-05 username: {name}")
+          if not re.fullmatch(r"[0-9a-f]{64}", pubkey):
+            raise SystemExit(f"Invalid NIP-05 pubkey for {name}: expected 64-char hex")
+          names[name] = pubkey
+        with open("/srv/.well-known/nostr.json", "w", encoding="utf-8") as f:
+          json.dump({"names": names}, f, separators=(",", ":"))
+        PY
+        exec python -m http.server 8090 --directory /srv
+    expose:
+      - "8090"
+    networks:
+      - dokploy-network
+
+  npanel-caddy:
+    image: caddy:alpine
+    restart: unless-stopped
+    environment:
+      CANONICAL_HOST: ${NSITE_DOMAIN}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        cat <<'EOF' > /tmp/Caddyfile
+        :8080 {
+          @nip05 path /.well-known/nostr.json
+          handle @nip05 {
+            reverse_proxy http://npanel-nip05:8090
+          }
+          handle {
+            reverse_proxy http://nsite-gateway:3000 {
+              header_up Host {$CANONICAL_HOST}
+            }
+          }
+        }
+        EOF
+        exec caddy run --config /tmp/Caddyfile
+    expose:
+      - "8080"
+    depends_on:
+      - nsite-gateway
+      - npanel-nip05
+    networks:
+      - dokploy-network
+
+volumes:
+  nsite_gateway_cache_{{DEPLOY_SUFFIX}}:
+
+networks:
+  dokploy-network:
+    external: true

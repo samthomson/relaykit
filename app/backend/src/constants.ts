@@ -1,6 +1,6 @@
 import path from 'path'
 
-export { SERVICE_TYPE, type ServiceType } from '../../shared/serviceType'
+export { SERVICE_TYPE, isNpanelType, type ServiceType } from '../../shared/serviceType'
 
 export const DOKPLOY_URL = 'http://dokploy:3000'
 export const PRESETS_DIR = path.join('/app', 'presets')

@@ -7,7 +7,7 @@ import { trpc } from './trpc';
 import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
 import { useRefreshServices } from './contexts/RefreshServicesContext';
-import { SERVICE_TYPE } from '../../shared/serviceType';
+import { SERVICE_TYPE, isNpanelType } from '../../shared/serviceType';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from './components/NsiteDeployFields';
 import { ServiceDetailsContent } from './components/ServiceDetailsContent';
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from './components/InlineTextEditRow';
@@ -291,7 +291,7 @@ const AddServiceButton = ({
 
   const handleSelectPreset = (preset: any) => {
     setSelectedPreset(preset);
-    const isNsite = preset.id === SERVICE_TYPE.NSITE;
+    const isNsite = isNpanelType(preset.id);
     const defaults = isNsite
       ? buildNsiteDeployDefaults(preset, npub)
       : Object.fromEntries(
@@ -309,7 +309,7 @@ const AddServiceButton = ({
     setLoading(true);
     setDeployResult(null);
     try {
-      const isNsite = selectedPreset.id === SERVICE_TYPE.NSITE;
+      const isNsite = isNpanelType(selectedPreset.id);
       const config = isNsite ? prepareNsiteConfigForSave(payload.config) : payload.config;
       await trpc.deployService.mutate({
         presetId: selectedPreset.id,
@@ -984,7 +984,7 @@ const ServiceList = () => {
     setSavingConfig(true);
     try {
       const configToSave =
-        editingConfigService.type === SERVICE_TYPE.NSITE
+        isNpanelType(editingConfigService.type)
           ? prepareNsiteConfigForSave(nextValues)
           : nextValues;
       await trpc.updateServiceConfig.mutate({
@@ -1506,7 +1506,7 @@ const DeployModal = ({
     return acc;
   }, {});
   const groupNames = Object.keys(byGroup);
-  const isNsite = preset.id === SERVICE_TYPE.NSITE;
+  const isNsite = isNpanelType(preset.id);
   const form = useForm<Record<string, string>>({
     initialValues: { environmentId: initialEnvironmentId || '', ...initialConfig },
     validateInputOnChange: true,
@@ -1642,8 +1642,8 @@ const ConfigEditModal = ({
   onClose: () => void;
   saving: boolean;
 }) => {
-  const isNsite = service?.type === SERVICE_TYPE.NSITE;
-  const fakePreset = isNsite ? { id: SERVICE_TYPE.NSITE, requiredConfig: fields } : null;
+  const isNsite = isNpanelType(service?.type);
+  const fakePreset = isNsite ? { id: SERVICE_TYPE.NPANEL, requiredConfig: fields } : null;
   const form = useForm<Record<string, string>>({
     initialValues,
     validateInputOnChange: true,
