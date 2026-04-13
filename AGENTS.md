@@ -1,5 +1,13 @@
 # Relaykit-proto – Cursor rules
 
+# TOP PRIORITY: RESPONSE LENGTH (NON-NEGOTIABLE)
+- Keep responses very short by default: 1-4 sentences.
+- Do not provide background, caveats, or extra context unless explicitly asked.
+- Do not restate the question.
+- Prefer direct yes/no + one-line reason when possible.
+- For implementation updates, use at most 3 bullets.
+- If you violate this, correct immediately in the next message with a shorter answer.
+
 - Answer concisely. No pointless markdown docs, no braindead AI essays. Talk like a normal human.
 - Prefer short answers and small edits unless the user explicitly asks for more.
 - Do not make changes unrelated to the user’s request: no “fixing” style, capitalization, naming, or structure unless the user asked for it. Only edit what is exactly needed for the task.
