@@ -546,10 +546,10 @@
   resolved "https://registry.yarnpkg.com/@rollup/rollup-win32-x64-msvc/-/rollup-win32-x64-msvc-4.59.0.tgz#4584a8a87b29188a4c1fe987a9fcf701e256d86c"
   integrity sha512-2HRCml6OztYXyJXAvdDXPKcawukWY2GpR5/nxKp4iBgiO3wcoEGkAaqctIbZcNB6KlUQBIqt8VYkNSj2397EfA==
 
-"@samthomson/rubix-loader@0.2.0":
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/@samthomson/rubix-loader/-/rubix-loader-0.2.0.tgz#9d66fd836cc95ccd447a65d29f99a0df002569d4"
-  integrity sha512-P4kVLMefBI3M5f0S+Zd5/wEwgJw9Sf3LGIrVm+0Y1p4Sf2j53rgApuGmAcH4AlGbCbpTg52XV/gkOqvBiRy64Q==
+"@samthomson/rubix-loader@0.4.0":
+  version "0.4.0"
+  resolved "https://registry.yarnpkg.com/@samthomson/rubix-loader/-/rubix-loader-0.4.0.tgz#53cc7bdeac78e3886306c8800f1afff0948a90ed"
+  integrity sha512-Mv/Gjm6LABpOCYjqKDQMIxQVCi+heLHOw08I3U3cgK/EeJFS8x51qI5G2j/lpR4KQzyvx3VR8Pt0oGk5rv9i6Q==
 
 "@scure/base@2.0.0":
   version "2.0.0"
