@@ -207,6 +207,17 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
 
   return (
     <Stack gap="xl">
+      {service.brokenPreset && (
+        <DetailBlock label="Status">
+          <Stack gap={6}>
+            <Badge color="red" variant="filled" w="fit-content">Misconfigured service</Badge>
+            <Text size="xs" c="dimmed" style={monoBreakable}>
+              {service.brokenPresetReason || 'Preset metadata is missing for this service.'}
+            </Text>
+            <Text size="xs" c="dimmed">Delete and recreate this service with the current preset.</Text>
+          </Stack>
+        </DetailBlock>
+      )}
       <DetailBlock label="Service ID">
         <Group gap="xs" wrap="wrap" align="flex-start">
           <Text size="xs" ff="monospace" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={service.composeId}>

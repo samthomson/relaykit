@@ -16,7 +16,7 @@ import { InsightsPage } from './components/InsightsPage';
 import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select, Stack, Paper, Anchor, Title, AppShell, Burger, NavLink, ScrollArea, Card, Tooltip, SegmentedControl, Box, SimpleGrid, rem, useMantineColorScheme, Switch, useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useForm } from '@mantine/form';
-import { IconChevronDown, IconCopy, IconExternalLink, IconPencil, IconCpu, IconDatabase, IconServer, IconKey } from '@tabler/icons-react';
+import { IconChevronDown, IconCopy, IconExternalLink, IconPencil, IconCpu, IconDatabase, IconServer, IconKey, IconAlertTriangle } from '@tabler/icons-react';
 
 function getIdentityKeys(key: string | null): { hex: string | null; npub: string | null } {
   if (!key) return { hex: null, npub: null };
@@ -470,6 +470,37 @@ const ServiceCard = ({
   manageItems.push({ label: 'Delete', onClick: () => onDelete(service.composeId, service.name), danger: true });
 
   const statusColor = service.status === 'running' ? 'green' : service.status === 'error' ? 'red' : 'gray';
+  const isBrokenPreset = !!service.brokenPreset;
+  const brokenCardStyle = isBrokenPreset
+    ? {
+        borderColor: 'var(--mantine-color-red-5)',
+        background: 'rgba(255, 59, 48, 0.08)',
+      }
+    : undefined;
+  const brokenContentStyle = isBrokenPreset ? { opacity: 0.35, pointerEvents: 'none' as const } : undefined;
+  const brokenOverlay = isBrokenPreset ? (
+    <Box
+      style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'rgba(255, 59, 48, 0.14)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        pointerEvents: 'none',
+        zIndex: 2,
+      }}
+    >
+      <Paper withBorder p="sm" style={{ borderColor: 'var(--mantine-color-red-6)', background: 'rgba(255,255,255,0.9)' }}>
+        <Group gap={6} align="center" justify="center" wrap="nowrap">
+          <IconAlertTriangle size={16} color="var(--mantine-color-red-7)" />
+          <Text size="sm" fw={700} c="red">
+            Misconfigured
+          </Text>
+      </Group>
+      </Paper>
+    </Box>
+  ) : null;
   const showNip42Badge = service.type === SERVICE_TYPE.RELAY && String(service.serviceType || '').toLowerCase() === 'nostr-rs-relay';
   const nip42Enabled = !!service.requireNip42;
   const nip42Badge = showNip42Badge ? (
@@ -535,12 +566,29 @@ const ServiceCard = ({
         withBorder
         p={showDetails ? 'md' : 'sm'}
         bg={serviceCardBg}
-        style={showDetails ? undefined : { width: 260, maxWidth: '100%', flexShrink: 0 }}
+        style={
+          showDetails
+            ? brokenCardStyle
+            : {
+                width: 260,
+                maxWidth: '100%',
+                flexShrink: 0,
+                position: 'relative',
+                overflow: 'hidden',
+                ...(brokenCardStyle ?? {}),
+              }
+        }
       >
+        {brokenOverlay}
         {showDetails ? (
           <>
             <Group justify="space-between" align="center" wrap="nowrap" gap="sm" style={{ minHeight: INLINE_TITLE_ROW_H }}>
-              <Group align="center" gap="xs" wrap="nowrap" style={{ minWidth: 0, flex: 1, minHeight: INLINE_TITLE_ROW_H }}>
+              <Group
+                align="center"
+                gap="xs"
+                wrap="nowrap"
+                style={{ minWidth: 0, flex: 1, minHeight: INLINE_TITLE_ROW_H, ...brokenContentStyle }}
+              >
                 {service.icon && (
                   <span style={{ display: 'inline-flex', width: 20, height: 20, alignItems: 'center', justifyContent: 'center', marginRight: 6, flexShrink: 0 }}>
                     {service.icon}
@@ -578,9 +626,11 @@ const ServiceCard = ({
                   />
                 )}
               </Group>
-              <CogMenu showLabel items={manageItems} />
+              <Box style={{ position: 'relative', zIndex: 3 }}>
+                <CogMenu showLabel items={manageItems} />
+              </Box>
             </Group>
-            <Stack mt="md">
+            <Stack mt="md" style={brokenContentStyle}>
               <ServiceDetailsContent {...detailsContentProps} />
             </Stack>
           </>
@@ -588,7 +638,7 @@ const ServiceCard = ({
           <>
             <Stack gap="sm">
               <Group justify="space-between" align="flex-start" wrap="nowrap" gap="xs">
-                <Group align="flex-start" gap="xs" style={{ minWidth: 0, flex: 1 }}>
+                <Group align="flex-start" gap="xs" style={{ minWidth: 0, flex: 1, ...brokenContentStyle }}>
                   {service.icon && (
                     <span style={{ display: 'inline-flex', width: 22, height: 22, alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 3 }}>
                       {service.icon}
@@ -654,51 +704,53 @@ const ServiceCard = ({
                     )}
                   </Stack>
                 </Group>
-                <Box pt={2}>
+                <Box pt={2} style={{ position: 'relative', zIndex: 3 }}>
                   <CogMenu items={manageItems} />
                 </Box>
               </Group>
-              {domain ? (
-                <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0 }}>
-                  <Anchor href={httpsUrl} target="_blank" size="xs" c="relaykit" truncate style={{ flex: 1, minWidth: 0 }} title={httpsUrl}>
-                    {httpsUrl} ↗
-                  </Anchor>
-                  <Tooltip label="Copy URL">
-                    <ActionIcon variant="subtle" size="sm" onClick={() => onCopy(httpsUrl)}>
-                      <IconCopy size={14} />
-                    </ActionIcon>
-                  </Tooltip>
+              <Box style={brokenContentStyle}>
+                {domain ? (
+                  <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0 }}>
+                    <Anchor href={httpsUrl} target="_blank" size="xs" c="relaykit" truncate style={{ flex: 1, minWidth: 0 }} title={httpsUrl}>
+                      {httpsUrl} ↗
+                    </Anchor>
+                    <Tooltip label="Copy URL">
+                      <ActionIcon variant="subtle" size="sm" onClick={() => onCopy(httpsUrl)}>
+                        <IconCopy size={14} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Group>
+                ) : (
+                  <Text size="xs" c="dimmed" fs="italic">No domain configured</Text>
+                )}
+                <Group gap="xs" wrap="wrap">
+                  {domain && service.type === SERVICE_TYPE.RELAY && (
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="relaykit"
+                      onClick={() => setShowExplorer(true)}
+                      rightSection={<IconExternalLink size={12} />}
+                    >
+                      Explorer
+                    </Button>
+                  )}
+                  {domain && service.type === SERVICE_TYPE.BLOSSOM && (
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="relaykit"
+                      onClick={() => setShowBlossomExplorer(true)}
+                      rightSection={<IconExternalLink size={12} />}
+                    >
+                      Explorer
+                    </Button>
+                  )}
+                  <Button size="xs" variant="light" color="gray" onClick={() => setDetailsModalOpen(true)}>
+                    Details
+                  </Button>
                 </Group>
-              ) : (
-                <Text size="xs" c="dimmed" fs="italic">No domain configured</Text>
-              )}
-              <Group gap="xs" wrap="wrap">
-                {domain && service.type === SERVICE_TYPE.RELAY && (
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="relaykit"
-                    onClick={() => setShowExplorer(true)}
-                    rightSection={<IconExternalLink size={12} />}
-                  >
-                    Explorer
-                  </Button>
-                )}
-                {domain && service.type === SERVICE_TYPE.BLOSSOM && (
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="relaykit"
-                    onClick={() => setShowBlossomExplorer(true)}
-                    rightSection={<IconExternalLink size={12} />}
-                  >
-                    Explorer
-                  </Button>
-                )}
-                <Button size="xs" variant="light" color="gray" onClick={() => setDetailsModalOpen(true)}>
-                  Details
-                </Button>
-              </Group>
+              </Box>
             </Stack>
             <Modal
               opened={detailsModalOpen}

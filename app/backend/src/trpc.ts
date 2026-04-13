@@ -13,8 +13,8 @@ import {
   SERVER_INSIGHTS,
   SERVICE_INSIGHTS,
   SERVICE_TYPE,
-  isNpanelType,
 } from './constants'
+import { isNpanelType } from '../../shared/serviceType'
 import { applyNsiteHostnameToEnv, finalizeNsiteRouterEnv, normalizeNpanelNip05UsersEnv, NPANEL_NIP05_USERS_ENV_KEY } from '../../shared/nsite'
 import { createServerInsightsCollector, type ServiceInsightsResponse } from '../../shared/insights'
 
@@ -104,8 +104,7 @@ const getEditablePresetFields = (preset: PresetMetadata): PresetField[] => {
 }
 
 const getPresetMetadata = async (presetId: string) => {
-  const normalizedPresetId = presetId === 'nsite' ? SERVICE_TYPE.NPANEL : presetId
-  const metadata = await fs.readFile(path.join(PRESETS_DIR, normalizedPresetId, 'metadata.json'), 'utf-8')
+  const metadata = await fs.readFile(path.join(PRESETS_DIR, presetId, 'metadata.json'), 'utf-8')
   return JSON.parse(metadata) as PresetMetadata
 }
 
@@ -488,7 +487,6 @@ export const appRouter = router({
     const presets = []
     try {
       for (const dir of await fs.readdir(PRESETS_DIR)) {
-        if (dir === 'nsite') continue
         try {
           presets.push(await getPresetMetadata(dir))
         } catch {
@@ -610,9 +608,31 @@ export const appRouter = router({
           try {
             presetData = await getPresetMetadata(presetId)
           } catch (error: any) {
-            console.warn(
-              `Skipping compose ${compose.composeId} (${compose.name}) because preset metadata is missing for "${presetId}": ${error?.message || 'unknown error'}`,
-            )
+            const brokenReason = `Missing preset metadata for "${presetId}": ${error?.message || 'unknown error'}`
+            console.warn(`Marking compose ${compose.composeId} (${compose.name}) as broken: ${brokenReason}`)
+            services.push({
+              composeId: compose.composeId,
+              name: compose.name,
+              serviceType: `Misconfigured (${presetId})`,
+              status: 'error',
+              createdAt: compose.createdAt,
+              hostname: compose.domains?.[0]?.host || 'No hostname configured',
+              domains: compose.domains || [],
+              projectId: project.projectId,
+              projectName: project.name,
+              environmentId: environment.environmentId,
+              environmentName: environment.name,
+              type: null,
+              canEditConfig: false,
+              whitelistedPubkeys: [],
+              whitelistedKinds: [],
+              blacklistedKinds: [],
+              requireNip42: false,
+              repo: undefined,
+              icon: '⚠',
+              brokenPreset: true,
+              brokenPresetReason: brokenReason,
+            })
             continue
           }
           if (!presetData.label) throw new Error(`Preset ${presetId} has no label`)
