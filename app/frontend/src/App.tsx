@@ -94,7 +94,7 @@ const ServicesHomeRoute = () => {
   );
 };
 
-const AppContent = () => {
+const App = () => {
   const { isAuthenticated, isLoading, logout } = useAuth();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [mobileMenuOpened, { toggle: toggleMobileMenu, close: closeMobileMenu }] = useDisclosure(false);
@@ -109,7 +109,7 @@ const AppContent = () => {
   }
 
   return (
-    <>
+    <BrowserRouter>
       <AppShell
         header={{ height: 60 }}
         navbar={{ width: 220, breakpoint: 'sm', collapsed: { mobile: !mobileMenuOpened } }}
@@ -211,14 +211,6 @@ const AppContent = () => {
       </AppShell>
 
       <AccountModal opened={accountModalOpen} onClose={closeAccountModal} />
-    </>
-  );
-};
-
-const App = () => {
-  return (
-    <BrowserRouter>
-      <AppContent />
     </BrowserRouter>
   );
 };
