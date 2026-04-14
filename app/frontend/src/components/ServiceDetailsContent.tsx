@@ -22,7 +22,6 @@ const FADE_MS = 280;
 const HEIGHT_EASE = `${SHELL_H_MS / 1000}s cubic-bezier(0.33, 1, 0.68, 1)`;
 
 const LABEL_COL = 124;
-const DOMAIN_ROW_VALUE_W = rem(320);
 
 const monoBreakable = { wordBreak: 'break-all' as const, overflowWrap: 'anywhere' as const };
 
@@ -205,6 +204,10 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
   const httpsUrl = domain ? `https://${domain.host}` : '';
   const wssUrl = domain ? `wss://${domain.host}` : '';
   const hasConfig = whitelistedKinds.length > 0 || blacklistedKinds.length > 0 || whitelistedPubkeys.length > 0 || requireNip42;
+  const domainBaseChars = Math.max(12, Math.min(42, (domain?.host || '').trim().length || 12));
+  const domainDisplayWidthCh = domainBaseChars;
+  const domainEditWidthCh = Math.min(56, Math.max(domainBaseChars + 8, 28));
+  const domainFieldWidthCh = `${isEditing ? domainEditWidthCh : domainDisplayWidthCh}ch`;
 
   return (
     <Stack gap="xl">
@@ -237,7 +240,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                 onSave={onSaveDomain}
                 onCancel={onCancelEdit}
                 density="comfortable"
-                inputStyle={{ width: DOMAIN_ROW_VALUE_W, maxWidth: '100%' }}
+                inputStyle={{ width: domainFieldWidthCh, maxWidth: '100%', transition: 'width 180ms ease' }}
                 rowStyle={{ minHeight: rem(28), width: 'fit-content', maxWidth: '100%' }}
               />
             ) : (
@@ -246,12 +249,13 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                   size="sm"
                   ff="monospace"
                   style={{
-                    width: DOMAIN_ROW_VALUE_W,
+                    width: domainFieldWidthCh,
                     maxWidth: '100%',
                     minWidth: 0,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
+                    transition: 'width 180ms ease',
                   }}
                   title={domain.host}
                 >
