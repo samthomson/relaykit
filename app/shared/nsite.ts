@@ -68,7 +68,9 @@ export const stringifyNpanelNip05Users = (users: NpanelNip05User[]): string =>
 export const normalizeNpanelNip05UsersEnv = (raw: string): string => {
   const t = raw.trim()
   if (!t) return ''
-  return stringifyNpanelNip05Users(parseNpanelNip05Users(t))
+  const users = parseNpanelNip05Users(t)
+  // Convert to hex format for Docker container
+  return users.map((u) => `${u.name}=${u.pubkey}`).join(',')
 }
 
 // ── Base36 / NIP-5A hostname ────────────────────────────────────────
