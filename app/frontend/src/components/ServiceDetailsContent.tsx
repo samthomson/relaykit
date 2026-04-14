@@ -109,7 +109,7 @@ const ServiceDetailsDns = ({
         <Table.Td>
           <Group gap="xs" wrap="nowrap">
             <Button size="xs" variant="light" loading={state === 'loading'} onClick={() => void testDns(name)}>
-              Test
+              test
             </Button>
             {state === 'ok' && (
               <Badge size="xs" color="green" variant="filled" leftSection={<IconCheck size={10} />}>
@@ -213,7 +213,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
       {service.brokenPreset && (
         <DetailBlock label="Status">
           <Stack gap={6}>
-            <Badge color="red" variant="filled" w="fit-content">Misconfigured service</Badge>
+            <Badge color="red" variant="filled" w="fit-content">misconfigured service</Badge>
             <Text size="xs" c="dimmed" style={monoBreakable}>
               {service.brokenPresetReason || 'Preset metadata is missing for this service.'}
             </Text>
@@ -498,7 +498,7 @@ const ServiceDetailsInsights = ({
     return (
       <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(220) }}>
         <RubixLoader size={64} colors={[loaderColor]} speed={1.35} />
-        <Text size="sm" c="dimmed">Loading service insights…</Text>
+        <Text size="sm" c="dimmed">loading service insights…</Text>
       </Stack>
     );
   }
@@ -506,7 +506,7 @@ const ServiceDetailsInsights = ({
   if (error && !insights) {
     return (
       <Paper withBorder p="md">
-        <Text fw={500} c="red">Could not load service insights</Text>
+        <Text fw={500} c="red">could not load service insights</Text>
         <Text size="xs" c="dimmed" mt={4}>{error}</Text>
       </Paper>
     );
@@ -519,10 +519,10 @@ const ServiceDetailsInsights = ({
   const memSeverity = getInsightSeverity(current.memoryUsedPct, thresholds.memory.warn, thresholds.memory.critical);
   const overallSeverity = getOverallSeverity([cpuSeverity, memSeverity]);
   const overallHealth = overallSeverity === 'critical'
-    ? { label: 'Critical', color: 'red', icon: <IconAlertOctagon size={14} /> }
+    ? { label: 'critical', color: 'red', icon: <IconAlertOctagon size={14} /> }
     : overallSeverity === 'warn'
-      ? { label: 'Watch', color: 'yellow', icon: <IconAlertTriangle size={14} /> }
-      : { label: 'Healthy', color: 'green', icon: <IconCircleCheck size={14} /> };
+      ? { label: 'watch', color: 'yellow', icon: <IconAlertTriangle size={14} /> }
+      : { label: 'healthy', color: 'green', icon: <IconCircleCheck size={14} /> };
 
   const chartData = insights.history.map((point, idx, arr) => {
     const prev = arr[idx - 1];
@@ -550,11 +550,11 @@ const ServiceDetailsInsights = ({
     <Stack gap="lg">
       <Group justify="space-between" align="flex-end">
         <Stack gap={2}>
-          <Text fw={600}>Service runtime</Text>
+          <Text fw={600}>service runtime</Text>
           <Text size="xs" c="dimmed">Container: {insights.appName}</Text>
         </Stack>
         <Badge variant="filled" color={overallHealth.color} leftSection={overallHealth.icon}>
-          Health: {overallHealth.label}
+          health: {overallHealth.label}
         </Badge>
       </Group>
 
@@ -565,14 +565,14 @@ const ServiceDetailsInsights = ({
       <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
         <Paper withBorder p="lg">
           <Group justify="space-between" mb={6}>
-            <Text fw={600}>CPU</Text>
+            <Text fw={600}>cpu</Text>
             <Badge variant="filled" color={getSeverityColor(cpuSeverity)}>{cpuSeverity}</Badge>
           </Group>
           <Text size="xl" fw={700}>{formatPercent(current.cpuPct)}</Text>
         </Paper>
         <Paper withBorder p="lg">
           <Group justify="space-between" mb={6}>
-            <Text fw={600}>Memory</Text>
+            <Text fw={600}>memory</Text>
             <Badge variant="filled" color={getSeverityColor(memSeverity)}>{memSeverity}</Badge>
           </Group>
           <Text size="xl" fw={700}>{formatPercent(current.memoryUsedPct)}</Text>
@@ -581,7 +581,7 @@ const ServiceDetailsInsights = ({
           </Text>
         </Paper>
         <Paper withBorder p="lg">
-          <Text fw={600}>Network + disk I/O</Text>
+          <Text fw={600}>network + disk i/o</Text>
           <Text size="sm" mt={8}>In: {formatBytesPerSecond(latest?.rx || 0)}</Text>
           <Text size="sm">Out: {formatBytesPerSecond(latest?.tx || 0)}</Text>
           <Text size="xs" c="dimmed" mt={8}>
@@ -592,7 +592,7 @@ const ServiceDetailsInsights = ({
 
       <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
         <Paper withBorder p="lg">
-          <Text fw={600} mb="sm">CPU trend</Text>
+          <Text fw={600} mb="sm">cpu trend</Text>
           <LineChart
             h={200}
             data={chartData}
@@ -607,7 +607,7 @@ const ServiceDetailsInsights = ({
           <Text size="xs" c="dimmed" mt={8}>Window: last {historyWindowLabel}</Text>
         </Paper>
         <Paper withBorder p="lg">
-          <Text fw={600} mb="sm">Memory trend</Text>
+          <Text fw={600} mb="sm">memory trend</Text>
           <LineChart
             h={200}
             data={chartData}
@@ -622,14 +622,14 @@ const ServiceDetailsInsights = ({
           <Text size="xs" c="dimmed" mt={8}>Window: last {historyWindowLabel}</Text>
         </Paper>
         <Paper withBorder p="lg">
-          <Text fw={600} mb="sm">Network trend</Text>
+          <Text fw={600} mb="sm">network trend</Text>
           <LineChart
             h={200}
             data={chartData}
             dataKey="time"
             series={[
-              { name: 'rx', color: 'teal', label: 'Inbound' },
-              { name: 'tx', color: 'grape', label: 'Outbound' },
+              { name: 'rx', color: 'teal', label: 'inbound' },
+              { name: 'tx', color: 'grape', label: 'outbound' },
             ]}
             withDots={false}
             withLegend
@@ -977,9 +977,9 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
             style={stretch ? { ...stretch } : undefined}
           >
             <Tabs.List aria-label="Details sections" miw={rem(132)} style={{ flexShrink: 0 }}>
-              <Tabs.Tab value="info" style={getTabStyle(section === 'info')}>Info</Tabs.Tab>
-              <Tabs.Tab value="dns" style={getTabStyle(section === 'dns')}>DNS</Tabs.Tab>
-              <Tabs.Tab value="insights" style={getTabStyle(section === 'insights')}>Insights</Tabs.Tab>
+              <Tabs.Tab value="info" style={getTabStyle(section === 'info')}>info</Tabs.Tab>
+              <Tabs.Tab value="dns" style={getTabStyle(section === 'dns')}>dns</Tabs.Tab>
+              <Tabs.Tab value="insights" style={getTabStyle(section === 'insights')}>insights</Tabs.Tab>
               <Tabs.Tab value="logs" style={getTabStyle(section === 'logs')}>logs</Tabs.Tab>
             </Tabs.List>
             <Box

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { LineChart } from '@mantine/charts';
-import { Badge, Group, Paper, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Badge, Group, Paper, Progress, SimpleGrid, Stack, Text, rem } from '@mantine/core';
 import { IconAlertOctagon, IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react';
+import { RubixLoader, RubixLoaderColor } from '@samthomson/rubix-loader';
 import { trpc } from '../trpc';
 import {
   formatBytes,
@@ -49,8 +50,9 @@ export const InsightsPage = () => {
 
   if (loading && !insights) {
     return (
-      <Stack gap="xl" p="xl">
-        <Text c="dimmed">Loading server insights…</Text>
+      <Stack align="center" justify="center" gap="sm" p="xl" style={{ minHeight: rem(480) }}>
+        <RubixLoader size={144} colors={[RubixLoaderColor.RelayKit]} speed={1.35} />
+        <Text size="sm" c="dimmed">loading server insights…</Text>
       </Stack>
     );
   }
@@ -59,7 +61,7 @@ export const InsightsPage = () => {
     return (
       <Stack gap="xl" p="xl">
         <Paper withBorder p="md">
-          <Text fw={500} c="red">Could not load insights</Text>
+          <Text fw={500} c="red">could not load insights</Text>
           <Text size="sm" c="dimmed" mt={6}>{error}</Text>
         </Paper>
       </Stack>
@@ -75,9 +77,9 @@ export const InsightsPage = () => {
   const processRssPct = current.memoryTotalBytes > 0 ? (current.processRssBytes / current.memoryTotalBytes) * 100 : 0;
   const processHeapPct = current.memoryTotalBytes > 0 ? (current.processHeapUsedBytes / current.memoryTotalBytes) * 100 : 0;
   const recommendations: string[] = [];
-  if (cpuSeverity !== 'normal') recommendations.push('CPU is elevated. If this persists, upgrade to more vCPU.');
-  if (memSeverity !== 'normal') recommendations.push('Memory is near capacity. Increase RAM to avoid OOM pressure.');
-  if (diskSeverity !== 'normal') recommendations.push('Disk is filling up. Expand storage before services degrade.');
+  if (cpuSeverity !== 'normal') recommendations.push('cpu is elevated. if this persists, upgrade to more vcpu.');
+  if (memSeverity !== 'normal') recommendations.push('memory is near capacity. increase ram to avoid oom pressure.');
+  if (diskSeverity !== 'normal') recommendations.push('disk is filling up. expand storage before services degrade.');
 
   const chartData = insights.history.map((p) => ({
     time: new Date(p.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
@@ -91,49 +93,49 @@ export const InsightsPage = () => {
   const heapPressure = getPressure(processHeapPct);
   const overallSeverity = getOverallSeverity([cpuSeverity, memSeverity, diskSeverity]);
   const overallHealth = overallSeverity === 'critical'
-    ? { label: 'Critical', color: 'red', icon: <IconAlertOctagon size={14} /> }
+    ? { label: 'critical', color: 'red', icon: <IconAlertOctagon size={14} /> }
     : overallSeverity === 'warn'
-      ? { label: 'Watch', color: 'yellow', icon: <IconAlertTriangle size={14} /> }
-      : { label: 'Healthy', color: 'green', icon: <IconCircleCheck size={14} /> };
+      ? { label: 'watch', color: 'yellow', icon: <IconAlertTriangle size={14} /> }
+      : { label: 'healthy', color: 'green', icon: <IconCircleCheck size={14} /> };
 
   return (
     <Stack gap="xl" p="xl">
       <Group justify="space-between" align="flex-end">
         <div>
           <Text size="sm" c="dimmed">
-            Server capacity and utilization trends (sampled every {Math.round(insights.sampleIntervalMs / 1000)} seconds)
+            server capacity and utilization trends (sampled every {Math.round(insights.sampleIntervalMs / 1000)} seconds)
           </Text>
           <Text size="sm" c="dimmed">
-            Charts show the last {formatWindow(historyWindowSec)} of data.
+            charts show the last {formatWindow(historyWindowSec)} of data.
           </Text>
         </div>
         <Group gap="xs">
           <Badge variant="filled" color={overallHealth.color} leftSection={overallHealth.icon}>
-            Health: {overallHealth.label}
+            health: {overallHealth.label}
           </Badge>
-          <Badge variant="filled" color="relaykit">Uptime: {formatUptime(current.uptimeSec)}</Badge>
+          <Badge variant="filled" color="relaykit">uptime: {formatUptime(current.uptimeSec)}</Badge>
         </Group>
       </Group>
 
       {error && (
         <Paper withBorder p="sm">
-          <Text size="xs" c="dimmed">Last refresh error: {error}</Text>
+          <Text size="xs" c="dimmed">last refresh error: {error}</Text>
         </Paper>
       )}
 
       <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
         <Paper withBorder p="md">
           <Group justify="space-between" mb={6}>
-            <Text fw={600}>CPU utilization</Text>
+            <Text fw={600}>cpu utilization</Text>
             <Badge variant="filled" color={getSeverityColor(cpuSeverity)}>{cpuSeverity}</Badge>
           </Group>
           <Text size="xl" fw={700}>{formatPercent(current.cpuPct)}</Text>
-          <Text size="xs" c="dimmed" mt={4}>Load: {current.load1} / {current.load5} / {current.load15}</Text>
+          <Text size="xs" c="dimmed" mt={4}>load: {current.load1} / {current.load5} / {current.load15}</Text>
         </Paper>
 
         <Paper withBorder p="md">
           <Group justify="space-between" mb={6}>
-            <Text fw={600}>Memory used</Text>
+            <Text fw={600}>memory used</Text>
             <Badge variant="filled" color={getSeverityColor(memSeverity)}>{memSeverity}</Badge>
           </Group>
           <Text size="xl" fw={700}>{formatPercent(current.memoryUsedPct)}</Text>
@@ -144,7 +146,7 @@ export const InsightsPage = () => {
 
         <Paper withBorder p="md">
           <Group justify="space-between" mb={6}>
-            <Text fw={600}>Storage used</Text>
+            <Text fw={600}>storage used</Text>
             <Badge variant="filled" color={getSeverityColor(diskSeverity)}>{diskSeverity}</Badge>
           </Group>
           <Text size="xl" fw={700}>{formatPercent(current.diskUsedPct)}</Text>
@@ -156,7 +158,7 @@ export const InsightsPage = () => {
 
       {recommendations.length > 0 && (
         <Paper withBorder p="md">
-          <Text fw={600} mb="xs">Capacity recommendations</Text>
+          <Text fw={600} mb="xs">capacity recommendations</Text>
           <Stack gap={4}>
             {recommendations.map((r) => (
               <Text key={r} size="sm">{r}</Text>
@@ -167,7 +169,7 @@ export const InsightsPage = () => {
 
       <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="md">
         <Paper withBorder p="md">
-          <Text fw={600} mb="sm">CPU trend</Text>
+          <Text fw={600} mb="sm">cpu trend</Text>
           <LineChart
             h={220}
             data={chartData}
@@ -179,10 +181,10 @@ export const InsightsPage = () => {
             tooltipProps={{ cursor: false }}
             valueFormatter={(value) => formatPercent(value)}
           />
-          <Text size="xs" c="dimmed" mt={8}>Window: last {historyWindowLabel}</Text>
+          <Text size="xs" c="dimmed" mt={8}>window: last {historyWindowLabel}</Text>
         </Paper>
         <Paper withBorder p="md">
-          <Text fw={600} mb="sm">Memory trend</Text>
+          <Text fw={600} mb="sm">memory trend</Text>
           <LineChart
             h={220}
             data={chartData}
@@ -194,10 +196,10 @@ export const InsightsPage = () => {
             tooltipProps={{ cursor: false }}
             valueFormatter={(value) => formatPercent(value)}
           />
-          <Text size="xs" c="dimmed" mt={8}>Window: last {historyWindowLabel}</Text>
+          <Text size="xs" c="dimmed" mt={8}>window: last {historyWindowLabel}</Text>
         </Paper>
         <Paper withBorder p="md">
-          <Text fw={600} mb="sm">Storage trend</Text>
+          <Text fw={600} mb="sm">storage trend</Text>
           <LineChart
             h={220}
             data={chartData}
@@ -209,32 +211,32 @@ export const InsightsPage = () => {
             tooltipProps={{ cursor: false }}
             valueFormatter={(value) => formatPercent(value)}
           />
-          <Text size="xs" c="dimmed" mt={8}>Window: last {historyWindowLabel}</Text>
+          <Text size="xs" c="dimmed" mt={8}>window: last {historyWindowLabel}</Text>
         </Paper>
       </SimpleGrid>
 
       <Paper withBorder p="md">
-        <Text fw={600} mb="xs">Process footprint</Text>
+        <Text fw={600} mb="xs">process footprint</Text>
         <Stack gap="sm">
           <div>
             <Group justify="space-between" mb={6}>
-              <Text size="sm" fw={500}>App memory (RSS): {formatBytes(current.processRssBytes)}</Text>
+              <Text size="sm" fw={500}>app memory (rss): {formatBytes(current.processRssBytes)}</Text>
               <Badge variant="light" color={rssPressure.color}>{rssPressure.label}</Badge>
             </Group>
             <Progress value={Math.min(100, processRssPct)} color={rssPressure.color} radius="xl" />
-            <Text size="xs" c="dimmed" mt={4}>Total memory used by this backend process.</Text>
+            <Text size="xs" c="dimmed" mt={4}>total memory used by this backend process.</Text>
           </div>
           <div>
             <Group justify="space-between" mb={6}>
-              <Text size="sm" fw={500}>JavaScript memory (Heap): {formatBytes(current.processHeapUsedBytes)}</Text>
+              <Text size="sm" fw={500}>javascript memory (heap): {formatBytes(current.processHeapUsedBytes)}</Text>
               <Badge variant="light" color={heapPressure.color}>{heapPressure.label}</Badge>
             </Group>
             <Progress value={Math.min(100, processHeapPct)} color={heapPressure.color} radius="xl" />
-            <Text size="xs" c="dimmed" mt={4}>JS objects only (subset of app memory).</Text>
+            <Text size="xs" c="dimmed" mt={4}>js objects only (subset of app memory).</Text>
           </div>
         </Stack>
         <Text size="xs" c="dimmed" mt={8}>
-          You can ignore this unless memory is in warn/critical. Then use RSS as the main “is this app heavy?” signal.
+          you can ignore this unless memory is in warn/critical. then use rss as the main “is this app heavy?” signal.
         </Text>
       </Paper>
     </Stack>

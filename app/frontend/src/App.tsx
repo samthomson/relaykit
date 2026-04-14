@@ -111,11 +111,11 @@ const CogMenu = ({
     <Menu.Target>
       {showLabel ? (
         <Button variant="default" size="sm" rightSection={<IconChevronDown size={14} />}>
-          Actions
+          actions
         </Button>
       ) : (
-        <Tooltip label="Actions" position="bottom">
-          <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Actions">
+        <Tooltip label="actions" position="bottom">
+          <ActionIcon variant="subtle" color="gray" size="sm" aria-label="actions">
             <IconChevronDown size={14} />
           </ActionIcon>
         </Tooltip>
@@ -155,7 +155,7 @@ const ConfirmModal = ({
       {message}
     </Text>
     <Group justify="flex-end">
-      <Button variant="default" onClick={onCancel}>Cancel</Button>
+      <Button variant="default" onClick={onCancel}>cancel</Button>
       <Button color={danger ? 'red' : 'relaykit'} onClick={onConfirm}>
         {confirmLabel}
       </Button>
@@ -229,7 +229,7 @@ const MoveServiceModal = ({
   const groupNames = Object.keys(groupedTargets);
 
   return (
-    <Modal opened onClose={onClose} title="Move Service" size="lg" centered>
+    <Modal opened onClose={onClose} title="move service" size="lg" centered>
       <Text size="sm" c="dimmed" mb="md">
         Select a target environment for <Text component="span" ff="monospace">{serviceName}</Text>{' '}
         <Text component="span" fs="italic">(currently in {currentLocation})</Text>.
@@ -271,12 +271,12 @@ const MoveServiceModal = ({
             disabled={!selectedTarget}
             onClick={() => selectedTarget && onSelect(selectedTarget.environmentId)}
           >
-            Confirm Move
+            confirm move
           </Button>
         </Group>
       </Paper>
       <Group justify="flex-end" mt="md">
-        <Button variant="default" onClick={onClose}>Cancel</Button>
+        <Button variant="default" onClick={onClose}>cancel</Button>
       </Group>
     </Modal>
   );
@@ -373,7 +373,7 @@ const AddServiceButton = ({
             size={compact ? 'xs' : 'sm'}
             rightSection={<IconChevronDown size={compact ? 12 : 14} />}
           >
-            Add service
+            add service
           </Button>
         </Menu.Target>
         <Menu.Dropdown>
@@ -490,20 +490,20 @@ const ServiceCard = ({
   const moveTargets = allEnvironments.filter((env) => env.environmentId !== service.environmentId);
   const manageItems: { label: string; onClick: () => void; danger?: boolean }[] = [];
   if (domain && !isEditing) {
-    manageItems.push({ label: 'Edit Domain', onClick: () => onEditDomain(service.composeId, domain) });
+    manageItems.push({ label: 'edit domain', onClick: () => onEditDomain(service.composeId, domain) });
   }
   if (service.canEditConfig) {
-    manageItems.push({ label: 'Edit Config', onClick: () => onEditConfig(service) });
+    manageItems.push({ label: 'edit config', onClick: () => onEditConfig(service) });
   }
   if (statusNorm === 'running') {
-    manageItems.push({ label: 'Stop', onClick: () => onStop(service.composeId) });
+    manageItems.push({ label: 'stop', onClick: () => onStop(service.composeId) });
   } else {
-    manageItems.push({ label: 'Start', onClick: () => onStart(service.composeId) });
+    manageItems.push({ label: 'start', onClick: () => onStart(service.composeId) });
   }
   if (moveTargets.length > 0) {
-    manageItems.push({ label: 'Move Service…', onClick: () => setShowMoveModal(true) });
+    manageItems.push({ label: 'move service…', onClick: () => setShowMoveModal(true) });
   }
-  manageItems.push({ label: 'Delete', onClick: () => onDelete(service.composeId, service.name), danger: true });
+  manageItems.push({ label: 'delete', onClick: () => onDelete(service.composeId, service.name), danger: true });
 
   const statusColor = statusNorm === 'running' ? 'green' : statusNorm === 'error' ? 'red' : 'gray';
   const isBrokenPreset = !!service.brokenPreset;
@@ -1492,27 +1492,27 @@ const ServiceList = () => {
       >
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
           <Paper withBorder p="md">
-            <Text fw={500} size="sm" mb={4}>Add a new group</Text>
-            <Text size="xs" c="dimmed" mb="md">Create a group to organise services within.</Text>
+            <Text fw={500} size="sm" mb={4}>add a new group</Text>
+            <Text size="xs" c="dimmed" mb="md">create a group to organise services within.</Text>
             <Group wrap="nowrap" align="flex-end">
               <TextInput
                 style={{ flex: 1, minWidth: 0 }}
-                placeholder="Group name"
+                placeholder="group name"
                 value={newProjectName}
                 onChange={(e) => setNewProjectName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
               />
               <Button variant="outline" color="relaykit" onClick={handleCreateProject} loading={creatingProject} disabled={!newProjectName.trim()}>
-                Add group
+                add group
               </Button>
             </Group>
           </Paper>
           <Paper withBorder p="md" id="add-service">
             <Text fw={500} size="sm" mb={4}>
-              Add service
+              add service
             </Text>
             <Text size="xs" c="dimmed" mb="md">
-              Deploy a relay or media server into a group.
+              deploy a relay or media server into a group.
             </Text>
             <Group justify="flex-start" wrap="wrap">
               <AddServiceButton />
@@ -1771,7 +1771,7 @@ const ConfigEditModal = ({
   };
 
   return (
-    <Modal opened onClose={onClose} title="Edit Config" size="md" centered styles={{ body: { maxHeight: '85vh', overflow: 'auto' } }}>
+    <Modal opened onClose={onClose} title="edit config" size="md" centered styles={{ body: { maxHeight: '85vh', overflow: 'auto' } }}>
       <Stack gap="md">
         <Text size="sm" c="dimmed">
           {service ? `Update environment config for ${service.name}` : 'Loading service config...'}
@@ -1781,7 +1781,7 @@ const ConfigEditModal = ({
         ) : fields.length === 0 ? (
           <>
             <Text c="dimmed">No editable config fields for this service.</Text>
-            <Button onClick={onClose} fullWidth>Close</Button>
+            <Button onClick={onClose} fullWidth>close</Button>
           </>
         ) : (
           <form onSubmit={form.onSubmit((vals: Record<string, string>) => void onSubmit(vals))}>
@@ -1803,10 +1803,10 @@ const ConfigEditModal = ({
               )}
               <Group justify="space-between">
                 <Button variant="default" onClick={onClose} disabled={saving}>
-                  Cancel
+                  cancel
                 </Button>
                 <Button type="submit" color="green" loading={saving} disabled={!canSubmit}>
-                  {saving ? 'Saving...' : 'Save + Redeploy'}
+                  {saving ? 'saving…' : 'save + redeploy'}
                 </Button>
               </Group>
             </Stack>
@@ -1900,7 +1900,10 @@ const ServicesPage = () => {
     <Stack gap="xl" p="xl">
       <DokployInitialCheck />
       {!dokployReady ? (
-        <Text c="dimmed">Loading…</Text>
+        <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(480) }}>
+          <RubixLoader size={144} colors={[RubixLoaderColor.RelayKit]} speed={1.35} />
+          <Text size="sm" c="dimmed">loading services…</Text>
+        </Stack>
       ) : (
         <ServiceList />
       )}
@@ -1913,16 +1916,15 @@ const AccountModal = ({ opened, onClose }: { opened: boolean; onClose: () => voi
   const { hex, npub: encodedNpub } = getIdentityKeys(npub);
 
   return (
-    <Modal opened={opened} onClose={onClose} title="Identity" size="md" centered>
+    <Modal opened={opened} onClose={onClose} title="identity" size="md" centered>
       <Stack gap="md">
         <Paper withBorder p="md">
-          <Text fw={500} mb="sm">Identity</Text>
           <Stack gap="sm">
             {hex && (
               <Stack gap="xs">
                 <Group justify="space-between">
                   <Text size="sm" c="dimmed">hex</Text>
-                  <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(hex)}>Copy</Button>
+                  <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(hex)}>copy</Button>
                 </Group>
                 <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
                   {hex}
@@ -1933,7 +1935,7 @@ const AccountModal = ({ opened, onClose }: { opened: boolean; onClose: () => voi
               <Stack gap="xs">
                 <Group justify="space-between">
                   <Text size="sm" c="dimmed">npub</Text>
-                  <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(encodedNpub)}>Copy</Button>
+                  <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(encodedNpub)}>copy</Button>
                 </Group>
                 <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
                   {encodedNpub}
@@ -1954,13 +1956,13 @@ const DebugPage = () => {
   return (
     <Stack gap="xl" p="xl">
       <Paper withBorder p="md">
-        <Text fw={500} mb="sm">Identity</Text>
+        <Text fw={500} mb="sm">identity</Text>
         <Stack gap="sm">
           {hex && (
             <Stack gap="xs">
               <Group justify="space-between">
                 <Text size="sm" c="dimmed">hex</Text>
-                <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(hex)}>Copy</Button>
+                <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(hex)}>copy</Button>
               </Group>
               <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
                 {hex}
@@ -1971,7 +1973,7 @@ const DebugPage = () => {
             <Stack gap="xs">
               <Group justify="space-between">
                 <Text size="sm" c="dimmed">npub</Text>
-                <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(encodedNpub)}>Copy</Button>
+                <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(encodedNpub)}>copy</Button>
               </Group>
               <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
                 {encodedNpub}
@@ -1983,8 +1985,8 @@ const DebugPage = () => {
       <Paper withBorder p="md">
         <Stack gap="xs">
           <Group justify="space-between">
-            <Text fw={500}>Dokploy Key</Text>
-            <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(token || '')}>Copy</Button>
+            <Text fw={500}>dokploy key</Text>
+            <Button size="xs" variant="subtle" onClick={() => navigator.clipboard.writeText(token || '')}>copy</Button>
           </Group>
           <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
             {token || '—'}

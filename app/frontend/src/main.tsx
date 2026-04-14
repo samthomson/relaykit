@@ -34,6 +34,9 @@ const theme = createTheme({
       defaultProps: {
         radius: 0,
       },
+      styles: {
+        root: { textTransform: 'none' },
+      },
     },
     Notification: {
       defaultProps: {
