@@ -872,6 +872,7 @@ const ServiceList = () => {
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameProjectValue, setRenameProjectValue] = useState('');
   const [confirmModal, setConfirmModal] = useState<{ type: 'deleteGroup'; projectId: string; name: string } | { type: 'deleteEnv'; environmentId: string; name: string } | { type: 'deleteService'; composeId: string; name: string } | null>(null);
+  const [listLoaded, setListLoaded] = useState(false);
 
   const allEnvironments: { environmentId: string; label: string }[] = projects.flatMap((p: any) =>
     p.environments.map((e: any) => ({ environmentId: e.environmentId, label: `${p.name} → ${e.name}` }))
@@ -899,6 +900,8 @@ const ServiceList = () => {
       setDokployConnectionError(msg || 'Could not load services. Run the setup script (see README).');
       setServices([]);
       setProjects([]);
+    } finally {
+      setListLoaded(true);
     }
   };
 
@@ -1228,11 +1231,16 @@ const ServiceList = () => {
         </Box>
       </Group>
 
-      {grouped.length === 0 ? (
+      {!listLoaded ? (
+        <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(480) }}>
+          <RubixLoader size={144} colors={[RubixLoaderColor.RelayKit]} speed={1.35} />
+          <Text size="sm" c="dimmed">loading services…</Text>
+        </Stack>
+      ) : grouped.length === 0 ? (
         <Paper withBorder p="xl">
           <Stack align="center" gap="sm">
-            <Text c="dimmed">No services yet.</Text>
-            <Text size="sm" c="dimmed">Deploy your first relay or media server.</Text>
+            <Text c="dimmed">no services yet.</Text>
+            <Text size="sm" c="dimmed">deploy your first relay or media server.</Text>
           </Stack>
         </Paper>
       ) : (
@@ -1340,7 +1348,7 @@ const ServiceList = () => {
                           </Group>
                           <Stack gap="sm">
                             {env.services.length === 0 ? (
-                              <Text c="dimmed" size="sm" fs="italic">No services in this environment.</Text>
+                              <Text c="dimmed" size="sm" fs="italic">no services in this environment.</Text>
                             ) : (
                               env.services.map((service: any) => (
                                 <ServiceCard
@@ -1420,7 +1428,7 @@ const ServiceList = () => {
                                 </Group>
                               <Group gap="sm" wrap="wrap" align="flex-start">
                                 {env.services.length === 0 ? (
-                                  <Text c="dimmed" size="sm" fs="italic">No services</Text>
+                                  <Text c="dimmed" size="sm" fs="italic">no services</Text>
                                 ) : (
                                   env.services.map((service: any) => (
                                     <ServiceCard
