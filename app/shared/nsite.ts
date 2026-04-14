@@ -31,6 +31,7 @@ export const NPANEL_NIP05_USERS_ENV_KEY = 'NPANEL_NIP05_USERS' as const
 export type NpanelNip05User = {
   name: string
   pubkey: string
+  npub: string
 }
 
 export const parseNpanelNip05Users = (raw: string): NpanelNip05User[] => {
@@ -55,14 +56,14 @@ export const parseNpanelNip05Users = (raw: string): NpanelNip05User[] => {
     if (!pubkey) {
       throw new Error(`Invalid pubkey for NIP-05 username "${name}" (must be npub or 64-char hex).`)
     }
-    users.push({ name, pubkey })
+    users.push({ name, pubkey, npub: pubkeyRaw })
     seen.add(name)
   }
   return users
 }
 
 export const stringifyNpanelNip05Users = (users: NpanelNip05User[]): string =>
-  users.map((u) => `${u.name}=${u.pubkey}`).join(',')
+  users.map((u) => `${u.name}=${u.npub}`).join(',')
 
 export const normalizeNpanelNip05UsersEnv = (raw: string): string => {
   const t = raw.trim()
