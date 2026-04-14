@@ -47,8 +47,25 @@ services:
           names[name] = pubkey
         with open("/srv/.well-known/nostr.json", "w", encoding="utf-8") as f:
           json.dump({"names": names}, f, separators=(",", ":"))
-        PY
-        exec python -m http.server 8090 --directory /srv
+        
+        # CORS-enabled HTTP server for browser NIP-05 checkers
+        cat > /tmp/cors_server.py << 'SERVER_PY'
+        import http.server
+        import socketserver
+        import os
+        
+        class CORSHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+            def end_headers(self):
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+                self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+                super().end_headers()
+        
+        os.chdir('/srv')
+        with socketserver.TCPServer(("", 8090), CORSHTTPRequestHandler) as httpd:
+            httpd.serve_forever()
+        SERVER_PY
+        exec python /tmp/cors_server.py
     expose:
       - "8090"
     networks:
