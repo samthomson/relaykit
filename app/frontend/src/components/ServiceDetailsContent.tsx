@@ -494,7 +494,7 @@ const ServiceDetailsInsights = ({
   if (loading && !insights) {
     return (
       <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(220) }}>
-        <RubixLoader size={42} colors={[loaderColor]} speed={1.35} />
+        <RubixLoader size={64} colors={[loaderColor]} speed={1.35} />
         <Text size="sm" c="dimmed">Loading service insights…</Text>
       </Stack>
     );
@@ -640,12 +640,14 @@ const ServiceDetailsInsights = ({
   );
 };
 
-const ServiceDetailsLogs = ({ composeId }: { composeId: string }) => {
+const ServiceDetailsLogs = ({ composeId, serviceType, presetId }: { composeId: string; serviceType?: string; presetId?: string }) => {
   const [logs, setLogs] = useState<Awaited<ReturnType<typeof trpc.getServiceLogs.query>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedContainerIds, setSelectedContainerIds] = useState<string[]>([]);
+  const logsPaperRef = useRef<HTMLDivElement>(null);
   const colorScheme = useComputedColorScheme('light');
+  const loaderColor = serviceTypeToRubixLoaderColor(serviceType, presetId);
   const containerSwatches = colorScheme === 'dark'
     ? ['cyan', 'grape', 'pink', 'orange', 'teal', 'lime', 'blue', 'yellow']
     : ['blue', 'teal', 'grape', 'pink', 'orange', 'cyan', 'lime', 'indigo'];
@@ -733,16 +735,25 @@ const ServiceDetailsLogs = ({ composeId }: { composeId: string }) => {
       }
     }
     rows.sort((a, b) => {
-      if (a.ts !== b.ts) return b.ts - a.ts;
-      return b.idx - a.idx;
+      if (a.ts !== b.ts) return a.ts - b.ts;
+      return a.idx - b.idx;
     });
     return rows;
   }, [decoratedContainers, activeSet]);
 
   if (loading && !logs) {
     return (
+      <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(220) }}>
+        <RubixLoader size={64} colors={[loaderColor]} speed={1.35} />
+        <Text size="sm" c="dimmed">Loading service logs…</Text>
+      </Stack>
+    );
+  }
+
+  if (error && !logs) {
+    return (
       <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(180) }}>
-        <RubixLoader size={38} colors={['var(--mantine-color-relaykit-6)']} speed={1.35} />
+        <RubixLoader size={57} colors={['var(--mantine-color-relaykit-6)']} speed={1.35} />
         <Text size="sm" c="dimmed">Loading service logs…</Text>
       </Stack>
     );
@@ -816,7 +827,33 @@ const ServiceDetailsLogs = ({ composeId }: { composeId: string }) => {
         </Stack>
       )}
 
-      <Paper withBorder p="sm" style={{ maxHeight: rem(320), overflow: 'auto' }}>
+      <Paper 
+        ref={logsPaperRef} 
+        withBorder 
+        p="sm" 
+        style={{ 
+          maxHeight: rem(320), 
+          overflowY: 'scroll',
+          overflowAnchor: 'none'
+        }}
+        sx={{
+          '&::-webkit-scrollbar': {
+            width: '12px',
+            background: 'var(--mantine-color-gray-2)'
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'var(--mantine-color-gray-2)'
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'var(--mantine-color-gray-5)',
+            borderRadius: '6px'
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            background: 'var(--mantine-color-gray-6)'
+          },
+          scrollbarWidth: 'auto',
+          scrollbarColor: 'var(--mantine-color-gray-5) var(--mantine-color-gray-2)'
+        }}>
         {mergedRows.length === 0 ? (
           <Text size="xs" c="dimmed">No logs available for current filter.</Text>
         ) : (
@@ -979,7 +1016,7 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
               <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'logs'}>
                 {(tStyle) => (
                   <Box style={{ ...panelContentStyle, ...tStyle }}>
-                    {hasLogs ? <ServiceDetailsLogs composeId={service.composeId} /> : null}
+                    {hasLogs ? <ServiceDetailsLogs composeId={service.composeId} serviceType={service.type} presetId={service.presetId} /> : null}
                   </Box>
                 )}
               </Transition>
