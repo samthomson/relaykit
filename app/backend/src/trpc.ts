@@ -355,6 +355,33 @@ const dockerSocketGetBuffer = async (pathWithQuery: string): Promise<Buffer> =>
     req.end()
   })
 
+const dockerSocketMutate = async (pathWithQuery: string, method: 'POST' | 'DELETE'): Promise<Buffer> =>
+  new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        socketPath: DOCKER_SOCKET_PATH,
+        path: pathWithQuery,
+        method,
+      },
+      (res) => {
+        const chunks: Buffer[] = []
+        res.on('data', (chunk) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+        })
+        res.on('end', () => {
+          const body = Buffer.concat(chunks)
+          if ((res.statusCode || 500) >= 400) {
+            reject(new Error(`Docker API ${method} ${res.statusCode}: ${body.toString('utf8').slice(0, 200)}`))
+            return
+          }
+          resolve(body)
+        })
+      }
+    )
+    req.on('error', reject)
+    req.end()
+  })
+
 const decodeDockerLogPayload = (body: Buffer): string => {
   if (body.length < 8) return body.toString('utf8')
   const streamType = body[0]
@@ -604,6 +631,156 @@ const getServiceLogsFromDocker = async (input: {
     fetchedAt: Date.now(),
     tail: input.tail,
     containers: containerLogs,
+  }
+}
+
+const getRuntimeContainersFromDocker = async () => {
+  try {
+    await fs.access(DOCKER_SOCKET_PATH)
+  } catch {
+    throw new TRPCError({
+      code: 'PRECONDITION_FAILED',
+      message: 'Container runtime is unavailable: Docker socket access is not configured.',
+    })
+  }
+
+  const projects = await dokployFetch('/api/project.all')
+  const composeByAppName = new Map<string, any>()
+  const presetLabelById = new Map<string, string>()
+  for (const project of projects as any[]) {
+    for (const environment of project.environments || []) {
+      for (const compose of environment.compose || []) {
+        const appName = String(compose?.appName || '').trim()
+        if (!appName) continue
+        const presetId = String(compose?.description || '').trim() || null
+        if (presetId && !presetLabelById.has(presetId)) {
+          try {
+            const metadata = await getPresetMetadata(presetId)
+            presetLabelById.set(presetId, metadata.label || presetId)
+          } catch {
+            presetLabelById.set(presetId, presetId)
+          }
+        }
+        composeByAppName.set(appName, {
+          composeId: compose.composeId,
+          composeName: compose.name,
+          composeStatus: String(compose.composeStatus || '').toLowerCase(),
+          projectName: project.name,
+          environmentName: environment.name,
+          presetId,
+          presetLabel: presetId ? presetLabelById.get(presetId) || presetId : null,
+          domains: compose.domains || [],
+        })
+      }
+    }
+  }
+
+  const containers = await dockerSocketGetJson('/containers/json?all=1&size=0')
+  const normalized = Array.isArray(containers) ? containers : []
+  const items = normalized.map((container: any) => {
+    const labels = container?.Labels || {}
+    const containerId = String(container?.Id || '').trim()
+    const name = String(container?.Names?.[0] || containerId).replace(/^\//, '')
+    const composeProject = String(labels['com.docker.compose.project'] || '').trim() || null
+    const composeService = String(labels['com.docker.compose.service'] || '').trim() || null
+    const compose = composeProject ? composeByAppName.get(composeProject) || null : null
+    const hasComposeLabel = !!composeProject
+    const isManaged = !!compose
+    const isOrphan = hasComposeLabel && !compose
+    const mounts = Array.isArray(container?.Mounts)
+      ? container.Mounts.map((mount: any) => ({
+          type: String(mount?.Type || '').toLowerCase(),
+          name: String(mount?.Name || '').trim() || null,
+          source: String(mount?.Source || '').trim() || null,
+          destination: String(mount?.Destination || '').trim() || null,
+        }))
+      : []
+    return {
+      containerId,
+      name,
+      image: String(container?.Image || '').trim(),
+      state: String(container?.State || '').trim().toLowerCase(),
+      status: String(container?.Status || '').trim(),
+      created: toFiniteNumber(container?.Created),
+      composeProject,
+      composeService,
+      hasComposeLabel,
+      isManaged,
+      isOrphan,
+      composeId: compose?.composeId || null,
+      composeName: compose?.composeName || null,
+      composeStatus: compose?.composeStatus || null,
+      projectName: compose?.projectName || null,
+      environmentName: compose?.environmentName || null,
+      presetId: compose?.presetId || null,
+      presetLabel: compose?.presetLabel || null,
+      domainHost: compose?.domains?.[0]?.host || null,
+      mounts,
+    }
+  })
+
+  items.sort((a, b) => {
+    if (a.isOrphan !== b.isOrphan) return a.isOrphan ? -1 : 1
+    return a.name.localeCompare(b.name)
+  })
+
+  const volumeMap = new Map<string, {
+    id: string
+    type: string
+    source: string | null
+    destinationSet: Set<string>
+    containerNames: Set<string>
+    composeNames: Set<string>
+    composeIds: Set<string>
+  }>()
+  for (const item of items) {
+    for (const mount of item.mounts || []) {
+      const mountId = mount.name || mount.source
+      if (!mountId) continue
+      const existing = volumeMap.get(mountId)
+      if (existing) {
+        if (mount.destination) existing.destinationSet.add(mount.destination)
+        existing.containerNames.add(item.name)
+        if (item.composeName) existing.composeNames.add(item.composeName)
+        if (item.composeId) existing.composeIds.add(item.composeId)
+        continue
+      }
+      volumeMap.set(mountId, {
+        id: mountId,
+        type: mount.type || 'unknown',
+        source: mount.source,
+        destinationSet: new Set(mount.destination ? [mount.destination] : []),
+        containerNames: new Set([item.name]),
+        composeNames: new Set(item.composeName ? [item.composeName] : []),
+        composeIds: new Set(item.composeId ? [item.composeId] : []),
+      })
+    }
+  }
+  const volumes = Array.from(volumeMap.values())
+    .map((v) => ({
+      id: v.id,
+      type: v.type,
+      source: v.source,
+      destinations: Array.from(v.destinationSet).sort(),
+      containerNames: Array.from(v.containerNames).sort(),
+      composeNames: Array.from(v.composeNames).sort(),
+      composeIds: Array.from(v.composeIds).sort(),
+      attachedContainers: v.containerNames.size,
+      attachedServices: v.composeIds.size,
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id))
+
+  return {
+    fetchedAt: Date.now(),
+    containers: items,
+    volumes,
+    summary: {
+      total: items.length,
+      managed: items.filter((c) => c.isManaged).length,
+      orphaned: items.filter((c) => c.isOrphan).length,
+      running: items.filter((c) => c.state === 'running').length,
+      volumes: volumes.length,
+    },
   }
 }
 
@@ -1041,6 +1218,71 @@ export const appRouter = router({
         sinceSeconds: input.sinceSeconds,
       })
     ),
+
+  getRuntimeContainers: protectedProcedure
+    .input(z.void())
+    .query(async () => getRuntimeContainersFromDocker()),
+
+  killRuntimeContainer: protectedProcedure
+    .input(
+      z.object({
+        containerId: z.string().min(8),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        await fs.access(DOCKER_SOCKET_PATH)
+      } catch {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'Container runtime is unavailable: Docker socket access is not configured.',
+        })
+      }
+      await dockerSocketMutate(`/containers/${input.containerId}?force=1&v=1`, 'DELETE')
+      return { success: true, containerId: input.containerId }
+    }),
+
+  hardResetServiceRuntime: protectedProcedure
+    .input(
+      z.object({
+        composeId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        await fs.access(DOCKER_SOCKET_PATH)
+      } catch {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'Container runtime is unavailable: Docker socket access is not configured.',
+        })
+      }
+
+      const appName = await loadComposeAppName(input.composeId)
+      const filters = encodeURIComponent(JSON.stringify({ label: [`com.docker.compose.project=${appName}`] }))
+      const containers = await dockerSocketGetJson(`/containers/json?all=1&size=0&filters=${filters}`)
+      const normalized = Array.isArray(containers) ? containers : []
+      const removed: string[] = []
+
+      for (const container of normalized) {
+        const id = String(container?.Id || '').trim()
+        if (!id) continue
+        await dockerSocketMutate(`/containers/${id}?force=1&v=1`, 'DELETE')
+        removed.push(id)
+      }
+
+      await dokployFetch('/api/compose.redeploy', {
+        method: 'POST',
+        body: JSON.stringify({ composeId: input.composeId }),
+      })
+
+      return {
+        success: true,
+        composeId: input.composeId,
+        appName,
+        removedContainerCount: removed.length,
+      }
+    }),
 
   getServicesInsights: protectedProcedure
     .input(z.object({ composeIds: z.array(z.string().min(1)).min(1).max(200) }))
