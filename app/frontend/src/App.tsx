@@ -9,7 +9,7 @@ import { useDokploy } from './contexts/DokployContext';
 import { useRefreshServices } from './contexts/RefreshServicesContext';
 import { SERVICE_TYPE, isNpanelType, isRelayType } from '../../shared/serviceType';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from './components/NsiteDeployFields';
-import { ServiceDetailsContent } from './components/ServiceDetailsContent';
+import { ServiceDetailsContent, ServiceDetailsModalContext } from './components/ServiceDetailsContent';
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from './components/InlineTextEditRow';
 import { ServiceHostTitleView } from './components/ServiceHostTitleView';
 import { InsightsPage } from './components/InsightsPage';
@@ -18,6 +18,11 @@ import { Menu, Button, Text, Modal, Group, Badge, ActionIcon, TextInput, Select,
 import { useDisclosure } from '@mantine/hooks';
 import { useForm } from '@mantine/form';
 import { IconChevronDown, IconCopy, IconExternalLink, IconPencil, IconCpu, IconDatabase, IconServer, IconKey, IconAlertTriangle } from '@tabler/icons-react';
+
+const serviceDetailsModalStyles = {
+  content: { maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 },
+  body: { flex: '1 1 0%', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' },
+} as const;
 
 function getIdentityKeys(key: string | null): { hex: string | null; npub: string | null } {
   if (!key) return { hex: null, npub: null };
@@ -808,10 +813,12 @@ const ServiceCard = ({
               styles={{
                 header: { alignItems: 'center' },
                 title: { flex: 1, marginRight: 0, width: '100%' },
-                body: { maxHeight: '85vh', overflow: 'auto' },
+                ...serviceDetailsModalStyles,
               }}
             >
-              <ServiceDetailsContent {...detailsContentProps} />
+              <ServiceDetailsModalContext.Provider value={true}>
+                <ServiceDetailsContent {...detailsContentProps} />
+              </ServiceDetailsModalContext.Provider>
             </Modal>
           </>
         )}

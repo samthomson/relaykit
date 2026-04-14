@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { LineChart } from '@mantine/charts';
 import { nip19 } from 'nostr-tools';
@@ -12,6 +12,9 @@ import { InlineTextEditRow } from './InlineTextEditRow';
 import { trpc } from '../trpc';
 import { serviceTypeToRubixLoaderColor } from '../lib/serviceTypeColor';
 import { formatBytes, formatBytesPerSecond, formatPercent, formatWindow, getInsightSeverity, getOverallSeverity, getSeverityColor } from '../../../shared/insights';
+
+/** Set by `Provider` in App only for the details `Modal` (inline expanded card stays default `false`). */
+export const ServiceDetailsModalContext = createContext(false);
 
 const SHELL_H_MS = 480;
 const FADE_MS = 280;
@@ -641,6 +644,7 @@ const ServiceDetailsInsights = ({
 };
 
 const ServiceDetailsLogs = ({ composeId, serviceType, presetId }: { composeId: string; serviceType?: string; presetId?: string }) => {
+  const inModal = useContext(ServiceDetailsModalContext);
   const [logs, setLogs] = useState<Awaited<ReturnType<typeof trpc.getServiceLogs.query>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -752,15 +756,6 @@ const ServiceDetailsLogs = ({ composeId, serviceType, presetId }: { composeId: s
 
   if (error && !logs) {
     return (
-      <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(180) }}>
-        <RubixLoader size={57} colors={['var(--mantine-color-relaykit-6)']} speed={1.35} />
-        <Text size="sm" c="dimmed">Loading service logs…</Text>
-      </Stack>
-    );
-  }
-
-  if (error && !logs) {
-    return (
       <Paper withBorder p="md">
         <Text fw={500} c="red">Could not load service logs</Text>
         <Text size="xs" c="dimmed" mt={4}>{error}</Text>
@@ -770,8 +765,19 @@ const ServiceDetailsLogs = ({ composeId, serviceType, presetId }: { composeId: s
 
   if (!logs) return null;
 
+  const stackFill = inModal
+    ? {
+        flex: '1 1 0%',
+        minHeight: 0,
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column' as const,
+        overflow: 'hidden',
+      }
+    : undefined
+
   return (
-    <Stack gap="md">
+    <Stack gap="md" style={stackFill}>
       <Group justify="space-between" align="center">
         <Stack gap={2}>
           <Text fw={600}>service logs</Text>
@@ -832,28 +838,14 @@ const ServiceDetailsLogs = ({ composeId, serviceType, presetId }: { composeId: s
         withBorder 
         p="sm" 
         style={{ 
-          maxHeight: rem(320), 
+          ...(inModal ? { flex: '1 1 0%', minHeight: 0, minWidth: 0 } : { maxHeight: rem(320) }),
           overflowY: 'scroll',
-          overflowAnchor: 'none'
+          overflowAnchor: 'none',
+          scrollbarGutter: 'stable',
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'var(--mantine-color-gray-5) var(--mantine-color-gray-2)',
         }}
-        sx={{
-          '&::-webkit-scrollbar': {
-            width: '12px',
-            background: 'var(--mantine-color-gray-2)'
-          },
-          '&::-webkit-scrollbar-track': {
-            background: 'var(--mantine-color-gray-2)'
-          },
-          '&::-webkit-scrollbar-thumb': {
-            background: 'var(--mantine-color-gray-5)',
-            borderRadius: '6px'
-          },
-          '&::-webkit-scrollbar-thumb:hover': {
-            background: 'var(--mantine-color-gray-6)'
-          },
-          scrollbarWidth: 'auto',
-          scrollbarColor: 'var(--mantine-color-gray-5) var(--mantine-color-gray-2)'
-        }}>
+      >
         {mergedRows.length === 0 ? (
           <Text size="xs" c="dimmed">No logs available for current filter.</Text>
         ) : (
@@ -883,6 +875,7 @@ const ServiceDetailsLogs = ({ composeId, serviceType, presetId }: { composeId: s
 
 export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
   const { service, serverIp } = props;
+  const inModal = useContext(ServiceDetailsModalContext);
   const theme = useMantineTheme();
   const colorScheme = useComputedColorScheme('light');
   const domain = service.domains?.[0];
@@ -917,8 +910,10 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
   const innerRef = useRef<HTMLDivElement>(null);
   const [shellH, setShellH] = useState<number | null>(null);
   const [maxShellH, setMaxShellH] = useState<number>(0);
+  const logsFillLayout = inModal && section === 'logs'
 
   useLayoutEffect(() => {
+    if (logsFillLayout) return
     const el = innerRef.current;
     if (!el) return;
     const measure = () => {
@@ -930,24 +925,34 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [logsFillLayout, section]);
 
-  return (
-    <Box
-      style={{
+  const stretch = logsFillLayout ? ({ flex: '1 1 0%', minHeight: 0, minWidth: 0 } as const) : null
+
+  const shellStyle = stretch
+    ? { ...stretch, display: 'flex' as const, flexDirection: 'column' as const, overflow: 'hidden' as const }
+    : {
         height: shellH != null ? Math.max(shellH, maxShellH) : undefined,
         transition: shellH != null ? `height ${HEIGHT_EASE}` : undefined,
-        overflow: 'hidden',
-      }}
-    >
-      <Box ref={innerRef}>
+        overflow: 'hidden' as const,
+      }
+
+  return (
+    <Box style={shellStyle}>
+      <Box
+        ref={innerRef}
+        style={stretch ? { ...stretch, display: 'flex', flexDirection: 'column' } : undefined}
+      >
         <Tabs
           value={section}
           onChange={(v) => v != null && setSection(v)}
           orientation="vertical"
           variant="unstyled"
           styles={{
-            root: { width: '100%' },
+            root: {
+              width: '100%',
+              ...(stretch ? { ...stretch, display: 'flex', flexDirection: 'row', alignItems: 'stretch' } : {}),
+            },
             list: {
               border: 'none',
               background: tabsRailBg,
@@ -964,7 +969,13 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
             },
           }}
         >
-          <Group align="stretch" gap={0} wrap="nowrap" w="100%">
+          <Group
+            align="stretch"
+            gap={0}
+            wrap="nowrap"
+            w="100%"
+            style={stretch ? { ...stretch } : undefined}
+          >
             <Tabs.List aria-label="Details sections" miw={rem(132)} style={{ flexShrink: 0 }}>
               <Tabs.Tab value="info" style={getTabStyle(section === 'info')}>Info</Tabs.Tab>
               <Tabs.Tab value="dns" style={getTabStyle(section === 'dns')}>DNS</Tabs.Tab>
@@ -973,10 +984,9 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
             </Tabs.List>
             <Box
               style={{
-                flex: 1,
-                minWidth: 0,
                 background: activePanelBg,
                 boxShadow: panelShadow,
+                ...(stretch ? { ...stretch, display: 'flex', flexDirection: 'column', overflow: 'hidden' } : { flex: 1, minWidth: 0 }),
               }}
             >
               <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'info'}>
@@ -1015,8 +1025,16 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
               </Transition>
               <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'logs'}>
                 {(tStyle) => (
-                  <Box style={{ ...panelContentStyle, ...tStyle }}>
-                    {hasLogs ? <ServiceDetailsLogs composeId={service.composeId} serviceType={service.type} presetId={service.presetId} /> : null}
+                  <Box
+                    style={{
+                      ...panelContentStyle,
+                      ...tStyle,
+                      ...(stretch ? { ...stretch, display: 'flex', flexDirection: 'column', overflow: 'hidden' } : {}),
+                    }}
+                  >
+                    {hasLogs ? (
+                      <ServiceDetailsLogs composeId={service.composeId} serviceType={service.type} presetId={service.presetId} />
+                    ) : null}
                   </Box>
                 )}
               </Transition>
