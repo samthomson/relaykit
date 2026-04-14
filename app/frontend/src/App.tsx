@@ -1,15 +1,17 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink as RouterNavLink } from 'react-router-dom';
 import { RubixLoader, RubixLoaderColor } from '@samthomson/rubix-loader';
 import { trpc } from './trpc';
 import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
+import { useRefreshServices } from './contexts/RefreshServicesContext';
 import { InsightsPage } from './components/InsightsPage';
 import { AccountModal } from './components/AccountModal';
 import { NavServerSummary } from './components/NavServerSummary';
 import { DebugPage } from './pages/DebugPage';
 import { LoginScreen } from './pages/LoginScreen';
 import { ServiceList } from './pages/ServicesPage';
+import { serviceTypeToRubixLoaderColor } from './lib/serviceTypeColor';
 import {
   Menu,
   Button,
@@ -29,14 +31,6 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown } from '@tabler/icons-react';
-
-const rubixLoaderColors = [
-  RubixLoaderColor.RelayKit,
-  RubixLoaderColor.Strfry,
-  RubixLoaderColor.NostrRs,
-  RubixLoaderColor.Blossom,
-  RubixLoaderColor.Npanel,
-];
 
 const DokployConnectionAlert = ({ message }: { message: string }) => (
   <Paper color="red" p="md">
@@ -96,9 +90,40 @@ const ServicesHomeRoute = () => {
 
 const App = () => {
   const { isAuthenticated, isLoading, logout } = useAuth();
+  const { refreshTrigger } = useRefreshServices();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [mobileMenuOpened, { toggle: toggleMobileMenu, close: closeMobileMenu }] = useDisclosure(false);
   const [accountModalOpen, { open: openAccountModal, close: closeAccountModal }] = useDisclosure(false);
+  const [services, setServices] = useState<Array<{ type?: string | null; presetId?: string | null }>>([]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setServices([]);
+      return;
+    }
+    let mounted = true;
+    trpc.listServices
+      .query()
+      .then((next) => {
+        if (!mounted) return;
+        setServices(Array.isArray(next) ? next : []);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setServices([]);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthenticated, refreshTrigger]);
+
+  const rubixLoaderColors = useMemo(() => {
+    const seen = new Set<RubixLoaderColor>();
+    for (const service of services) {
+      seen.add(serviceTypeToRubixLoaderColor(service.type, service.presetId));
+    }
+    return [RubixLoaderColor.RelayKit, ...Array.from(seen).filter((color) => color !== RubixLoaderColor.RelayKit)];
+  }, [services]);
 
   if (isLoading) {
     return null;

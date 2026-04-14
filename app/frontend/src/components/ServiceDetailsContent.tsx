@@ -7,8 +7,9 @@ import { RubixLoader } from '@samthomson/rubix-loader';
 import { SERVICE_TYPE, isNpanelType, isRelayType } from '../../../shared/serviceType';
 import { parsePubkeyHex } from '../../../shared/nsite';
 import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, Box, Transition, Table, rem, Paper, SimpleGrid, useComputedColorScheme, useMantineTheme } from '@mantine/core';
-import { IconCopy, IconExternalLink, IconCheck, IconX, IconAlertOctagon, IconAlertTriangle, IconCircleCheck, IconRefresh } from '@tabler/icons-react';
+import { IconExternalLink, IconCheck, IconX, IconAlertOctagon, IconAlertTriangle, IconCircleCheck, IconRefresh, IconPencil } from '@tabler/icons-react';
 import { InlineTextEditRow } from './InlineTextEditRow';
+import { CopyControl } from './CopyControl';
 import { trpc } from '../trpc';
 import { serviceTypeToRubixLoaderColor } from '../lib/serviceTypeColor';
 import { formatBytes, formatBytesPerSecond, formatPercent, formatWindow, getInsightSeverity, getOverallSeverity, getSeverityColor } from '../../../shared/insights';
@@ -21,6 +22,7 @@ const FADE_MS = 280;
 const HEIGHT_EASE = `${SHELL_H_MS / 1000}s cubic-bezier(0.33, 1, 0.68, 1)`;
 
 const LABEL_COL = 124;
+const DOMAIN_ROW_VALUE_W = rem(320);
 
 const monoBreakable = { wordBreak: 'break-all' as const, overflowWrap: 'anywhere' as const };
 
@@ -75,17 +77,14 @@ const ServiceDetailsDns = ({
             <Text size="xs" ff="monospace" style={monoBreakable}>
               {name}
             </Text>
-            <Tooltip label="Copy name">
-              <ActionIcon
-                variant="subtle"
-                size="sm"
-                className={dnsCopy}
-                onClick={() => onCopy(name)}
-                style={{ flexShrink: 0, marginLeft: rem(2) }}
-              >
-                <IconCopy size={12} />
-              </ActionIcon>
-            </Tooltip>
+            <CopyControl
+              text={name}
+              onCopy={onCopy}
+              tooltip="copy name"
+              iconSize={12}
+              className={dnsCopy}
+              style={{ flexShrink: 0, marginLeft: rem(2) }}
+            />
           </Group>
         </Table.Td>
         <Table.Td className={dnsCel}>
@@ -93,17 +92,14 @@ const ServiceDetailsDns = ({
             <Text size="xs" ff="monospace" style={monoBreakable}>
               {serverIp}
             </Text>
-            <Tooltip label="Copy IP">
-              <ActionIcon
-                variant="subtle"
-                size="sm"
-                className={dnsCopy}
-                onClick={() => onCopy(serverIp)}
-                style={{ flexShrink: 0, marginLeft: rem(2) }}
-              >
-                <IconCopy size={12} />
-              </ActionIcon>
-            </Tooltip>
+            <CopyControl
+              text={serverIp}
+              onCopy={onCopy}
+              tooltip="copy ip"
+              iconSize={12}
+              className={dnsCopy}
+              style={{ flexShrink: 0, marginLeft: rem(2) }}
+            />
           </Group>
         </Table.Td>
         <Table.Td>
@@ -172,6 +168,7 @@ export type ServiceDetailsContentProps = {
   editingDomain: { composeId: string; domainId: string; currentHost: string } | null;
   newDomainHost: string;
   setNewDomainHost: (v: string) => void;
+  onEditDomain: (composeId: string, domain: any) => void;
   onSaveDomain: () => void;
   onCancelEdit: () => void;
   onCopy: (text: string) => void;
@@ -187,6 +184,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
     editingDomain,
     newDomainHost,
     setNewDomainHost,
+    onEditDomain,
     onSaveDomain,
     onCancelEdit,
     onCopy,
@@ -222,39 +220,63 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
         </DetailBlock>
       )}
       <DetailBlock label="Service ID">
-        <Group gap="xs" wrap="wrap" align="flex-start">
-          <Text size="xs" ff="monospace" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={service.composeId}>
+        <Group gap="xs" wrap="nowrap" align="center" style={{ minWidth: 0, width: 'fit-content' }}>
+          <Text size="sm" ff="monospace" style={monoBreakable} title={service.composeId}>
             {service.composeId}
           </Text>
-          <Button size="xs" variant="subtle" onClick={() => onCopy(service.composeId)}>Copy</Button>
+          <CopyControl text={service.composeId} onCopy={onCopy} tooltip="copy service id" />
         </Group>
       </DetailBlock>
       {domain ? (
         <>
+          <DetailBlock label="Domain">
+            {isEditing && !omitHostEditor ? (
+              <InlineTextEditRow
+                value={newDomainHost}
+                onChange={setNewDomainHost}
+                onSave={onSaveDomain}
+                onCancel={onCancelEdit}
+                density="comfortable"
+                inputStyle={{ width: DOMAIN_ROW_VALUE_W, maxWidth: '100%' }}
+                rowStyle={{ minHeight: rem(28), width: 'fit-content', maxWidth: '100%' }}
+              />
+            ) : (
+              <Group gap="xs" wrap="nowrap" align="center" style={{ minHeight: rem(28), minWidth: 0, width: 'fit-content', maxWidth: '100%' }}>
+                <Text
+                  size="sm"
+                  ff="monospace"
+                  style={{
+                    width: DOMAIN_ROW_VALUE_W,
+                    maxWidth: '100%',
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={domain.host}
+                >
+                  {domain.host}
+                </Text>
+                <CopyControl text={domain.host} onCopy={onCopy} tooltip="copy domain" />
+                <Tooltip label="edit domain">
+                  <ActionIcon
+                    variant="subtle"
+                    size="sm"
+                    onClick={() => onEditDomain(service.composeId, domain)}
+                    aria-label="edit domain"
+                  >
+                    <IconPencil size={14} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+            )}
+          </DetailBlock>
           <DetailBlock label="HTTPS">
             <Group gap="xs" wrap="wrap" align="center">
               <Anchor href={httpsUrl} target="_blank" size="sm" fw={500} style={monoBreakable}>
                 {httpsUrl} ↗
               </Anchor>
-              <Group gap={4} wrap="nowrap">
-                <span style={{ color: 'var(--mantine-color-gray-4)' }}>|</span>
-                <Tooltip label="Copy URL">
-                  <ActionIcon variant="subtle" size="sm" onClick={() => onCopy(httpsUrl)}>
-                    <IconCopy size={14} />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-              {service.type === SERVICE_TYPE.BLOSSOM && (
-                <Button
-                  size="xs"
-                  variant="light"
-                  color="relaykit"
-                  onClick={onOpenBlossomExplorer}
-                  rightSection={<IconExternalLink size={12} />}
-                >
-                  Blossom Explorer
-                </Button>
-              )}
+              <CopyControl text={httpsUrl} onCopy={onCopy} tooltip="copy https url" />
               {isNpanelType(service.type) && (
                 <Anchor href={`${httpsUrl}/status`} target="_blank" size="xs" variant="light" color="relaykit">Status</Anchor>
               )}
@@ -269,16 +291,17 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
           {isRelayType(service.type) && (
             <DetailBlock label="WSS">
               <Group gap="xs" wrap="wrap" align="flex-start">
-                <Text size="xs" ff="monospace" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={wssUrl}>
+                <Text size="sm" ff="monospace" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={wssUrl}>
                   {wssUrl}
                 </Text>
-                <Group gap={4} wrap="nowrap">
-                  <span style={{ color: 'var(--mantine-color-gray-4)' }}>|</span>
-                  <Tooltip label="Copy URL">
-                    <ActionIcon variant="subtle" size="sm" onClick={() => onCopy(wssUrl)}>
-                      <IconCopy size={14} />
-                    </ActionIcon>
-                  </Tooltip>
+                <CopyControl text={wssUrl} onCopy={onCopy} tooltip="copy wss url" />
+              </Group>
+            </DetailBlock>
+          )}
+          {(isRelayType(service.type) || service.type === SERVICE_TYPE.BLOSSOM) && (
+            <DetailBlock label="Data">
+              <Group gap="xs" wrap="wrap" align="center">
+                {isRelayType(service.type) && (
                   <Button
                     size="xs"
                     variant="light"
@@ -286,9 +309,20 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                     onClick={onOpenRelayExplorer}
                     rightSection={<IconExternalLink size={12} />}
                   >
-                    Relay Explorer
+                    relay explorer
                   </Button>
-                </Group>
+                )}
+                {service.type === SERVICE_TYPE.BLOSSOM && (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="relaykit"
+                    onClick={onOpenBlossomExplorer}
+                    rightSection={<IconExternalLink size={12} />}
+                  >
+                    blossom explorer
+                  </Button>
+                )}
               </Group>
             </DetailBlock>
           )}
@@ -304,7 +338,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                     <Anchor href={nip5aHttps} target="_blank" size="xs" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={h}>
                       {nip5aHttps} ↗
                     </Anchor>
-                    <Button size="xs" variant="subtle" onClick={() => onCopy(nip5aHttps)}>Copy</Button>
+                    <CopyControl text={nip5aHttps} onCopy={onCopy} tooltip="copy nip-5a url" />
                   </Group>
                   <Text size="xs" c="dimmed">
                     NIP-5A builds this hostname from your pubkey and site id (compact encoding), so it will not look like your hex or npub.
@@ -334,7 +368,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                       <Text size="xs" ff="monospace" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={raw}>
                         {raw}
                       </Text>
-                      <Button size="xs" variant="subtle" onClick={() => onCopy(raw)}>Copy</Button>
+                      <CopyControl text={raw} onCopy={onCopy} tooltip="copy publishing key" />
                     </Group>
                   </DetailBlock>
                 );
@@ -347,7 +381,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                     <Text size="xs" ff="monospace" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={hex}>
                       {hex}
                     </Text>
-                    <Button size="xs" variant="subtle" onClick={() => onCopy(hex)}>Copy</Button>
+                    <CopyControl text={hex} onCopy={onCopy} tooltip="copy pubkey hex" />
                   </Group>
                 </DetailBlock>
               );
@@ -357,7 +391,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                     <Text size="xs" ff="monospace" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={npub}>
                       {npub}
                     </Text>
-                    <Button size="xs" variant="subtle" onClick={() => onCopy(npub)}>Copy</Button>
+                    <CopyControl text={npub} onCopy={onCopy} tooltip="copy npub" />
                   </Group>
                 </DetailBlock>
               );
@@ -379,7 +413,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                   <Text size="xs" ff="monospace" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={service.nsiteSiteD}>
                     {service.nsiteSiteD}
                   </Text>
-                  <Button size="xs" variant="subtle" onClick={() => onCopy(service.nsiteSiteD)}>Copy</Button>
+                  <CopyControl text={service.nsiteSiteD} onCopy={onCopy} tooltip="copy site id" />
                 </Group>
               </DetailBlock>
             )}
@@ -389,24 +423,12 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                   <Text size="xs" ff="monospace" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={service.nsiteManifestEventId}>
                     {service.nsiteManifestEventId}
                   </Text>
-                  <Button size="xs" variant="subtle" onClick={() => onCopy(service.nsiteManifestEventId)}>Copy</Button>
+                  <CopyControl text={service.nsiteManifestEventId} onCopy={onCopy} tooltip="copy manifest id" />
                 </Group>
               </DetailBlock>
             )}
           </Stack>
         )}
-
-      {isEditing && !omitHostEditor && (
-        <DetailBlock label="Host">
-          <InlineTextEditRow
-            value={newDomainHost}
-            onChange={setNewDomainHost}
-            onSave={onSaveDomain}
-            onCancel={onCancelEdit}
-            inputStyle={{ flex: 1, minWidth: 0 }}
-          />
-        </DetailBlock>
-      )}
 
       {hasConfig && (
         <Stack gap="md">
@@ -497,7 +519,7 @@ const ServiceDetailsInsights = ({
   if (loading && !insights) {
     return (
       <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(220) }}>
-        <RubixLoader size={64} colors={[loaderColor]} speed={1.35} />
+        <RubixLoader size={128} colors={[loaderColor]} speed={1.35} />
         <Text size="sm" c="dimmed">loading service insights…</Text>
       </Stack>
     );
@@ -748,7 +770,7 @@ const ServiceDetailsLogs = ({ composeId, serviceType, presetId }: { composeId: s
   if (loading && !logs) {
     return (
       <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(220) }}>
-        <RubixLoader size={64} colors={[loaderColor]} speed={1.35} />
+        <RubixLoader size={128} colors={[loaderColor]} speed={1.35} />
         <Text size="sm" c="dimmed">Loading service logs…</Text>
       </Stack>
     );

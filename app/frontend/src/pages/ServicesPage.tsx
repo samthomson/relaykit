@@ -10,6 +10,7 @@ import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave 
 import { ServiceDetailsContent, ServiceDetailsModalContext } from '../components/ServiceDetailsContent';
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from '../components/InlineTextEditRow';
 import { ServiceHostTitleView } from '../components/ServiceHostTitleView';
+import { CopyControl } from '../components/CopyControl';
 import { serviceTypeToRubixLoaderColor } from '../lib/serviceTypeColor';
 import {
   Menu,
@@ -37,7 +38,6 @@ import {
 import { useForm } from '@mantine/form';
 import {
   IconChevronDown,
-  IconCopy,
   IconExternalLink,
   IconPencil,
   IconCpu,
@@ -583,12 +583,12 @@ const ServiceCard = ({
     editingDomain,
     newDomainHost,
     setNewDomainHost,
+    onEditDomain,
     onSaveDomain,
     onCancelEdit,
     onCopy,
     onOpenRelayExplorer: () => setShowExplorer(true),
     onOpenBlossomExplorer: () => setShowBlossomExplorer(true),
-    omitHostEditor: !!(isEditing && domain),
   };
 
   return (
@@ -640,37 +640,23 @@ const ServiceCard = ({
                 style={{ minWidth: 0, flex: 1, minHeight: INLINE_TITLE_ROW_H, ...brokenContentStyle }}
               >
                 <ServiceTypeIcon service={service} size={20} marginRight={6} />
-                {isEditing && domain ? (
-                  <InlineTextEditRow
-                    value={newDomainHost}
-                    onChange={setNewDomainHost}
-                    onSave={() => void onSaveDomain()}
-                    onCancel={onCancelEdit}
-                    autoFocus
-                    density="comfortable"
-                    inputStyle={{ flex: 1, minWidth: 0 }}
-                    rowStyle={{ flex: 1, minWidth: 0 }}
-                    trailing={<Badge variant="filled" color={statusColor} size="sm">{statusNorm}</Badge>}
-                  />
-                ) : (
-                  <ServiceHostTitleView
-                    title={domain ? domain.host : service.name}
-                    density="comfortable"
-                    domain={domain}
-                    canEditConfig={service.canEditConfig}
-                    composeId={service.composeId}
-                    service={service}
-                    onEditDomain={onEditDomain}
-                    onEditConfig={onEditConfig}
-                    rowStyle={{ flex: 1, minWidth: 0 }}
-                    trailing={
-                      <Group gap={6} wrap="nowrap">
-                        <Badge variant="filled" color={statusColor} size="sm">{statusNorm}</Badge>
-                        {nip42Badge}
-                      </Group>
-                    }
-                  />
-                )}
+                <ServiceHostTitleView
+                  title={domain ? domain.host : service.name}
+                  density="comfortable"
+                  domain={null}
+                  canEditConfig={false}
+                  composeId={service.composeId}
+                  service={service}
+                  onEditDomain={onEditDomain}
+                  onEditConfig={onEditConfig}
+                  rowStyle={{ flex: 1, minWidth: 0 }}
+                  trailing={
+                    <Group gap={6} wrap="nowrap">
+                      <Badge variant="filled" color={statusColor} size="sm">{statusNorm}</Badge>
+                      {nip42Badge}
+                    </Group>
+                  }
+                />
               </Group>
               <Box style={{ position: 'relative', zIndex: 3 }}>
                 <CogMenu showLabel items={manageItems} />
@@ -756,11 +742,7 @@ const ServiceCard = ({
                     <Anchor href={httpsUrl} target="_blank" size="xs" c="relaykit" truncate style={{ flex: 1, minWidth: 0 }} title={httpsUrl}>
                       {httpsUrl} ↗
                     </Anchor>
-                    <Tooltip label="Copy URL">
-                      <ActionIcon variant="subtle" size="sm" onClick={() => onCopy(httpsUrl)}>
-                        <IconCopy size={14} />
-                      </ActionIcon>
-                    </Tooltip>
+                    <CopyControl text={httpsUrl} onCopy={onCopy} tooltip="copy url" />
                   </Group>
                 ) : (
                   <Text size="xs" c="dimmed" fs="italic">No domain configured</Text>
@@ -788,7 +770,15 @@ const ServiceCard = ({
                       explorer
                     </Button>
                   )}
-                  <Button size="xs" variant="light" color="gray" onClick={() => setDetailsModalOpen(true)}>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="gray"
+                    onClick={() => {
+                      if (isEditing) onCancelEdit();
+                      setDetailsModalOpen(true);
+                    }}
+                  >
                     details
                   </Button>
                 </Group>
@@ -796,34 +786,24 @@ const ServiceCard = ({
             </Stack>
             <Modal
               opened={detailsModalOpen}
-              onClose={() => setDetailsModalOpen(false)}
+              onClose={() => {
+                setDetailsModalOpen(false);
+                if (isEditing) onCancelEdit();
+              }}
               title={
                 <Group justify="space-between" align="center" gap="sm" wrap="nowrap" w="100%" maw="calc(100% - 2.5rem)" style={{ minHeight: INLINE_TITLE_ROW_H }}>
-                  {isEditing && domain ? (
-                    <InlineTextEditRow
-                      value={newDomainHost}
-                      onChange={setNewDomainHost}
-                      onSave={() => void onSaveDomain()}
-                      onCancel={onCancelEdit}
-                      autoFocus
-                      density="comfortable"
-                      inputStyle={{ flex: 1, minWidth: 0 }}
-                      rowStyle={{ flex: 1, minWidth: 0 }}
-                    />
-                  ) : (
-                    <ServiceHostTitleView
-                      title={domain ? domain.host : service.name}
-                      density="comfortable"
-                      domain={domain}
-                      canEditConfig={service.canEditConfig}
-                      composeId={service.composeId}
-                      service={service}
-                      onEditDomain={onEditDomain}
-                      onEditConfig={onEditConfig}
-                      rowStyle={{ flex: 1, minWidth: 0 }}
-                      trailing={nip42Badge}
-                    />
-                  )}
+                  <ServiceHostTitleView
+                    title={domain ? domain.host : service.name}
+                    density="comfortable"
+                    domain={null}
+                    canEditConfig={false}
+                    composeId={service.composeId}
+                    service={service}
+                    onEditDomain={onEditDomain}
+                    onEditConfig={onEditConfig}
+                    rowStyle={{ flex: 1, minWidth: 0 }}
+                    trailing={nip42Badge}
+                  />
                   <CogMenu showLabel items={manageItems} />
                 </Group>
               }
@@ -1208,6 +1188,15 @@ export const ServiceList = () => {
     name === 'relaykit.ungrouped' ? '' : name;
   const viewToggleBg = colorScheme === 'dark' ? '#111315' : theme.colors.gray[1];
 
+  if (!listLoaded) {
+    return (
+      <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(480) }}>
+        <RubixLoader size={144} colors={[RubixLoaderColor.RelayKit]} speed={1.35} />
+        <Text size="sm" c="dimmed">loading services…</Text>
+      </Stack>
+    );
+  }
+
   return (
     <Stack gap="xl">
       <Group justify="flex-end">
@@ -1250,12 +1239,7 @@ export const ServiceList = () => {
         </Box>
       </Group>
 
-      {!listLoaded ? (
-        <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(480) }}>
-          <RubixLoader size={144} colors={[RubixLoaderColor.RelayKit]} speed={1.35} />
-          <Text size="sm" c="dimmed">loading services…</Text>
-        </Stack>
-      ) : grouped.length === 0 ? (
+      {grouped.length === 0 ? (
         <Paper withBorder p="xl">
           <Stack align="center" gap="sm">
             <Text c="dimmed">no services yet.</Text>
