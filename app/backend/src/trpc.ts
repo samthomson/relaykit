@@ -328,6 +328,61 @@ const dockerSocketGetJson = async (pathWithQuery: string): Promise<any> =>
     req.end()
   })
 
+const dockerSocketGetBuffer = async (pathWithQuery: string): Promise<Buffer> =>
+  new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        socketPath: DOCKER_SOCKET_PATH,
+        path: pathWithQuery,
+        method: 'GET',
+      },
+      (res) => {
+        const chunks: Buffer[] = []
+        res.on('data', (chunk) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+        })
+        res.on('end', () => {
+          const body = Buffer.concat(chunks)
+          if ((res.statusCode || 500) >= 400) {
+            reject(new Error(`Docker API ${res.statusCode}: ${body.toString('utf8').slice(0, 200)}`))
+            return
+          }
+          resolve(body)
+        })
+      }
+    )
+    req.on('error', reject)
+    req.end()
+  })
+
+const decodeDockerLogPayload = (body: Buffer): string => {
+  if (body.length < 8) return body.toString('utf8')
+  const streamType = body[0]
+  const isFramedHeader = streamType >= 1 && streamType <= 3 && body[1] === 0 && body[2] === 0 && body[3] === 0
+  if (!isFramedHeader) return body.toString('utf8')
+
+  let offset = 0
+  let out = ''
+  while (offset + 8 <= body.length) {
+    const nextStreamType = body[offset]
+    if (nextStreamType < 1 || nextStreamType > 3) {
+      return body.toString('utf8')
+    }
+    if (body[offset + 1] !== 0 || body[offset + 2] !== 0 || body[offset + 3] !== 0) {
+      return body.toString('utf8')
+    }
+    const frameLen = body.readUInt32BE(offset + 4)
+    const frameStart = offset + 8
+    const frameEnd = frameStart + frameLen
+    if (frameEnd > body.length) {
+      return body.toString('utf8')
+    }
+    out += body.slice(frameStart, frameEnd).toString('utf8')
+    offset = frameEnd
+  }
+  return out
+}
+
 const toOneDecimal = (n: number): number => Math.round(n * 10) / 10
 
 const getCpuPctFromStats = (stats: any): number => {
@@ -476,6 +531,79 @@ const getServiceInsightsFromDokploy = async (composeId: string): Promise<Service
     thresholds: SERVICE_INSIGHTS.thresholds,
     current,
     history,
+  }
+}
+
+const getServiceLogsFromDocker = async (input: {
+  composeId: string
+  tail: number
+  sinceSeconds?: number
+}) => {
+  try {
+    await fs.access(DOCKER_SOCKET_PATH)
+  } catch {
+    throw new TRPCError({
+      code: 'PRECONDITION_FAILED',
+      message: 'Service logs are unavailable: Docker runtime access is not configured.',
+    })
+  }
+
+  const appName = await loadComposeAppName(input.composeId)
+  const filters = encodeURIComponent(JSON.stringify({ label: [`com.docker.compose.project=${appName}`] }))
+  const containers = await dockerSocketGetJson(`/containers/json?all=1&size=0&filters=${filters}`)
+
+  if (!Array.isArray(containers) || containers.length === 0) {
+    throw new TRPCError({
+      code: 'PRECONDITION_FAILED',
+      message: 'Service logs are unavailable: no containers found for this compose service.',
+    })
+  }
+
+  const sinceUnix = input.sinceSeconds && input.sinceSeconds > 0
+    ? Math.max(0, Math.floor(Date.now() / 1000) - input.sinceSeconds)
+    : null
+
+  const containerLogs = await Promise.all(
+    containers.map(async (container: any) => {
+      const containerId = String(container?.Id || '').trim()
+      const name = String(container?.Names?.[0] || containerId).replace(/^\//, '')
+      const service = String(container?.Labels?.['com.docker.compose.service'] || '').trim() || name
+      const running = String(container?.State || '').trim() === 'running'
+      const params = new URLSearchParams({
+        stdout: '1',
+        stderr: '1',
+        timestamps: '1',
+        tail: String(input.tail),
+      })
+      if (sinceUnix != null) params.set('since', String(sinceUnix))
+      try {
+        const body = await dockerSocketGetBuffer(`/containers/${containerId}/logs?${params.toString()}`)
+        const text = decodeDockerLogPayload(body)
+        const lines = text
+          .split(/\r?\n/g)
+          .map((line) => line.trimEnd())
+          .filter(Boolean)
+        return { containerId, name, service, running, lines, error: null as string | null }
+      } catch (error: any) {
+        return {
+          containerId,
+          name,
+          service,
+          running,
+          lines: [] as string[],
+          error: error?.message || 'Could not load logs for this container.',
+        }
+      }
+    })
+  )
+
+  containerLogs.sort((a, b) => a.name.localeCompare(b.name))
+  return {
+    composeId: input.composeId,
+    appName,
+    fetchedAt: Date.now(),
+    tail: input.tail,
+    containers: containerLogs,
   }
 }
 
@@ -897,6 +1025,22 @@ export const appRouter = router({
   getServiceInsights: protectedProcedure
     .input(z.object({ composeId: z.string().min(1) }))
     .query(async ({ input }) => getServiceInsightsFromDokploy(input.composeId)),
+
+  getServiceLogs: protectedProcedure
+    .input(
+      z.object({
+        composeId: z.string().min(1),
+        tail: z.number().int().min(20).max(1000).optional(),
+        sinceSeconds: z.number().int().min(0).max(86400).optional(),
+      })
+    )
+    .query(async ({ input }) =>
+      getServiceLogsFromDocker({
+        composeId: input.composeId,
+        tail: input.tail ?? 200,
+        sinceSeconds: input.sinceSeconds,
+      })
+    ),
 
   getServicesInsights: protectedProcedure
     .input(z.object({ composeIds: z.array(z.string().min(1)).min(1).max(200) }))

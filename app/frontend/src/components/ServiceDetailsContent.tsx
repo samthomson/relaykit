@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { LineChart } from '@mantine/charts';
 import { nip19 } from 'nostr-tools';
@@ -7,7 +7,7 @@ import { RubixLoader } from '@samthomson/rubix-loader';
 import { SERVICE_TYPE, isNpanelType, isRelayType } from '../../../shared/serviceType';
 import { parsePubkeyHex } from '../../../shared/nsite';
 import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, Box, Transition, Table, rem, Paper, SimpleGrid, useComputedColorScheme, useMantineTheme } from '@mantine/core';
-import { IconCopy, IconExternalLink, IconCheck, IconX, IconAlertOctagon, IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react';
+import { IconCopy, IconExternalLink, IconCheck, IconX, IconAlertOctagon, IconAlertTriangle, IconCircleCheck, IconRefresh } from '@tabler/icons-react';
 import { InlineTextEditRow } from './InlineTextEditRow';
 import { trpc } from '../trpc';
 import { serviceTypeToRubixLoaderColor } from '../lib/serviceTypeColor';
@@ -640,6 +640,210 @@ const ServiceDetailsInsights = ({
   );
 };
 
+const ServiceDetailsLogs = ({ composeId }: { composeId: string }) => {
+  const [logs, setLogs] = useState<Awaited<ReturnType<typeof trpc.getServiceLogs.query>> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedContainerIds, setSelectedContainerIds] = useState<string[]>([]);
+  const colorScheme = useComputedColorScheme('light');
+  const containerSwatches = colorScheme === 'dark'
+    ? ['cyan', 'grape', 'pink', 'orange', 'teal', 'lime', 'blue', 'yellow']
+    : ['blue', 'teal', 'grape', 'pink', 'orange', 'cyan', 'lime', 'indigo'];
+
+  const loadLogs = async () => {
+    try {
+      const next = await trpc.getServiceLogs.query({ composeId, tail: 200 });
+      setLogs(next);
+      setError(null);
+    } catch (e: any) {
+      setError(e?.message || 'Could not load service logs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!mounted) return;
+      await loadLogs();
+    };
+    void load();
+    const poll = window.setInterval(() => {
+      void load();
+    }, 5000);
+    return () => {
+      mounted = false;
+      window.clearInterval(poll);
+    };
+  }, [composeId]);
+
+  useEffect(() => {
+    if (!logs) return;
+    const allIds = logs.containers.map((c) => c.containerId);
+    setSelectedContainerIds((prev) => {
+      if (prev.length === 0) return allIds;
+      const keep = prev.filter((id) => allIds.includes(id));
+      return keep.length > 0 ? keep : allIds;
+    });
+  }, [logs]);
+
+  const decoratedContainers = useMemo(() => {
+    if (!logs) return [];
+    return logs.containers.map((container, idx) => ({
+      ...container,
+      badgeColor: containerSwatches[idx % containerSwatches.length],
+    }));
+  }, [logs, containerSwatches]);
+
+  const allContainerIds = decoratedContainers.map((c) => c.containerId);
+  const activeContainerIds = selectedContainerIds.length > 0 ? selectedContainerIds : allContainerIds;
+  const activeSet = new Set(activeContainerIds);
+
+  const mergedRows = useMemo(() => {
+    const rows: Array<{
+      key: string;
+      ts: number;
+      tsText: string;
+      message: string;
+      containerId: string;
+      containerLabel: string;
+      badgeColor: string;
+      idx: number;
+    }> = [];
+    let idx = 0;
+    for (const container of decoratedContainers) {
+      if (!activeSet.has(container.containerId)) continue;
+      for (const line of container.lines) {
+        const firstSpace = line.indexOf(' ');
+        const maybeTs = firstSpace > 0 ? line.slice(0, firstSpace) : '';
+        const parsedTs = maybeTs ? Date.parse(maybeTs) : Number.NaN;
+        const hasTs = Number.isFinite(parsedTs);
+        rows.push({
+          key: `${container.containerId}:${idx}`,
+          ts: hasTs ? Number(parsedTs) : 0,
+          tsText: hasTs ? maybeTs : '',
+          message: hasTs ? line.slice(firstSpace + 1) : line,
+          containerId: container.containerId,
+          containerLabel: container.service || container.name,
+          badgeColor: container.badgeColor,
+          idx,
+        });
+        idx += 1;
+      }
+    }
+    rows.sort((a, b) => {
+      if (a.ts !== b.ts) return b.ts - a.ts;
+      return b.idx - a.idx;
+    });
+    return rows;
+  }, [decoratedContainers, activeSet]);
+
+  if (loading && !logs) {
+    return (
+      <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(180) }}>
+        <RubixLoader size={38} colors={['var(--mantine-color-relaykit-6)']} speed={1.35} />
+        <Text size="sm" c="dimmed">Loading service logs…</Text>
+      </Stack>
+    );
+  }
+
+  if (error && !logs) {
+    return (
+      <Paper withBorder p="md">
+        <Text fw={500} c="red">Could not load service logs</Text>
+        <Text size="xs" c="dimmed" mt={4}>{error}</Text>
+      </Paper>
+    );
+  }
+
+  if (!logs) return null;
+
+  return (
+    <Stack gap="md">
+      <Group justify="space-between" align="center">
+        <Stack gap={2}>
+          <Text fw={600}>service logs</Text>
+          <Text size="xs" c="dimmed">
+            tail {logs.tail} lines per container • updated {formatDistanceToNow(new Date(logs.fetchedAt), { addSuffix: true })}
+          </Text>
+        </Stack>
+        <ActionIcon variant="subtle" color="relaykit" onClick={() => void loadLogs()} aria-label="refresh logs">
+          <IconRefresh size={16} />
+        </ActionIcon>
+      </Group>
+
+      <Group gap={6} wrap="wrap">
+        <Badge
+          variant={activeContainerIds.length === allContainerIds.length ? 'filled' : 'light'}
+          color="relaykit"
+          style={{ cursor: 'pointer' }}
+          onClick={() => setSelectedContainerIds(allContainerIds)}
+        >
+          all
+        </Badge>
+        {decoratedContainers.map((container) => {
+          const active = activeSet.has(container.containerId);
+          return (
+            <Badge
+              key={container.containerId}
+              variant={active ? 'filled' : 'light'}
+              color={container.badgeColor}
+              style={{ cursor: 'pointer', opacity: active ? 1 : 0.55 }}
+              onClick={() =>
+                setSelectedContainerIds((prev) =>
+                  prev.includes(container.containerId)
+                    ? prev.filter((id) => id !== container.containerId)
+                    : [...prev, container.containerId]
+                )
+              }
+            >
+              {container.service}
+            </Badge>
+          );
+        })}
+      </Group>
+
+      {decoratedContainers.some((container) => !!container.error) && (
+        <Stack gap={4}>
+          {decoratedContainers
+            .filter((container) => !!container.error)
+            .map((container) => (
+              <Text key={container.containerId} size="xs" c="dimmed">
+                {container.service}: {container.error}
+              </Text>
+            ))}
+        </Stack>
+      )}
+
+      <Paper withBorder p="sm" style={{ maxHeight: rem(320), overflow: 'auto' }}>
+        {mergedRows.length === 0 ? (
+          <Text size="xs" c="dimmed">No logs available for current filter.</Text>
+        ) : (
+          <Stack gap={2}>
+            {mergedRows.map((row) => (
+              <Text key={row.key} size="xs" ff="monospace" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                <Text component="span" fw={700} c={row.badgeColor}>
+                  [{row.containerLabel}]
+                </Text>
+                {row.tsText ? (
+                  <>
+                    <Text component="span"> </Text>
+                    <Text component="span" c="dimmed">
+                      {row.tsText}
+                    </Text>
+                  </>
+                ) : null}
+                <Text component="span"> {row.message}</Text>
+              </Text>
+            ))}
+          </Stack>
+        )}
+      </Paper>
+    </Stack>
+  );
+};
+
 export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
   const { service, serverIp } = props;
   const theme = useMantineTheme();
@@ -647,6 +851,7 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
   const domain = service.domains?.[0];
   const hasDNS = domain && serverIp;
   const hasInsights = !!service.composeId;
+  const hasLogs = !!service.composeId;
   const activePanelBg = colorScheme === 'dark' ? theme.colors.dark[8] : theme.colors.gray[0];
   const panelShadow = colorScheme === 'dark'
     ? '0 4px 12px rgba(0,0,0,0.18)'
@@ -727,6 +932,7 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
               <Tabs.Tab value="info" style={getTabStyle(section === 'info')}>Info</Tabs.Tab>
               <Tabs.Tab value="dns" style={getTabStyle(section === 'dns')}>DNS</Tabs.Tab>
               <Tabs.Tab value="insights" style={getTabStyle(section === 'insights')}>Insights</Tabs.Tab>
+              <Tabs.Tab value="logs" style={getTabStyle(section === 'logs')}>logs</Tabs.Tab>
             </Tabs.List>
             <Box
               style={{
@@ -767,6 +973,13 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
                         presetId={service.presetId}
                       />
                     ) : null}
+                  </Box>
+                )}
+              </Transition>
+              <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'logs'}>
+                {(tStyle) => (
+                  <Box style={{ ...panelContentStyle, ...tStyle }}>
+                    {hasLogs ? <ServiceDetailsLogs composeId={service.composeId} /> : null}
                   </Box>
                 )}
               </Transition>
