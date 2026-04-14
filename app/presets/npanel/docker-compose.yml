@@ -62,20 +62,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        cat <<'EOF' > /tmp/Caddyfile
-        :8080 {
-          @nip05 path /.well-known/nostr.json
-          handle @nip05 {
-            reverse_proxy http://npanel-nip05:8090
-          }
-          handle {
-            reverse_proxy http://nsite-gateway:3000 {
-              header_up Host {$CANONICAL_HOST}
-            }
-          }
-        }
-        EOF
-        exec caddy run --config /tmp/Caddyfile
+        printf ':8080 {\n  @nip05 path /.well-known/nostr.json\n  handle @nip05 {\n    reverse_proxy http://npanel-nip05:8090\n  }\n  handle {\n    reverse_proxy http://nsite-gateway:3000 {\n      header_up Host %s\n    }\n  }\n}\n' "$$CANONICAL_HOST" > /tmp/Caddyfile && exec caddy run --config /tmp/Caddyfile
     expose:
       - "8080"
     depends_on:
