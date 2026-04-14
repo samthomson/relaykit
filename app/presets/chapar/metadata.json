@@ -1,0 +1,38 @@
+{
+  "id": "chapar",
+  "name": "Chapar Relay",
+  "label": "Chapar",
+  "repo": "https://github.com/dezh-tech/ddsr/tree/main/chapar",
+  "icon": "💬",
+  "description": "A Nostr relay that only accepts chat app events (NIP-59)",
+  "version": "1.0.0",
+  "type": "relay",
+  "serviceName": "chapar",
+  "internalPort": 1717,
+  "requiredConfig": [
+    {
+      "id": "RELAY_HOST",
+      "name": "Relay Domain",
+      "type": "string",
+      "required": true,
+      "description": "The domain name for your Nostr relay (e.g., relay.example.com)",
+      "placeholder": "relay.example.com"
+    },
+    {
+      "id": "RELAY_PUBKEY",
+      "name": "Owner Pubkey (hex)",
+      "type": "string",
+      "required": false,
+      "description": "The relay owner's public key in hex format",
+      "placeholder": "abc123..."
+    },
+    {
+      "id": "RELAY_CONTACT",
+      "name": "Contact",
+      "type": "string",
+      "required": false,
+      "description": "Contact info for the relay operator",
+      "placeholder": "info@example.com"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+# Routing is configured via Dokploy's Domains API (domain.create), not Traefik labels in this file.
+# Service must be on dokploy-network so Traefik can reach it (Dokploy requirement).
+# Use {{DEPLOY_SUFFIX}} in volume names so each deployment gets its own volume (replaced at deploy time).
+services:
+  chapar:
+    image: dezhtech/chapar:latest
+    restart: unless-stopped
+    environment:
+      RELAY_NAME: "Chapar"
+      RELAY_PUBKEY: "${RELAY_PUBKEY:-}"
+      RELAY_DESCRIPTION: "We only accept kind 1059 events!"
+      RELAY_URL: "wss://${RELAY_HOST}"
+      RELAY_ICON: ""
+      RELAY_BANNER: ""
+      RELAY_CONTACT: "${RELAY_CONTACT:-}"
+      WORKING_DIR: "chapar_wd/"
+      RELAY_PORT: ":1717"
+    volumes:
+      - chapar_data_{{DEPLOY_SUFFIX}}:/app/chapar_wd
+    expose:
+      - "1717"
+    networks:
+      - dokploy-network
+
+volumes:
+  chapar_data_{{DEPLOY_SUFFIX}}:
+
+networks:
+  dokploy-network:
+    external: true
