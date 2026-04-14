@@ -3,6 +3,8 @@ services:
   blossom:
     build: https://github.com/samthomson/bs-dokploy.git#master
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command: /app/entrypoint.sh && exec deno task start
     environment:
       DASHBOARD_USER: ${DASHBOARD_USER:-admin}
       DASHBOARD_PASS: ${DASHBOARD_PASS}
