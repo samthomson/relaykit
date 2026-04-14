@@ -74,6 +74,21 @@ const formatBytesPerSecondRounded = (bytesPerSec: number | null): string => {
   return `${formatBytesRounded(bytesPerSec)}/s`
 }
 
+const isImageIcon = (icon: string): boolean =>
+  /^https?:\/\//.test(icon) || icon.startsWith('/') || /\.(png|jpe?g|gif|webp|svg)$/i.test(icon)
+
+const renderIcon = (icon: string | undefined, size: number): ReactNode => {
+  if (!icon) return null
+  if (!isImageIcon(icon)) return <span style={{ fontSize: Math.max(12, size - 6), lineHeight: 1 }}>{icon}</span>
+  return (
+    <img
+      src={icon}
+      alt=""
+      style={{ width: size, height: size, objectFit: 'contain', borderRadius: 4 }}
+    />
+  )
+}
+
 const ServiceTypeIcon = ({ service, size, marginRight }: { service: any; size: number; marginRight?: number }) => {
   if (!service.icon) return null;
   const accent = serviceTypeToRubixLoaderColor(service.type, service.presetId);
@@ -97,7 +112,7 @@ const ServiceTypeIcon = ({ service, size, marginRight }: { service: any; size: n
           lineHeight: 1,
         }}
       >
-        <span style={{ fontSize: Math.max(12, size - 6), lineHeight: 1 }}>{service.icon}</span>
+        {renderIcon(service.icon, size)}
       </Box>
     </Tooltip>
   );
@@ -385,7 +400,7 @@ const AddServiceButton = ({
             <Menu.Item
               key={preset.id}
               onClick={() => handleSelectPreset(preset)}
-              leftSection={preset.icon}
+              leftSection={renderIcon(preset.icon, 18)}
               rightSection={preset.repo ? (
                 <Anchor href={preset.repo} target="_blank" size="xs" onClick={(e) => e.stopPropagation()}>
                   Repo ↗
@@ -1652,7 +1667,7 @@ const DeployModal = ({
   return (
     <Modal opened onClose={onClose} title={
       <Group gap="xs">
-        {preset.icon}
+        {renderIcon(preset.icon, 18)}
         <Text fw={700}>Deploy {preset.name}</Text>
       </Group>
     } size="md" centered styles={{ body: { maxHeight: '85vh', overflow: 'auto' } }}>
