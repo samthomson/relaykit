@@ -7,6 +7,7 @@ type RubixColor = (typeof RubixLoaderColor)[keyof typeof RubixLoaderColor];
 const RELAY_PRESET_RUBIX: Partial<Record<string, RubixColor>> = {
   stirfry: RubixLoaderColor.Strfry,
   'nostr-rs-relay': RubixLoaderColor.NostrRs,
+  chapar: RubixLoaderColor.Chapar,
 };
 
 export const serviceTypeToRubixLoaderColor = (type?: string | null, presetId?: string | null) => {
