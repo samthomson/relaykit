@@ -200,11 +200,11 @@ maybe later:
 
 - [ ] ui rewrite
    - [x] table for dns
-   - [ ] rubix state/loading component
-   - [ ] brand font
-   - [ ] aesthetic reset; colours, ui elements, look
+   - [x] rubix state/loading component
+   - [x] brand font
+   - [x] aesthetic reset; colours, ui elements, look
    - [ ] wss not exposed in overview
-   - [ ] tidy up service details modal
+   - [x] tidy up service details modal
 
 - [ ] perf stuff
    - [x] overall
