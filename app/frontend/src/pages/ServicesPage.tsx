@@ -505,6 +505,7 @@ const ServiceCard = ({
   const domain = service.domains?.[0];
   const isEditing = editingDomain?.domainId === domain?.domainId;
   const httpsUrl = domain ? `https://${domain.host}` : '';
+  const wssUrl = domain ? `wss://${domain.host}` : '';
   const statusNorm = String(service.status ?? '').toLowerCase();
   const moveTargets = allEnvironments.filter((env) => env.environmentId !== service.environmentId);
   const manageItems: { label: string; onClick: () => void; danger?: boolean }[] = [];
@@ -738,12 +739,22 @@ const ServiceCard = ({
               </Group>
               <Box style={brokenContentStyle}>
                 {domain ? (
-                  <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0 }}>
-                    <Anchor href={httpsUrl} target="_blank" size="xs" c="relaykit" truncate style={{ flex: 1, minWidth: 0 }} title={httpsUrl}>
-                      {httpsUrl} ↗
-                    </Anchor>
-                    <CopyControl text={httpsUrl} onCopy={onCopy} tooltip="copy url" />
-                  </Group>
+                  <Stack gap={4}>
+                    <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0, width: 'fit-content', maxWidth: '100%' }}>
+                      <Anchor href={httpsUrl} target="_blank" size="xs" c="relaykit" truncate style={{ minWidth: 0, maxWidth: '100%' }} title={httpsUrl}>
+                        {httpsUrl} ↗
+                      </Anchor>
+                      <CopyControl text={httpsUrl} onCopy={onCopy} tooltip="copy https url" />
+                    </Group>
+                    {isRelayType(service.type) && (
+                      <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0, width: 'fit-content', maxWidth: '100%' }}>
+                        <Text size="xs" ff="monospace" truncate style={{ minWidth: 0, maxWidth: '100%' }} title={wssUrl}>
+                          {wssUrl}
+                        </Text>
+                        <CopyControl text={wssUrl} onCopy={onCopy} tooltip="copy wss url" />
+                      </Group>
+                    )}
+                  </Stack>
                 ) : (
                   <Text size="xs" c="dimmed" fs="italic">No domain configured</Text>
                 )}
