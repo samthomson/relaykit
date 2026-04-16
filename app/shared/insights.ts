@@ -61,7 +61,8 @@ export const getOverallSeverity = (severities: InsightSeverity[]): InsightSeveri
 export type ServerInsightsConfig = {
   diskPath: string
   sampleIntervalMs: number
-  historyMaxPoints: number
+  /** How far back to retain chart points (by sample time), in milliseconds. */
+  historyWindowMs: number
   thresholds: {
     cpu: { warn: number; critical: number }
     memory: { warn: number; critical: number }
@@ -128,6 +129,17 @@ export type ServiceInsightsResponse = {
   }
   current: ServiceInsightPoint
   history: ServiceInsightPoint[]
+}
+
+/** Keep samples whose timestamp is within `windowMs` of `nowMs` (rolling window, not a max count). */
+export const trimInsightPointsToWindow = <T extends { ts: number }>(
+  points: readonly T[],
+  windowMs: number,
+  nowMs: number = Date.now()
+): T[] => {
+  if (windowMs <= 0) return [...points]
+  const cutoff = nowMs - windowMs
+  return points.filter((p) => Number.isFinite(p.ts) && p.ts >= cutoff)
 }
 
 export const createServerInsightsCollector = (config: ServerInsightsConfig) => {
@@ -216,15 +228,14 @@ export const createServerInsightsCollector = (config: ServerInsightsConfig) => {
       memoryUsedPct: snapshot.memoryUsedPct,
       diskUsedPct: snapshot.diskUsedPct,
     })
-    if (insightsHistory.length > config.historyMaxPoints) {
-      insightsHistory = insightsHistory.slice(-config.historyMaxPoints)
-    }
+    insightsHistory = trimInsightPointsToWindow(insightsHistory, config.historyWindowMs)
     return snapshot
   }
 
   return {
     getServerInsights: async (): Promise<ServerInsightsResponse> => {
       const current = await sampleServerInsightsIfNeeded()
+      insightsHistory = trimInsightPointsToWindow(insightsHistory, config.historyWindowMs)
       return {
         diskPath: config.diskPath,
         sampleIntervalMs: config.sampleIntervalMs,

@@ -15,7 +15,7 @@ import {
 } from './constants'
 import { isNpanelType } from '../../shared/serviceType'
 import { applyNsiteHostnameToEnv, finalizeNsiteRouterEnv, normalizeNpanelNip05UsersEnv, NPANEL_NIP05_USERS_ENV_KEY } from '../../shared/nsite'
-import { createServerInsightsCollector, type ServiceInsightsResponse } from '../../shared/insights'
+import { createServerInsightsCollector, trimInsightPointsToWindow, type ServiceInsightsResponse } from '../../shared/insights'
 
 const t = initTRPC.context<{ auth: AuthContext | null; noBootstrapKey?: boolean; host?: string }>().create()
 const serverInsightsCollector = createServerInsightsCollector(SERVER_INSIGHTS)
@@ -548,7 +548,8 @@ const getServiceInsightsFromDokploy = async (composeId: string): Promise<Service
   }
 
   const prev = serviceInsightsHistory.get(composeId) || []
-  const history = [...prev, current].slice(-SERVICE_INSIGHTS.historyLimit)
+  const now = Date.now()
+  const history = trimInsightPointsToWindow([...prev, current], SERVICE_INSIGHTS.historyWindowMs, now)
   serviceInsightsHistory.set(composeId, history)
 
   return {
