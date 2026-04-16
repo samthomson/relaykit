@@ -188,7 +188,6 @@ next:
 - [ ] what happens if I try to create a project with a domain already in use on another project?
 - [ ] figure out full ssl for relaykit instance itself
 - [ ] haven and or other dm relays
-- [ ] service logs
 - [ ] way better relay explorer app
 - [ ] improve blossom app
 - [ ] improve/make nPanel app
