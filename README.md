@@ -196,9 +196,3 @@ next:
 
 maybe later:
 - [ ] expose volumes to user so they can manage (view/delete/optional: create service from volume)
-
-- [ ] perf stuff
-   - [x] overall
-   - [x] per service
-   - [ ] 21 mins
-   
