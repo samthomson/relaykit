@@ -615,7 +615,9 @@ const ServiceCard = ({
       )}
       <Paper
         withBorder
-        p={showDetails ? 'md' : 'sm'}
+        p={showDetails ? 'md' : undefined}
+        px={showDetails ? undefined : 10}
+        py={showDetails ? undefined : 10}
         bg={serviceCardBg}
         style={
           showDetails
@@ -671,8 +673,8 @@ const ServiceCard = ({
           <>
             <Stack gap="sm">
               <Group justify="space-between" align="flex-start" wrap="nowrap" gap="xs">
-                <Group align="flex-start" gap="xs" style={{ minWidth: 0, flex: 1, ...brokenContentStyle }}>
-                  <ServiceTypeIcon service={service} size={22} />
+                <Group align="flex-start" gap={6} style={{ minWidth: 0, flex: 1, ...brokenContentStyle }}>
+                  <ServiceTypeIcon service={service} size={20} />
                   <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
                     {isEditing && domain ? (
                       <InlineTextEditRow
@@ -731,69 +733,96 @@ const ServiceCard = ({
                         </Group>
                       </Stack>
                     )}
+                    <Stack gap={6} mt={4} style={{ minWidth: 0, ...(brokenContentStyle ?? {}) }}>
+                      {domain ? (
+                        <Stack gap={4} style={{ minWidth: 0 }}>
+                          <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0, width: '100%' }}>
+                            <Anchor
+                              href={httpsUrl}
+                              target="_blank"
+                              size="xs"
+                              c="relaykit"
+                              style={{
+                                flex: '0 1 auto',
+                                minWidth: 0,
+                                maxWidth: 'calc(100% - 28px)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={httpsUrl}
+                            >
+                              {httpsUrl} ↗
+                            </Anchor>
+                            <CopyControl text={httpsUrl} onCopy={onCopy} tooltip="copy https url" style={{ flexShrink: 0 }} />
+                          </Group>
+                          {isRelayType(service.type) && (
+                            <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0, width: '100%' }}>
+                              <Text
+                                size="xs"
+                                ff="monospace"
+                                c="dimmed"
+                                style={{
+                                  flex: '0 1 auto',
+                                  minWidth: 0,
+                                  maxWidth: 'calc(100% - 28px)',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                                title={wssUrl}
+                              >
+                                {wssUrl}
+                              </Text>
+                              <CopyControl text={wssUrl} onCopy={onCopy} tooltip="copy wss url" style={{ flexShrink: 0 }} />
+                            </Group>
+                          )}
+                        </Stack>
+                      ) : (
+                        <Text size="xs" c="dimmed" fs="italic">No domain configured</Text>
+                      )}
+                      <Group gap="xs" wrap="nowrap">
+                        {domain && isRelayType(service.type) && (
+                          <Button
+                            size="xs"
+                            variant="light"
+                            color="relaykit"
+                            onClick={() => setShowExplorer(true)}
+                            rightSection={<IconExternalLink size={12} />}
+                          >
+                            explorer
+                          </Button>
+                        )}
+                        {domain && service.type === SERVICE_TYPE.BLOSSOM && (
+                          <Button
+                            size="xs"
+                            variant="light"
+                            color="relaykit"
+                            onClick={() => setShowBlossomExplorer(true)}
+                            rightSection={<IconExternalLink size={12} />}
+                          >
+                            explorer
+                          </Button>
+                        )}
+                        <Button
+                          size="xs"
+                          variant="light"
+                          color="gray"
+                          onClick={() => {
+                            if (isEditing) onCancelEdit();
+                            setDetailsModalOpen(true);
+                          }}
+                        >
+                          details
+                        </Button>
+                      </Group>
+                    </Stack>
                   </Stack>
                 </Group>
                 <Box pt={2} style={{ position: 'relative', zIndex: 3 }}>
                   <CogMenu items={manageItems} />
                 </Box>
               </Group>
-              <Box style={brokenContentStyle}>
-                {domain ? (
-                  <Stack gap={4}>
-                    <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0, width: 'fit-content', maxWidth: '100%' }}>
-                      <Anchor href={httpsUrl} target="_blank" size="xs" c="relaykit" truncate style={{ minWidth: 0, maxWidth: '100%' }} title={httpsUrl}>
-                        {httpsUrl} ↗
-                      </Anchor>
-                      <CopyControl text={httpsUrl} onCopy={onCopy} tooltip="copy https url" />
-                    </Group>
-                    {isRelayType(service.type) && (
-                      <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0, width: 'fit-content', maxWidth: '100%' }}>
-                        <Text size="xs" ff="monospace" truncate style={{ minWidth: 0, maxWidth: '100%' }} title={wssUrl}>
-                          {wssUrl}
-                        </Text>
-                        <CopyControl text={wssUrl} onCopy={onCopy} tooltip="copy wss url" />
-                      </Group>
-                    )}
-                  </Stack>
-                ) : (
-                  <Text size="xs" c="dimmed" fs="italic">No domain configured</Text>
-                )}
-                <Group gap="xs" wrap="wrap">
-                  {domain && isRelayType(service.type) && (
-                    <Button
-                      size="xs"
-                      variant="light"
-                      color="relaykit"
-                      onClick={() => setShowExplorer(true)}
-                      rightSection={<IconExternalLink size={12} />}
-                    >
-                      explorer
-                    </Button>
-                  )}
-                  {domain && service.type === SERVICE_TYPE.BLOSSOM && (
-                    <Button
-                      size="xs"
-                      variant="light"
-                      color="relaykit"
-                      onClick={() => setShowBlossomExplorer(true)}
-                      rightSection={<IconExternalLink size={12} />}
-                    >
-                      explorer
-                    </Button>
-                  )}
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="gray"
-                    onClick={() => {
-                      if (isEditing) onCancelEdit();
-                      setDetailsModalOpen(true);
-                    }}
-                  >
-                    details
-                  </Button>
-                </Group>
-              </Box>
             </Stack>
             <Modal
               opened={detailsModalOpen}
