@@ -5,7 +5,7 @@ type NativeInputProps = Omit<React.ComponentProps<'input'>, keyof TextInputProps
 type InputProps = TextInputProps & NativeInputProps;
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className, ...props }, ref) => {
-  return <TextInput ref={ref} className={className} {...props} />;
+  return <TextInput ref={ref} radius={0} className={className} {...props} />;
 });
 Input.displayName = 'Input';
 

@@ -31,13 +31,13 @@ export function LoginArea({ className }: LoginAreaProps) {
         <div className="flex gap-3 justify-center">
           <Button
             onClick={() => setLoginDialogOpen(true)}
-            className='flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground w-full font-medium transition-all hover:bg-primary/90 animate-scale-in'
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground w-full font-medium transition-all hover:bg-primary/90"
           >
             <span className='truncate'>Log in</span>
           </Button><Button
             onClick={() => setSignupDialogOpen(true)}
             variant="outline"
-            className="flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all"
+            className="flex items-center gap-2 px-4 py-2 font-medium transition-all"
           >
             <span>Sign up</span>
           </Button>

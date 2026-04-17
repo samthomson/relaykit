@@ -403,17 +403,17 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto p-6">
         {/* Header */}
         {!iframeMode && (
-          <div className="mb-6 pb-4 border-b border-slate-700">
+          <div className="mb-6 pb-4 border-b border-border">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-mono font-semibold text-slate-50 mb-1">
+                <h1 className="text-2xl font-mono font-semibold text-foreground mb-1">
                   relay-explorer
                 </h1>
-                <p className="text-sm text-slate-300 font-mono">
+                <p className="text-sm text-muted-foreground font-mono">
                   WebSocket event inspector for Nostr relays
                 </p>
               </div>
@@ -424,10 +424,10 @@ const Index = () => {
 
         {/* Connection Panel */}
         {!iframeMode && (
-          <div className="mb-6 bg-slate-900 border border-slate-600 rounded-lg p-4">
+          <div className="mb-6 bg-card border border-border rounded-none p-4">
             <div className="flex gap-3 mb-3">
               <div className="flex-1 relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono pointer-events-none">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-mono pointer-events-none">
                   {relayUrl.includes('.local') || relayUrl.startsWith('ws://') ? 'ws://' : 'wss://'}
                 </span>
                 <Input
@@ -441,7 +441,7 @@ const Index = () => {
                     }
                   }}
                   disabled={isConnected || isConnecting}
-                  className="pl-16 h-10 bg-slate-800 border-slate-500 font-mono text-sm text-slate-50"
+                  className="pl-16 h-10 bg-muted border-border font-mono text-sm text-foreground"
                 />
               </div>
               <Button
@@ -465,24 +465,24 @@ const Index = () => {
           <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
             <CollapsibleTrigger asChild>
               <button
-                className="flex items-center gap-2 text-xs font-mono text-neutral-400 hover:text-neutral-300 transition-colors"
+                className="flex items-center gap-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
               >
                 <span className="uppercase tracking-wider">Filters</span>
                 <ChevronDown className={`h-3 w-3 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
                 {isConnected && (selectedKinds.length > 0 || authorNpub || eventId) && (
-                  <span className="text-neutral-600">·</span>
+                  <span className="text-muted-foreground">·</span>
                 )}
                 {isConnected && (selectedKinds.length > 0 || authorNpub || eventId) && (
-                  <span className="text-neutral-600 text-xs">live update enabled</span>
+                  <span className="text-muted-foreground text-xs">live update enabled</span>
                 )}
               </button>
             </CollapsibleTrigger>
             
-            <CollapsibleContent className="mt-3 pt-3 border-t border-neutral-800">
+            <CollapsibleContent className="mt-3 pt-3 border-t border-border">
               <div className="grid grid-cols-3 gap-2">
                 {/* Event ID Filter */}
                 <div className="space-y-1">
-                  <label htmlFor="event-id" className="text-xs font-mono text-neutral-500 uppercase tracking-wide">
+                  <label htmlFor="event-id" className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
                     Event ID
                   </label>
                   <Input
@@ -491,13 +491,13 @@ const Index = () => {
                     placeholder="hex event id..."
                     value={eventId}
                     onChange={(e) => setEventId(e.target.value)}
-                    className="h-8 bg-slate-800 border-slate-500 font-mono text-xs text-slate-50"
+                    className="h-8 bg-muted border-border font-mono text-xs text-foreground"
                   />
                 </div>
 
                 {/* Author Filter */}
                 <div className="space-y-1">
-                  <label htmlFor="author-npub" className="text-xs font-mono text-neutral-500 uppercase tracking-wide">
+                  <label htmlFor="author-npub" className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
                     Authors
                   </label>
                   <Input
@@ -506,13 +506,13 @@ const Index = () => {
                     placeholder="npub1..."
                     value={authorNpub}
                     onChange={(e) => setAuthorNpub(e.target.value)}
-                    className="h-8 bg-slate-800 border-slate-500 font-mono text-xs text-slate-50"
+                    className="h-8 bg-muted border-border font-mono text-xs text-foreground"
                   />
                 </div>
 
                 {/* Kinds Filter */}
                 <div className="space-y-1">
-                  <label className="text-xs font-mono text-neutral-500 uppercase tracking-wide">
+                  <label className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
                     Kinds
                   </label>
                   <div className="flex gap-1.5">
@@ -527,18 +527,18 @@ const Index = () => {
                         }}
                         onFocus={() => setShowKindDropdown(true)}
                         onBlur={() => setTimeout(() => setShowKindDropdown(false), 200)}
-                        className="h-8 bg-neutral-950 border-neutral-700 font-mono text-xs text-neutral-100"
+                        className="h-8 bg-background border-border font-mono text-xs text-foreground"
                       />
                       {showKindDropdown && kindSearchQuery && filteredCommonKinds.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-neutral-900 border border-neutral-700 rounded-md shadow-xl max-h-48 overflow-y-auto">
+                        <div className="absolute z-10 w-full mt-1 bg-popover border border-border rounded-none shadow-xl max-h-48 overflow-y-auto">
                           {filteredCommonKinds.map((kind) => (
                             <button
                               key={kind.value}
                               onClick={() => handleAddKind(kind.value)}
-                              className="w-full text-left px-3 py-2 hover:bg-neutral-800 text-xs font-mono flex items-center justify-between text-neutral-300"
+                              className="w-full text-left px-3 py-2 hover:bg-muted text-xs font-mono flex items-center justify-between text-foreground"
                             >
                               <span>{kind.label}</span>
-                              <span className="text-neutral-500">{kind.value}</span>
+                              <span className="text-muted-foreground">{kind.value}</span>
                             </button>
                           ))}
                         </div>
@@ -551,7 +551,7 @@ const Index = () => {
                       value={customKind}
                       onChange={(e) => setCustomKind(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleAddCustomKind()}
-                      className="h-8 w-12 bg-neutral-950 border-neutral-700 font-mono text-xs text-center text-neutral-100"
+                      className="h-8 w-12 bg-background border-border font-mono text-xs text-center text-foreground"
                       min="0"
                     />
                     <Button
@@ -559,7 +559,7 @@ const Index = () => {
                       disabled={!customKind || isNaN(parseInt(customKind))}
                       size="sm"
                       variant="outline"
-                      className="h-8 px-2 font-mono text-xs border-neutral-700"
+                      className="h-8 px-2 font-mono text-xs border-border"
                     >
                       +
                     </Button>
@@ -569,17 +569,17 @@ const Index = () => {
 
               {/* Selected Kinds Pills */}
               {selectedKinds.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-neutral-800">
+                <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-border">
                   {selectedKinds.sort((a, b) => a - b).map((kind) => (
                     <button
                       key={kind}
                       onClick={() => handleRemoveKind(kind)}
-                      className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded text-xs font-mono text-neutral-300 transition-colors"
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-muted hover:bg-muted/80 border border-border rounded text-xs font-mono text-foreground transition-colors"
                     >
-                      <span className="text-neutral-500">{kind}</span>
-                      <span className="text-neutral-600">·</span>
+                      <span className="text-muted-foreground">{kind}</span>
+                      <span className="text-muted-foreground">·</span>
                       <span>{COMMON_KINDS.find(k => k.value === kind)?.label || 'Custom'}</span>
-                      <X className="h-3 w-3 ml-0.5 text-neutral-500" />
+                      <X className="h-3 w-3 ml-0.5 text-muted-foreground" />
                     </button>
                   ))}
                 </div>
@@ -591,34 +591,34 @@ const Index = () => {
 
         {/* Iframe Mode Header */}
         {iframeMode && (
-          <div className="mb-4 pb-3 border-b border-neutral-800">
+          <div className="mb-4 pb-3 border-b border-border">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono text-neutral-600 uppercase tracking-wide">Connected to</span>
-                <span className="text-xs font-mono text-neutral-400">{relayUrl}</span>
+                <span className="text-xs font-mono text-muted-foreground uppercase tracking-wide">Connected to</span>
+                <span className="text-xs font-mono text-muted-foreground">{relayUrl}</span>
               </div>
               <div className="flex items-center gap-4">
                 {/* Filters in iframe mode */}
                 <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
                   <CollapsibleTrigger asChild>
-                    <button className="flex items-center gap-2 text-xs font-mono text-neutral-400 hover:text-neutral-300 transition-colors">
+                    <button className="flex items-center gap-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors">
                       <span className="uppercase tracking-wider">Filters</span>
                       <ChevronDown className={`h-3 w-3 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
                     </button>
                   </CollapsibleTrigger>
                 </Collapsible>
-                <span className="text-xs font-mono text-neutral-600">{events.length} events</span>
+                <span className="text-xs font-mono text-muted-foreground">{events.length} events</span>
                 <LoginArea className="max-w-40" />
               </div>
             </div>
             
             {/* Iframe mode filters */}
             {showAdvanced && (
-              <div className="mt-3 pt-3 border-t border-neutral-800">
+              <div className="mt-3 pt-3 border-t border-border">
                 <div className="grid grid-cols-3 gap-2">
                   {/* Event ID Filter */}
                   <div className="space-y-1">
-                    <label htmlFor="event-id-iframe" className="text-xs font-mono text-neutral-500 uppercase tracking-wide">
+                    <label htmlFor="event-id-iframe" className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
                       Event ID
                     </label>
                     <Input
@@ -627,13 +627,13 @@ const Index = () => {
                       placeholder="hex event id..."
                       value={eventId}
                       onChange={(e) => setEventId(e.target.value)}
-                      className="h-8 bg-neutral-950 border-neutral-700 font-mono text-xs text-neutral-100"
+                      className="h-8 bg-background border-border font-mono text-xs text-foreground"
                     />
                   </div>
 
                   {/* Author Filter */}
                   <div className="space-y-1">
-                    <label htmlFor="author-npub-iframe" className="text-xs font-mono text-neutral-500 uppercase tracking-wide">
+                    <label htmlFor="author-npub-iframe" className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
                       Authors
                     </label>
                     <Input
@@ -642,13 +642,13 @@ const Index = () => {
                       placeholder="npub1..."
                       value={authorNpub}
                       onChange={(e) => setAuthorNpub(e.target.value)}
-                      className="h-8 bg-neutral-950 border-neutral-700 font-mono text-xs text-neutral-100"
+                      className="h-8 bg-background border-border font-mono text-xs text-foreground"
                     />
                   </div>
 
                   {/* Kinds Filter */}
                   <div className="space-y-1">
-                    <label className="text-xs font-mono text-neutral-500 uppercase tracking-wide">
+                    <label className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
                       Kinds
                     </label>
                     <div className="flex gap-1.5">
@@ -663,18 +663,18 @@ const Index = () => {
                           }}
                           onFocus={() => setShowKindDropdown(true)}
                           onBlur={() => setTimeout(() => setShowKindDropdown(false), 200)}
-                          className="h-8 bg-neutral-950 border-neutral-700 font-mono text-xs text-neutral-100"
+                          className="h-8 bg-background border-border font-mono text-xs text-foreground"
                         />
                         {showKindDropdown && kindSearchQuery && filteredCommonKinds.length > 0 && (
-                          <div className="absolute z-10 w-full mt-1 bg-neutral-900 border border-neutral-700 rounded-md shadow-xl max-h-48 overflow-y-auto">
+                          <div className="absolute z-10 w-full mt-1 bg-popover border border-border rounded-none shadow-xl max-h-48 overflow-y-auto">
                             {filteredCommonKinds.map((kind) => (
                               <button
                                 key={kind.value}
                                 onClick={() => handleAddKind(kind.value)}
-                                className="w-full text-left px-3 py-2 hover:bg-neutral-800 text-xs font-mono flex items-center justify-between text-neutral-300"
+                                className="w-full text-left px-3 py-2 hover:bg-muted text-xs font-mono flex items-center justify-between text-foreground"
                               >
                                 <span>{kind.label}</span>
-                                <span className="text-neutral-500">{kind.value}</span>
+                                <span className="text-muted-foreground">{kind.value}</span>
                               </button>
                             ))}
                           </div>
@@ -687,7 +687,7 @@ const Index = () => {
                         value={customKind}
                         onChange={(e) => setCustomKind(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddCustomKind()}
-                        className="h-8 w-12 bg-neutral-950 border-neutral-700 font-mono text-xs text-center text-neutral-100"
+                        className="h-8 w-12 bg-background border-border font-mono text-xs text-center text-foreground"
                         min="0"
                       />
                       <Button
@@ -695,7 +695,7 @@ const Index = () => {
                         disabled={!customKind || isNaN(parseInt(customKind))}
                         size="sm"
                         variant="outline"
-                        className="h-8 px-2 font-mono text-xs border-neutral-700"
+                        className="h-8 px-2 font-mono text-xs border-border"
                       >
                         +
                       </Button>
@@ -705,17 +705,17 @@ const Index = () => {
 
                 {/* Selected Kinds Pills */}
                 {selectedKinds.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-neutral-800">
+                  <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-border">
                     {selectedKinds.sort((a, b) => a - b).map((kind) => (
                       <button
                         key={kind}
                         onClick={() => handleRemoveKind(kind)}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded text-xs font-mono text-neutral-300 transition-colors"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-muted hover:bg-muted/80 border border-border rounded text-xs font-mono text-foreground transition-colors"
                       >
-                        <span className="text-neutral-500">{kind}</span>
-                        <span className="text-neutral-600">·</span>
+                        <span className="text-muted-foreground">{kind}</span>
+                        <span className="text-muted-foreground">·</span>
                         <span>{COMMON_KINDS.find(k => k.value === kind)?.label || 'Custom'}</span>
-                        <X className="h-3 w-3 ml-0.5 text-neutral-500" />
+                        <X className="h-3 w-3 ml-0.5 text-muted-foreground" />
                       </button>
                     ))}
                   </div>
@@ -729,14 +729,14 @@ const Index = () => {
         {(isConnected || isConnecting) && (
           <div className="grid grid-cols-13 gap-4">
             {/* Left Column - Events List (5 parts) */}
-            <div className={`col-span-5 bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden ${iframeMode ? 'h-[calc(100vh-120px)]' : 'h-[calc(100vh-340px)]'}`}>
+            <div className={`col-span-5 bg-card border border-border rounded-none overflow-hidden ${iframeMode ? 'h-[calc(100vh-120px)]' : 'h-[calc(100vh-340px)]'}`}>
               <div className="flex flex-col h-full">
-                <div className="px-4 py-3 border-b border-neutral-800 bg-neutral-900/80 backdrop-blur">
+                <div className="px-4 py-3 border-b border-border bg-card/80 backdrop-blur">
                   <div className="flex items-center justify-between">
-                    <h2 className="font-mono text-xs uppercase tracking-wider text-neutral-400">
+                    <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
                       Events
                     </h2>
-                    <span className="font-mono text-xs text-neutral-500">
+                    <span className="font-mono text-xs text-muted-foreground">
                       {events.length}
                     </span>
                   </div>
@@ -744,30 +744,30 @@ const Index = () => {
                 <div className="overflow-y-auto flex-1">
                   {events.length === 0 ? (
                     <div className="p-8 text-center">
-                      <p className="text-xs font-mono text-neutral-600">Listening for events...</p>
+                      <p className="text-xs font-mono text-muted-foreground">Listening for events...</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-zinc-700">
+                    <div className="divide-y divide-border">
                       {events.map((event) => (
                         <div
                           key={event.id}
                           className={`relative group ${
                             selectedEvent?.id === event.id
-                              ? 'bg-zinc-700 border-l-2 border-zinc-400'
+                              ? 'bg-primary/15 border-l-2 border-primary'
                               : ''
                           }`}
                         >
                           <button
                             onClick={() => setSelectedEvent(event)}
-                            className="w-full text-left px-4 py-3 hover:bg-zinc-800/50 transition-colors"
+                            className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors"
                           >
                             <div className="flex items-start justify-between gap-2 mb-2">
-                              <span className="inline-flex items-center gap-1.5 font-mono text-xs text-zinc-300">
-                                <span className="text-zinc-400">kind</span>
-                                <span className="text-zinc-200">{event.kind}</span>
+                              <span className="inline-flex items-center gap-1.5 font-mono text-xs text-foreground">
+                                <span className="text-muted-foreground">kind</span>
+                                <span className="text-foreground">{event.kind}</span>
                               </span>
                               <div className="text-right">
-                                <div className="text-xs font-mono text-zinc-400">
+                                <div className="text-xs font-mono text-muted-foreground">
                                   {new Date(event.created_at * 1000).toLocaleTimeString('en-US', { 
                                     hour12: false,
                                     hour: '2-digit',
@@ -775,16 +775,16 @@ const Index = () => {
                                     second: '2-digit'
                                   })}
                                 </div>
-                                <div className="text-[10px] font-mono text-zinc-500">
+                                <div className="text-[10px] font-mono text-muted-foreground">
                                   ({formatDistanceToNow(new Date(event.created_at * 1000), { addSuffix: true })})
                                 </div>
                               </div>
                             </div>
-                            <div className="text-xs font-mono text-zinc-400 truncate mb-1">
+                            <div className="text-xs font-mono text-muted-foreground truncate mb-1">
                               {event.id.substring(0, 32)}...
                             </div>
                             {event.content && (
-                              <div className="text-xs text-zinc-300 truncate pr-8">
+                              <div className="text-xs text-foreground truncate pr-8">
                                 {event.content.substring(0, 60)}
                                 {event.content.length > 60 ? '...' : ''}
                               </div>
@@ -813,21 +813,21 @@ const Index = () => {
             </div>
 
             {/* Right Column - Event Details (8 parts) */}
-            <div className={`col-span-8 bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden ${iframeMode ? 'h-[calc(100vh-120px)]' : 'h-[calc(100vh-340px)]'}`}>
+            <div className={`col-span-8 bg-card border border-border rounded-none overflow-hidden ${iframeMode ? 'h-[calc(100vh-120px)]' : 'h-[calc(100vh-340px)]'}`}>
               <div className="flex flex-col h-full">
-                <div className="px-4 py-3 border-b border-neutral-800 bg-neutral-900/80 backdrop-blur">
-                  <h2 className="font-mono text-xs uppercase tracking-wider text-neutral-400">
+                <div className="px-4 py-3 border-b border-border bg-card/80 backdrop-blur">
+                  <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
                     Event Inspector
                   </h2>
                 </div>
                 <div className="overflow-y-auto flex-1 p-4">
                   {selectedEvent ? (
-                    <pre className="text-xs font-mono text-neutral-300 leading-relaxed">
+                    <pre className="text-xs font-mono text-foreground leading-relaxed">
                       {JSON.stringify(selectedEvent, null, 2)}
                     </pre>
                   ) : (
                     <div className="flex items-center justify-center h-full">
-                      <p className="text-xs font-mono text-neutral-600">Select an event to inspect</p>
+                      <p className="text-xs font-mono text-muted-foreground">Select an event to inspect</p>
                     </div>
                   )}
                 </div>
@@ -843,7 +843,7 @@ const Index = () => {
               href="https://shakespeare.diy"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs font-mono text-neutral-600 hover:text-neutral-500 transition-colors"
+              className="text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
             >
               built with shakespeare
             </a>

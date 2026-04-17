@@ -13,11 +13,11 @@ import './index.css';
 // FIXME: a custom font should be used. Eg:
 // import '@fontsource-variable/<font-name>';
 
-const theme = buildRelaykitTheme({ primaryColor: 'relayExplorer' });
+const theme = buildRelaykitTheme();
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} defaultColorScheme="auto">
       <Notifications />
       <App />
     </MantineProvider>

@@ -39,6 +39,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <MantineButton
         ref={ref}
+        radius={0}
         variant={variantMap[variant]}
         size={sizeMap[size]}
         color={variant === 'destructive' ? 'red' : color}
