@@ -1,48 +1,30 @@
-import * as React from "react"
-import * as AvatarPrimitive from "@radix-ui/react-avatar"
+import { Avatar as MantineAvatar } from '@mantine/core';
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
-import { cn } from "@/lib/utils"
+type AvatarImageProps = React.ImgHTMLAttributes<HTMLImageElement>;
+type AvatarFallbackProps = React.HTMLAttributes<HTMLDivElement>;
 
-const Avatar = React.forwardRef<
-  React.ElementRef<typeof AvatarPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <AvatarPrimitive.Root
-    ref={ref}
-    className={cn(
-      "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full",
-      className
-    )}
-    {...props}
-  />
-))
-Avatar.displayName = AvatarPrimitive.Root.displayName
+const AvatarImage = (_props: AvatarImageProps) => null;
+AvatarImage.displayName = 'AvatarImage';
 
-const AvatarImage = React.forwardRef<
-  React.ElementRef<typeof AvatarPrimitive.Image>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
->(({ className, ...props }, ref) => (
-  <AvatarPrimitive.Image
-    ref={ref}
-    className={cn("aspect-square h-full w-full object-cover", className)}
-    {...props}
-  />
-))
-AvatarImage.displayName = AvatarPrimitive.Image.displayName
+const AvatarFallback = (_props: AvatarFallbackProps) => null;
+AvatarFallback.displayName = 'AvatarFallback';
 
-const AvatarFallback = React.forwardRef<
-  React.ElementRef<typeof AvatarPrimitive.Fallback>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback>
->(({ className, ...props }, ref) => (
-  <AvatarPrimitive.Fallback
-    ref={ref}
-    className={cn(
-      "flex h-full w-full items-center justify-center rounded-full bg-muted",
-      className
-    )}
-    {...props}
-  />
-))
-AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName
+const Avatar = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, children, ...props }, ref) => {
+  const childArray = React.Children.toArray(children) as React.ReactElement[];
+  const imageChild = childArray.find((child) => child.type === AvatarImage);
+  const fallbackChild = childArray.find((child) => child.type === AvatarFallback);
 
-export { Avatar, AvatarImage, AvatarFallback }
+  const imageProps = (imageChild?.props ?? {}) as AvatarImageProps;
+  const fallbackProps = (fallbackChild?.props ?? {}) as AvatarFallbackProps;
+
+  return (
+    <MantineAvatar ref={ref} src={imageProps.src} alt={imageProps.alt} className={cn(className, fallbackProps.className)} {...props}>
+      {fallbackProps.children}
+    </MantineAvatar>
+  );
+});
+Avatar.displayName = 'Avatar';
+
+export { Avatar, AvatarImage, AvatarFallback };

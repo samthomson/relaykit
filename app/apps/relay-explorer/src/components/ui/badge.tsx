@@ -1,17 +1,20 @@
-import * as React from "react"
-import { type VariantProps } from "class-variance-authority"
+import { Badge as MantineBadge } from '@mantine/core';
+import type { ReactNode } from 'react';
 
-import { cn } from "@/lib/utils"
-import { badgeVariants } from "./badge-variants"
-
-export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
-
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
-  )
+export interface BadgeProps {
+  className?: string;
+  variant?: 'default' | 'secondary' | 'destructive' | 'outline';
+  children?: ReactNode;
 }
 
-export { Badge }
+const Badge = ({ className, variant = 'default', children, ...props }: BadgeProps) => {
+  const mantineVariant = variant === 'outline' ? 'outline' : variant === 'secondary' ? 'light' : 'filled';
+  const color = variant === 'destructive' ? 'red' : undefined;
+  return (
+    <MantineBadge className={className} variant={mantineVariant} color={color} {...props}>
+      {children}
+    </MantineBadge>
+  );
+};
+
+export { Badge };

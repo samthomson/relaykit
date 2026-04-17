@@ -1,4 +1,5 @@
 import * as React from "react"
+import { notifications } from '@mantine/notifications';
 
 import type {
   ToastActionElement,
@@ -132,6 +133,14 @@ type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
   const id = genId()
+  const color = props.variant === 'destructive' ? 'red' : 'blue';
+
+  notifications.show({
+    title: props.title,
+    message: props.description,
+    color,
+    autoClose: 5000,
+  });
 
   const update = (props: ToasterToast) =>
     dispatch({

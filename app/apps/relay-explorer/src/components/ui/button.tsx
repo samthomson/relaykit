@@ -1,28 +1,56 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { type VariantProps } from "class-variance-authority"
+import { Button as MantineButton, type ButtonProps as MantineButtonProps } from '@mantine/core';
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
-import { cn } from "@/lib/utils"
-import { buttonVariants } from "./button-variants"
+type ButtonVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+type ButtonSize = 'default' | 'sm' | 'lg' | 'icon';
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean
+export interface ButtonProps extends Omit<MantineButtonProps, 'variant' | 'size'> {
+  asChild?: boolean;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
-    return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Button.displayName = "Button"
+const variantMap: Record<ButtonVariant, MantineButtonProps['variant']> = {
+  default: 'filled',
+  destructive: 'filled',
+  outline: 'outline',
+  secondary: 'light',
+  ghost: 'subtle',
+  link: 'subtle',
+};
 
-export { Button }
+const sizeMap: Record<ButtonSize, MantineButtonProps['size']> = {
+  default: 'sm',
+  sm: 'xs',
+  lg: 'md',
+  icon: 'sm',
+};
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant = 'default', size = 'default', color, children, asChild = false, ...props }, ref) => {
+    if (asChild && React.isValidElement(children)) {
+      return React.cloneElement(children, {
+        className: cn((children.props as { className?: string }).className, className),
+        ...props,
+      });
+    }
+
+    return (
+      <MantineButton
+        ref={ref}
+        variant={variantMap[variant]}
+        size={sizeMap[size]}
+        color={variant === 'destructive' ? 'red' : color}
+        className={className}
+        {...props}
+      >
+        {children}
+      </MantineButton>
+    );
+  }
+);
+Button.displayName = 'Button';
+
+export { Button };
+export type { ButtonProps as ButtonPropsType };
