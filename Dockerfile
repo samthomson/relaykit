@@ -1,14 +1,26 @@
-FROM node:20-alpine AS frontend-builder
+FROM node:20-alpine AS builder
 
-WORKDIR /app/frontend
+WORKDIR /build
 
-COPY app/frontend/package.json app/frontend/yarn.lock ./
+# Install all workspace deps in a single pass (workspace-aware).
+COPY app/package.json app/yarn.lock ./
+COPY app/frontend/package.json ./frontend/
+COPY app/backend/package.json ./backend/
+COPY app/shared/package.json ./shared/
+COPY app/shared/ui/package.json ./shared/ui/
+COPY app/apps/relay-explorer/package.json ./apps/relay-explorer/
+COPY app/apps/blossom-explorer/package.json ./apps/blossom-explorer/
+COPY app/apps/nsite-explorer/package.json ./apps/nsite-explorer/
 RUN yarn install --frozen-lockfile --network-timeout 600000
 
-COPY app/frontend .
+# Copy sources and build frontend + each embedded app.
+COPY app/frontend ./frontend
 COPY app/shared ./shared
-RUN ln -s /app/frontend/shared /app/shared
-RUN yarn build
+COPY app/apps ./apps
+RUN cd frontend && yarn build
+RUN yarn workspace app-relay-explorer build
+RUN yarn workspace app-blossom-explorer build
+RUN yarn workspace app-nsite-explorer build
 
 FROM node:20-alpine
 
@@ -26,13 +38,16 @@ ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
 
-# Install root deps needed at runtime (includes playwright, excludes dev deps).
-COPY app/package.json app/yarn.lock* ./
-RUN yarn install --production --frozen-lockfile
-
-# Install backend runtime deps only.
-COPY app/backend/package.json app/backend/yarn.lock* ./backend/
-RUN cd backend && yarn install --production --frozen-lockfile
+# Install workspace runtime deps (root + backend; frontend + embedded apps are prebuilt static).
+COPY app/package.json app/yarn.lock ./
+COPY app/frontend/package.json ./frontend/
+COPY app/backend/package.json ./backend/
+COPY app/shared/package.json ./shared/
+COPY app/shared/ui/package.json ./shared/ui/
+COPY app/apps/relay-explorer/package.json ./apps/relay-explorer/
+COPY app/apps/blossom-explorer/package.json ./apps/blossom-explorer/
+COPY app/apps/nsite-explorer/package.json ./apps/nsite-explorer/
+RUN yarn install --production --frozen-lockfile --network-timeout 600000
 
 # Install tsx globally for backend runtime command.
 RUN yarn global add tsx
@@ -41,15 +56,19 @@ RUN yarn global add tsx
 COPY app/backend ./backend
 COPY app/presets ./presets
 COPY app/shared ./shared
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY --from=builder /build/frontend/dist ./frontend/dist
+
+# Mount each embedded app's built dist under frontend/dist/apps/<id>/.
+COPY --from=builder /build/apps/relay-explorer/dist ./frontend/dist/apps/relay-explorer
+COPY --from=builder /build/apps/blossom-explorer/dist ./frontend/dist/apps/blossom-explorer
+COPY --from=builder /build/apps/nsite-explorer/dist ./frontend/dist/apps/nsite-explorer
 
 # Copy scripts
 COPY scripts/automate-dokploy-setup.js /app/scripts/
 COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-EXPOSE 4000 5173
+EXPOSE 4000 5173 5174 5175 5176
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["yarn", "dev"]
-

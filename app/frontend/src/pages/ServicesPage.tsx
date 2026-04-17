@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDokploy } from '../contexts/DokployContext';
 import { useRefreshServices } from '../contexts/RefreshServicesContext';
 import { SERVICE_TYPE, isNpanelType, isRelayType } from '../../../shared/serviceType';
+import { EmbeddedAppModal } from '../embedded/EmbeddedAppModal';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from '../components/NsiteDeployFields';
 import { ServiceDetailsContent, ServiceDetailsModalContext } from '../components/ServiceDetailsContent';
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from '../components/InlineTextEditRow';
@@ -430,23 +431,6 @@ const AddServiceButton = ({
   );
 };
 
-const RelayExplorerModal = ({ relayUrl, onClose }: { relayUrl: string; onClose: () => void }) => {
-  const explorerUrl = `https://relay-explorer.shakespeare.wtf/?relay=${encodeURIComponent(relayUrl)}`;
-  return (
-    <Modal opened onClose={onClose} title="Relay Explorer" size="90vw" centered styles={{ body: { height: '80vh', padding: 0 }, content: { height: '85vh' } }}>
-      <iframe src={explorerUrl} style={{ flex: 1, width: '100%', border: 'none', height: '100%' }} title="Relay Explorer" />
-    </Modal>
-  );
-};
-
-const BlossomExplorerModal = ({ serverUrl, onClose }: { serverUrl: string; onClose: () => void }) => {
-  const explorerUrl = `https://blossom-explorer.shakespeare.wtf/?server=${encodeURIComponent(serverUrl)}`;
-  return (
-    <Modal opened onClose={onClose} title="Blossom Explorer" size="90vw" centered styles={{ body: { height: '80vh', padding: 0 }, content: { height: '85vh' } }}>
-      <iframe src={explorerUrl} style={{ flex: 1, width: '100%', border: 'none', height: '100%' }} title="Blossom Explorer" />
-    </Modal>
-  );
-};
 
 const ServiceCard = ({
   service,
@@ -500,6 +484,7 @@ const ServiceCard = ({
   const serviceCardBg = colorScheme === 'dark' ? theme.colors.dark[5] : theme.white;
   const [showExplorer, setShowExplorer] = useState(false);
   const [showBlossomExplorer, setShowBlossomExplorer] = useState(false);
+  const [showNsiteExplorer, setShowNsiteExplorer] = useState(false);
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const domain = service.domains?.[0];
@@ -590,15 +575,19 @@ const ServiceCard = ({
     onCopy,
     onOpenRelayExplorer: () => setShowExplorer(true),
     onOpenBlossomExplorer: () => setShowBlossomExplorer(true),
+    onOpenNsiteExplorer: () => setShowNsiteExplorer(true),
   };
 
   return (
     <>
       {showExplorer && domain && (
-        <RelayExplorerModal relayUrl={domain.host} onClose={() => setShowExplorer(false)} />
+        <EmbeddedAppModal appId="relay-explorer" context={{ relay: wssUrl }} onClose={() => setShowExplorer(false)} />
       )}
       {showBlossomExplorer && domain && (
-        <BlossomExplorerModal serverUrl={httpsUrl} onClose={() => setShowBlossomExplorer(false)} />
+        <EmbeddedAppModal appId="blossom-explorer" context={{ server: httpsUrl }} onClose={() => setShowBlossomExplorer(false)} />
+      )}
+      {showNsiteExplorer && domain && (
+        <EmbeddedAppModal appId="nsite-explorer" context={{ gateway: httpsUrl }} onClose={() => setShowNsiteExplorer(false)} />
       )}
       {showMoveModal && (
         <MoveServiceModal
@@ -799,6 +788,17 @@ const ServiceCard = ({
                             variant="light"
                             color="relaykit"
                             onClick={() => setShowBlossomExplorer(true)}
+                            rightSection={<IconExternalLink size={12} />}
+                          >
+                            explorer
+                          </Button>
+                        )}
+                        {domain && isNpanelType(service.type) && (
+                          <Button
+                            size="xs"
+                            variant="light"
+                            color="relaykit"
+                            onClick={() => setShowNsiteExplorer(true)}
                             rightSection={<IconExternalLink size={12} />}
                           >
                             explorer

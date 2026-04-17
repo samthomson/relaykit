@@ -173,6 +173,7 @@ export type ServiceDetailsContentProps = {
   onCopy: (text: string) => void;
   onOpenRelayExplorer: () => void;
   onOpenBlossomExplorer: () => void;
+  onOpenNsiteExplorer: () => void;
   /** When host is edited in the service card header / modal title instead. */
   omitHostEditor?: boolean;
 };
@@ -189,6 +190,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
     onCopy,
     onOpenRelayExplorer,
     onOpenBlossomExplorer,
+    onOpenNsiteExplorer,
     omitHostEditor = false,
   } = props;
   const domain = service.domains?.[0];
@@ -302,7 +304,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
               </Group>
             </DetailBlock>
           )}
-          {(isRelayType(service.type) || service.type === SERVICE_TYPE.BLOSSOM) && (
+          {(isRelayType(service.type) || service.type === SERVICE_TYPE.BLOSSOM || isNpanelType(service.type)) && (
             <DetailBlock label="Data">
               <Group gap="xs" wrap="wrap" align="center">
                 {isRelayType(service.type) && (
@@ -325,6 +327,17 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                     rightSection={<IconExternalLink size={12} />}
                   >
                     blossom explorer
+                  </Button>
+                )}
+                {isNpanelType(service.type) && (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="relaykit"
+                    onClick={onOpenNsiteExplorer}
+                    rightSection={<IconExternalLink size={12} />}
+                  >
+                    nsite explorer
                   </Button>
                 )}
               </Group>
