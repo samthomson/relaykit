@@ -5,11 +5,23 @@ import { cn } from '@/lib/utils';
 type ButtonVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
 type ButtonSize = 'default' | 'sm' | 'lg' | 'icon';
 
-export interface ButtonProps extends Omit<MantineButtonProps, 'variant' | 'size'> {
+export type ButtonProps = Omit<MantineButtonProps, 'variant' | 'size'> & {
   asChild?: boolean;
   variant?: ButtonVariant;
   size?: ButtonSize;
-}
+} & Pick<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  | 'onClick'
+  | 'type'
+  | 'disabled'
+  | 'children'
+  | 'className'
+  | 'form'
+  | 'name'
+  | 'value'
+  | 'title'
+  | 'aria-label'
+>;
 
 const variantMap: Record<ButtonVariant, MantineButtonProps['variant']> = {
   default: 'filled',

@@ -1,4 +1,4 @@
-import { Tabs as MantineTabs } from '@mantine/core';
+import { Tabs as MantineTabs, type TabsListProps } from '@mantine/core';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
@@ -38,7 +38,7 @@ const Tabs = ({
   );
 };
 
-const TabsList = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => {
+const TabsList = React.forwardRef<HTMLDivElement, TabsListProps>(({ className, ...props }, ref) => {
   return <MantineTabs.List ref={ref} className={cn(className)} {...props} />;
 });
 TabsList.displayName = 'TabsList';

@@ -2,18 +2,18 @@
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button.tsx';
+import { Box, Button, Group } from '@mantine/core';
 import LoginDialog from './LoginDialog';
 import SignupDialog from './SignupDialog';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
 import { AccountSwitcher } from './AccountSwitcher';
-import { cn } from '@/lib/utils';
 
 export interface LoginAreaProps {
   className?: string;
+  w?: number | string;
 }
 
-export function LoginArea({ className }: LoginAreaProps) {
+export const LoginArea = ({ className, w }: LoginAreaProps) => {
   const { currentUser } = useLoggedInAccounts();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
@@ -24,24 +24,18 @@ export function LoginArea({ className }: LoginAreaProps) {
   };
 
   return (
-    <div className={cn("inline-flex items-center justify-center", className)}>
+    <Box className={className} w={w} display="inline-flex" style={{ justifyContent: 'center', alignItems: 'center' }}>
       {currentUser ? (
         <AccountSwitcher onAddAccountClick={() => setLoginDialogOpen(true)} />
       ) : (
-        <div className="flex gap-3 justify-center">
-          <Button
-            onClick={() => setLoginDialogOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground w-full font-medium transition-all hover:bg-primary/90"
-          >
-            <span className='truncate'>Log in</span>
-          </Button><Button
-            onClick={() => setSignupDialogOpen(true)}
-            variant="outline"
-            className="flex items-center gap-2 px-4 py-2 font-medium transition-all"
-          >
-            <span>Sign up</span>
+        <Group gap="sm" grow wrap="nowrap">
+          <Button onClick={() => setLoginDialogOpen(true)}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Log in</span>
           </Button>
-        </div>
+          <Button onClick={() => setSignupDialogOpen(true)} variant="outline">
+            Sign up
+          </Button>
+        </Group>
       )}
 
       <LoginDialog
@@ -54,6 +48,6 @@ export function LoginArea({ className }: LoginAreaProps) {
         isOpen={signupDialogOpen}
         onClose={() => setSignupDialogOpen(false)}
       />
-    </div>
+    </Box>
   );
-}
+};

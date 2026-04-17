@@ -205,9 +205,9 @@ export function useZaps(
         profile: actualTarget.pubkey,
         event: event,
         amount: zapAmount,
-        relays: config.relayMetadata.relays.map(r => r.url),
-        comment
-      });
+        relays: config.relayMetadata.relays.map((r) => r.url),
+        comment,
+      } as Parameters<typeof nip57.makeZapRequest>[0]);
 
       // Sign the zap request (but don't publish to relays - only send to LNURL endpoint)
       if (!user.signer) {

@@ -1,12 +1,21 @@
 import { useSeoMeta } from '@unhead/react';
 import { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { ChevronDown, X, Trash2 } from 'lucide-react';
+import {
+  Anchor,
+  Box,
+  Button,
+  Collapse,
+  Flex,
+  Group,
+  Paper,
+  ScrollArea,
+  Stack,
+  Text,
+  TextInput,
+  UnstyledButton,
+  rem,
+} from '@mantine/core';
+import { ChevronDown, Trash2, X } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { formatDistanceToNow } from 'date-fns';
@@ -44,13 +53,10 @@ const Index = () => {
 
   const { user } = useCurrentUser();
 
-  // Check for iframe/embed mode via URL parameters
   const [iframeMode, setIframeMode] = useState(false);
   const [iframeRelay, setIframeRelay] = useState<string | null>(null);
 
-  // Load from localStorage or URL params
   const [relayUrl, setRelayUrl] = useState(() => {
-    // Check URL params first
     const params = new URLSearchParams(window.location.search);
     const relayParam = params.get('relay');
     if (relayParam) {
@@ -58,7 +64,7 @@ const Index = () => {
     }
     return localStorage.getItem('relay-explorer:url') || '';
   });
-  
+
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [connectionError, setConnectionError] = useState<string>('');
   const [ws, setWs] = useState<WebSocket | null>(null);
@@ -66,8 +72,7 @@ const Index = () => {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<NostrEvent | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  
-  // Advanced filter states - NO localStorage for filters
+
   const [authorNpub, setAuthorNpub] = useState('');
   const [eventId, setEventId] = useState('');
   const [selectedKinds, setSelectedKinds] = useState<number[]>([]);
@@ -79,11 +84,10 @@ const Index = () => {
   const isConnected = connectionState === 'connected';
   const isConnecting = connectionState === 'connecting';
 
-  // Initialize iframe mode
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const relayParam = params.get('relay');
-    
+
     if (relayParam) {
       setIframeMode(true);
       setIframeRelay(relayParam);
@@ -91,32 +95,26 @@ const Index = () => {
     }
   }, []);
 
-  // Persist to localStorage when values change (skip in iframe mode)
   useEffect(() => {
     if (relayUrl && !iframeMode) {
       localStorage.setItem('relay-explorer:url', relayUrl);
     }
   }, [relayUrl, iframeMode]);
 
-  // Auto-resubscribe when filters change
   useEffect(() => {
     if (ws && isConnected) {
       const timer = setTimeout(() => {
-        // Close old subscription
         ws.send(JSON.stringify(['CLOSE', 'all-events']));
-        // Clear events
         setEvents([]);
         setSelectedEvent(null);
-        // Build new filter
         const filter = buildFilter();
         console.log('AUTO-RESUBSCRIBE with filter:', filter);
-        // Send new subscription
         ws.send(JSON.stringify(['REQ', 'all-events', filter]));
       }, 300);
-      
+
       return () => clearTimeout(timer);
     }
-  }, [eventId, authorNpub, selectedKinds, isConnected, ws]);
+  }, [eventId, authorNpub, selectedKinds, isConnected, ws]); // eslint-disable-line react-hooks/exhaustive-deps -- buildFilter closure
 
   useEffect(() => {
     return () => {
@@ -126,30 +124,25 @@ const Index = () => {
     };
   }, [ws]);
 
-  // Auto-connect in iframe mode
   useEffect(() => {
     if (iframeMode && iframeRelay && !isConnected && !isConnecting) {
-      // Small delay to ensure component is fully mounted
       setTimeout(() => {
         handleConnect();
       }, 100);
     }
-  }, [iframeMode, iframeRelay]);
+  }, [iframeMode, iframeRelay]); // eslint-disable-line react-hooks/exhaustive-deps -- one-shot iframe connect
 
   const buildFilter = (): NostrFilter => {
     const filter: NostrFilter = {};
-    
-    // Event ID - EXACT match only
+
     if (eventId.trim()) {
       filter.ids = [eventId.trim()];
     }
-    
-    // Kinds - only if selected
+
     if (selectedKinds.length > 0) {
       filter.kinds = selectedKinds;
     }
-    
-    // Author - only if provided
+
     if (authorNpub.trim()) {
       try {
         const decoded = nip19.decode(authorNpub.trim());
@@ -162,16 +155,14 @@ const Index = () => {
         console.error('Invalid npub:', e);
       }
     }
-    
-    // Always add limit
+
     filter.limit = 500;
-    
+
     return filter;
   };
 
   const handleConnect = () => {
     if (connectionState === 'connected' || connectionState === 'connecting') {
-      // Disconnect
       if (ws) {
         ws.close();
       }
@@ -186,20 +177,17 @@ const Index = () => {
       return;
     }
 
-    // Connect - support both ws:// and wss://
     let url = relayUrl;
     if (!url.startsWith('ws://') && !url.startsWith('wss://')) {
-      // Auto-detect: use ws:// for .local domains, wss:// for everything else
       url = url.includes('.local') ? `ws://${url}` : `wss://${url}`;
     }
     setConnectionState('connecting');
     setConnectionError('');
-    
+
     console.log('Connecting to:', url);
 
     const websocket = new WebSocket(url);
 
-    // Set connection timeout (10 seconds)
     const timeout = setTimeout(() => {
       if (websocket.readyState === WebSocket.CONNECTING) {
         console.log('⏱️ Connection timeout - closing');
@@ -208,7 +196,7 @@ const Index = () => {
         setConnectionError('Connection timeout - relay took too long to respond');
       }
     }, 10000);
-    
+
     setConnectionTimeout(timeout);
 
     websocket.onopen = () => {
@@ -216,7 +204,6 @@ const Index = () => {
       clearTimeout(timeout);
       setConnectionState('connected');
       setConnectionError('');
-      // Subscribe with filter
       const filter = buildFilter();
       console.log('📤 Sending REQ with filter:', filter);
       const subscription = JSON.stringify(['REQ', 'all-events', filter]);
@@ -227,15 +214,13 @@ const Index = () => {
       try {
         const data = JSON.parse(msg.data);
         console.log('📨 Received message:', data);
-        
-        // Handle AUTH challenge (NIP-42)
+
         if (data[0] === 'AUTH' && data[1]) {
           const challenge = data[1];
           console.log('🔐 AUTH challenge received:', challenge);
-          
+
           if (user && user.signer) {
             try {
-              // Sign NIP-42 auth event
               const authEvent = await user.signer.signEvent({
                 kind: 22242,
                 content: '',
@@ -245,7 +230,7 @@ const Index = () => {
                 ],
                 created_at: Math.floor(Date.now() / 1000),
               });
-              
+
               console.log('🔑 Sending AUTH response:', authEvent);
               websocket.send(JSON.stringify(['AUTH', authEvent]));
             } catch (e) {
@@ -257,37 +242,31 @@ const Index = () => {
             setConnectionError('Authentication required - please log in');
           }
         }
-        
-        // Handle events
+
         if (data[0] === 'EVENT' && data[2]) {
           console.log('📄 Event received:', data[2].kind, data[2].id.substring(0, 8));
           setEvents((prev) => {
-            // Avoid duplicates
-            if (prev.some(e => e.id === data[2].id)) {
+            if (prev.some((e) => e.id === data[2].id)) {
               return prev;
             }
             return [...prev, data[2]].sort((a, b) => b.created_at - a.created_at);
           });
         }
-        
-        // Handle CLOSED messages
+
         if (data[0] === 'CLOSED') {
           console.log('🚫 Subscription closed:', data[1], 'reason:', data[2]);
           setConnectionError(`Subscription closed: ${data[2] || 'Unknown reason'}`);
         }
-        
-        // Handle OK responses
+
         if (data[0] === 'OK') {
           console.log('✅ OK response:', data);
         }
-        
-        // Handle NOTICE messages
+
         if (data[0] === 'NOTICE') {
           console.log('📢 NOTICE:', data[1]);
           setConnectionError(`Relay notice: ${data[1]}`);
         }
 
-        // Handle EOSE
         if (data[0] === 'EOSE') {
           console.log('✔️ EOSE - End of stored events for subscription:', data[1]);
         }
@@ -306,8 +285,7 @@ const Index = () => {
     websocket.onclose = (event) => {
       console.log('🔌 WebSocket closed - code:', event.code, 'reason:', event.reason || 'none', 'clean:', event.wasClean);
       clearTimeout(timeout);
-      
-      // Error codes: 1000 = normal, 1006 = abnormal (network/DNS issue)
+
       if (event.code === 1006) {
         setConnectionError('Connection failed - DNS/network error (is the relay reachable?)');
       } else if (event.code !== 1000) {
@@ -332,18 +310,18 @@ const Index = () => {
   };
 
   const handleRemoveKind = (kind: number) => {
-    setSelectedKinds(selectedKinds.filter(k => k !== kind));
+    setSelectedKinds(selectedKinds.filter((k) => k !== kind));
   };
 
   const handleAddCustomKind = () => {
-    const kind = parseInt(customKind);
+    const kind = parseInt(customKind, 10);
     if (!isNaN(kind) && kind >= 0 && !selectedKinds.includes(kind)) {
       setSelectedKinds([...selectedKinds, kind]);
       setCustomKind('');
     }
   };
 
-  const handleDeleteEvent = async (eventId: string) => {
+  const handleDeleteEvent = async (eventIdToDelete: string) => {
     if (!user) {
       alert('You must be logged in to delete events');
       return;
@@ -352,22 +330,19 @@ const Index = () => {
     if (!ws || !isConnected) return;
 
     try {
-      // Create and sign deletion event WITHOUT client tag
       const unsignedEvent = {
         kind: 5,
         content: 'Deleted via relay-explorer',
-        tags: [['e', eventId]],
+        tags: [['e', eventIdToDelete]],
         created_at: Math.floor(Date.now() / 1000),
       };
 
       const signedEvent = await user.signer.signEvent(unsignedEvent);
-      
+
       console.log('Sending deletion event:', signedEvent);
-      
-      // Send directly to the connected relay via WebSocket
+
       ws.send(JSON.stringify(['EVENT', signedEvent]));
 
-      // Requery after a short delay to see if relay actually deleted it
       setTimeout(() => {
         if (ws && isConnected) {
           ws.send(JSON.stringify(['CLOSE', 'all-events']));
@@ -382,475 +357,448 @@ const Index = () => {
     }
   };
 
-  const filteredCommonKinds = COMMON_KINDS.filter(k => 
-    k.label.toLowerCase().includes(kindSearchQuery.toLowerCase()) ||
-    k.value.toString().includes(kindSearchQuery)
+  const filteredCommonKinds = COMMON_KINDS.filter(
+    (k) =>
+      k.label.toLowerCase().includes(kindSearchQuery.toLowerCase()) ||
+      k.value.toString().includes(kindSearchQuery),
   );
 
-  const getKindName = (kind: number): string => {
-    const kindNames: Record<number, string> = {
-      0: 'Metadata',
-      1: 'Text Note',
-      3: 'Contacts',
-      4: 'Encrypted DM',
-      5: 'Delete',
-      6: 'Repost',
-      7: 'Reaction',
-      10002: 'Relay List',
-      30023: 'Long-form',
-    };
-    return kindNames[kind] || `Kind ${kind}`;
-  };
+  const protocolPrefix =
+    relayUrl.includes('.local') || relayUrl.startsWith('ws://') ? 'ws://' : 'wss://';
+
+  const listHeight = iframeMode ? 'calc(100vh - 120px)' : 'calc(100vh - 340px)';
+
+  const renderKindPills = () =>
+    selectedKinds.length > 0 ? (
+      <Group gap={6} mt="xs" pt="xs" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+        {selectedKinds
+          .slice()
+          .sort((a, b) => a - b)
+          .map((kind) => (
+            <UnstyledButton
+              key={kind}
+              onClick={() => handleRemoveKind(kind)}
+              px={6}
+              py={2}
+              style={{
+                border: '1px solid var(--mantine-color-default-border)',
+                background: 'var(--mantine-color-body)',
+              }}
+            >
+              <Group gap={4} wrap="nowrap">
+                <Text size="xs" ff="monospace" c="dimmed">
+                  {kind}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  ·
+                </Text>
+                <Text size="xs" ff="monospace">
+                  {COMMON_KINDS.find((k) => k.value === kind)?.label || 'Custom'}
+                </Text>
+                <X size={12} color="var(--mantine-color-dimmed)" />
+              </Group>
+            </UnstyledButton>
+          ))}
+      </Group>
+    ) : null;
+
+  const renderFiltersGrid = (ids: { event: string; author: string }) => (
+    <Box>
+      <Group grow align="flex-start" gap="xs" wrap="wrap">
+        <Stack gap={4}>
+          <Text component="label" htmlFor={ids.event} size="xs" ff="monospace" tt="uppercase" c="dimmed">
+            Event ID
+          </Text>
+          <TextInput
+            id={ids.event}
+            placeholder="hex event id..."
+            value={eventId}
+            onChange={(e) => setEventId(e.target.value)}
+            size="xs"
+            ff="monospace"
+          />
+        </Stack>
+        <Stack gap={4}>
+          <Text component="label" htmlFor={ids.author} size="xs" ff="monospace" tt="uppercase" c="dimmed">
+            Authors
+          </Text>
+          <TextInput
+            id={ids.author}
+            placeholder="npub1..."
+            value={authorNpub}
+            onChange={(e) => setAuthorNpub(e.target.value)}
+            size="xs"
+            ff="monospace"
+          />
+        </Stack>
+        <Stack gap={4}>
+          <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
+            Kinds
+          </Text>
+          <Group gap={6} wrap="nowrap" align="flex-start">
+            <Box pos="relative" style={{ flex: 1, minWidth: rem(120) }}>
+              <TextInput
+                placeholder="Search..."
+                value={kindSearchQuery}
+                onChange={(e) => {
+                  setKindSearchQuery(e.target.value);
+                  setShowKindDropdown(true);
+                }}
+                onFocus={() => setShowKindDropdown(true)}
+                onBlur={() => setTimeout(() => setShowKindDropdown(false), 200)}
+                size="xs"
+                ff="monospace"
+              />
+              {showKindDropdown && kindSearchQuery && filteredCommonKinds.length > 0 && (
+                <Paper
+                  withBorder
+                  shadow="md"
+                  pos="absolute"
+                  left={0}
+                  right={0}
+                  top="calc(100% + 4px)"
+                  mah={192}
+                  style={{ zIndex: 10, overflowY: 'auto' }}
+                >
+                  {filteredCommonKinds.map((kind) => (
+                    <UnstyledButton
+                      key={kind.value}
+                      onClick={() => handleAddKind(kind.value)}
+                      w="100%"
+                      px="sm"
+                      py={8}
+                      style={{ textAlign: 'left' }}
+                    >
+                      <Group justify="space-between" wrap="nowrap">
+                        <Text size="xs" ff="monospace">
+                          {kind.label}
+                        </Text>
+                        <Text size="xs" ff="monospace" c="dimmed">
+                          {kind.value}
+                        </Text>
+                      </Group>
+                    </UnstyledButton>
+                  ))}
+                </Paper>
+              )}
+            </Box>
+            <TextInput
+              type="number"
+              placeholder="#"
+              value={customKind}
+              onChange={(e) => setCustomKind(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddCustomKind()}
+              size="xs"
+              w={48}
+              ta="center"
+              ff="monospace"
+              min={0}
+            />
+            <Button
+              onClick={handleAddCustomKind}
+              disabled={!customKind || isNaN(parseInt(customKind, 10))}
+              size="xs"
+              variant="default"
+            >
+              +
+            </Button>
+          </Group>
+        </Stack>
+      </Group>
+      {renderKindPills()}
+    </Box>
+  );
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="container mx-auto p-6">
-        {/* Header */}
+    <Box mih="100vh" bg="var(--mantine-color-body)">
+      <Box maw={1200} mx="auto" p="md">
         {!iframeMode && (
-          <div className="mb-6 pb-4 border-b border-border">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-mono font-semibold text-foreground mb-1">
+          <Box mb="lg" pb="md" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+            <Group justify="space-between" align="flex-start" wrap="wrap">
+              <Box>
+                <Text size="xl" fw={600} ff="monospace" mb={4}>
                   relay-explorer
-                </h1>
-                <p className="text-sm text-muted-foreground font-mono">
+                </Text>
+                <Text size="sm" c="dimmed" ff="monospace">
                   WebSocket event inspector for Nostr relays
-                </p>
-              </div>
-              <LoginArea className="max-w-60" />
-            </div>
-          </div>
+                </Text>
+              </Box>
+              <LoginArea w={240} />
+            </Group>
+          </Box>
         )}
 
-        {/* Connection Panel */}
         {!iframeMode && (
-          <div className="mb-6 bg-card border border-border rounded-none p-4">
-            <div className="flex gap-3 mb-3">
-              <div className="flex-1 relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-mono pointer-events-none">
-                  {relayUrl.includes('.local') || relayUrl.startsWith('ws://') ? 'ws://' : 'wss://'}
-                </span>
-                <Input
-                  type="text"
-                  placeholder="relay.ditto.pub (or chapartest.local)"
-                  value={relayUrl}
-                  onChange={handleRelayUrlChange}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && isValidUrl && !isConnected && !isConnecting) {
-                      handleConnect();
-                    }
-                  }}
-                  disabled={isConnected || isConnecting}
-                  className="pl-16 h-10 bg-muted border-border font-mono text-sm text-foreground"
-                />
-              </div>
+          <Paper withBorder p="md" mb="lg" radius={0}>
+            <Group gap="sm" align="flex-start" wrap="nowrap" mb="sm">
+              <TextInput
+                style={{ flex: 1 }}
+                type="text"
+                placeholder="relay.ditto.pub (or chapartest.local)"
+                value={relayUrl}
+                onChange={handleRelayUrlChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && isValidUrl && !isConnected && !isConnecting) {
+                    handleConnect();
+                  }
+                }}
+                disabled={isConnected || isConnecting}
+                leftSection={
+                  <Text size="xs" c="dimmed" ff="monospace" style={{ minWidth: rem(44) }}>
+                    {protocolPrefix}
+                  </Text>
+                }
+                size="sm"
+                ff="monospace"
+              />
               <Button
                 onClick={handleConnect}
                 disabled={!isValidUrl && !isConnected && !isConnecting}
-                className="h-10 px-6 font-mono text-sm"
-                variant={isConnected ? 'destructive' : 'default'}
+                color={isConnected ? 'red' : undefined}
+                loading={isConnecting}
+                size="sm"
+                ff="monospace"
               >
-                {isConnecting ? 'CONNECTING...' : isConnected ? 'DISCONNECT' : 'CONNECT'}
+                {isConnecting ? 'connecting...' : isConnected ? 'disconnect' : 'connect'}
               </Button>
-            </div>
+            </Group>
 
-            {/* Connection Error */}
             {connectionError && (
-              <div className="mt-3 p-3 bg-red-950/50 border border-red-800 rounded text-xs font-mono text-red-300">
-                ⚠ {connectionError}
-              </div>
+              <Paper p="sm" mb="sm" radius={0} bg="var(--mantine-color-red-light)" c="var(--mantine-color-red-filled)">
+                <Text size="xs" ff="monospace">
+                  ⚠ {connectionError}
+                </Text>
+              </Paper>
             )}
 
-          {/* Advanced Filters */}
-          <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
-            <CollapsibleTrigger asChild>
-              <button
-                className="flex items-center gap-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <span className="uppercase tracking-wider">Filters</span>
-                <ChevronDown className={`h-3 w-3 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-                {isConnected && (selectedKinds.length > 0 || authorNpub || eventId) && (
-                  <span className="text-muted-foreground">·</span>
-                )}
-                {isConnected && (selectedKinds.length > 0 || authorNpub || eventId) && (
-                  <span className="text-muted-foreground text-xs">live update enabled</span>
-                )}
-              </button>
-            </CollapsibleTrigger>
-            
-            <CollapsibleContent className="mt-3 pt-3 border-t border-border">
-              <div className="grid grid-cols-3 gap-2">
-                {/* Event ID Filter */}
-                <div className="space-y-1">
-                  <label htmlFor="event-id" className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
-                    Event ID
-                  </label>
-                  <Input
-                    id="event-id"
-                    type="text"
-                    placeholder="hex event id..."
-                    value={eventId}
-                    onChange={(e) => setEventId(e.target.value)}
-                    className="h-8 bg-muted border-border font-mono text-xs text-foreground"
+            <Stack gap="xs">
+              <UnstyledButton onClick={() => setShowAdvanced((o) => !o)} c="dimmed">
+                <Group gap={6}>
+                  <Text size="xs" ff="monospace" tt="uppercase">
+                    filters
+                  </Text>
+                  <ChevronDown
+                    size={12}
+                    style={{ transform: showAdvanced ? 'rotate(180deg)' : undefined }}
                   />
-                </div>
+                  {isConnected && (selectedKinds.length > 0 || authorNpub || eventId) && (
+                    <>
+                      <Text size="xs" c="dimmed">
+                        ·
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        live update enabled
+                      </Text>
+                    </>
+                  )}
+                </Group>
+              </UnstyledButton>
 
-                {/* Author Filter */}
-                <div className="space-y-1">
-                  <label htmlFor="author-npub" className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
-                    Authors
-                  </label>
-                  <Input
-                    id="author-npub"
-                    type="text"
-                    placeholder="npub1..."
-                    value={authorNpub}
-                    onChange={(e) => setAuthorNpub(e.target.value)}
-                    className="h-8 bg-muted border-border font-mono text-xs text-foreground"
-                  />
-                </div>
-
-                {/* Kinds Filter */}
-                <div className="space-y-1">
-                  <label className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
-                    Kinds
-                  </label>
-                  <div className="flex gap-1.5">
-                    <div className="flex-1 relative">
-                      <Input
-                        type="text"
-                        placeholder="Search..."
-                        value={kindSearchQuery}
-                        onChange={(e) => {
-                          setKindSearchQuery(e.target.value);
-                          setShowKindDropdown(true);
-                        }}
-                        onFocus={() => setShowKindDropdown(true)}
-                        onBlur={() => setTimeout(() => setShowKindDropdown(false), 200)}
-                        className="h-8 bg-background border-border font-mono text-xs text-foreground"
-                      />
-                      {showKindDropdown && kindSearchQuery && filteredCommonKinds.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-popover border border-border rounded-none shadow-xl max-h-48 overflow-y-auto">
-                          {filteredCommonKinds.map((kind) => (
-                            <button
-                              key={kind.value}
-                              onClick={() => handleAddKind(kind.value)}
-                              className="w-full text-left px-3 py-2 hover:bg-muted text-xs font-mono flex items-center justify-between text-foreground"
-                            >
-                              <span>{kind.label}</span>
-                              <span className="text-muted-foreground">{kind.value}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <Input
-                      type="number"
-                      placeholder="#"
-                      value={customKind}
-                      onChange={(e) => setCustomKind(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddCustomKind()}
-                      className="h-8 w-12 bg-background border-border font-mono text-xs text-center text-foreground"
-                      min="0"
-                    />
-                    <Button
-                      onClick={handleAddCustomKind}
-                      disabled={!customKind || isNaN(parseInt(customKind))}
-                      size="sm"
-                      variant="outline"
-                      className="h-8 px-2 font-mono text-xs border-border"
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Selected Kinds Pills */}
-              {selectedKinds.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-border">
-                  {selectedKinds.sort((a, b) => a - b).map((kind) => (
-                    <button
-                      key={kind}
-                      onClick={() => handleRemoveKind(kind)}
-                      className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-muted hover:bg-muted/80 border border-border rounded text-xs font-mono text-foreground transition-colors"
-                    >
-                      <span className="text-muted-foreground">{kind}</span>
-                      <span className="text-muted-foreground">·</span>
-                      <span>{COMMON_KINDS.find(k => k.value === kind)?.label || 'Custom'}</span>
-                      <X className="h-3 w-3 ml-0.5 text-muted-foreground" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </CollapsibleContent>
-          </Collapsible>
-          </div>
+              <Collapse in={showAdvanced}>
+                <Box pt="sm" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+                  {renderFiltersGrid({ event: 'event-id', author: 'author-npub' })}
+                </Box>
+              </Collapse>
+            </Stack>
+          </Paper>
         )}
 
-        {/* Iframe Mode Header */}
         {iframeMode && (
-          <div className="mb-4 pb-3 border-b border-border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-mono text-muted-foreground uppercase tracking-wide">Connected to</span>
-                <span className="text-xs font-mono text-muted-foreground">{relayUrl}</span>
-              </div>
-              <div className="flex items-center gap-4">
-                {/* Filters in iframe mode */}
-                <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
-                  <CollapsibleTrigger asChild>
-                    <button className="flex items-center gap-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors">
-                      <span className="uppercase tracking-wider">Filters</span>
-                      <ChevronDown className={`h-3 w-3 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-                    </button>
-                  </CollapsibleTrigger>
-                </Collapsible>
-                <span className="text-xs font-mono text-muted-foreground">{events.length} events</span>
-                <LoginArea className="max-w-40" />
-              </div>
-            </div>
-            
-            {/* Iframe mode filters */}
-            {showAdvanced && (
-              <div className="mt-3 pt-3 border-t border-border">
-                <div className="grid grid-cols-3 gap-2">
-                  {/* Event ID Filter */}
-                  <div className="space-y-1">
-                    <label htmlFor="event-id-iframe" className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
-                      Event ID
-                    </label>
-                    <Input
-                      id="event-id-iframe"
-                      type="text"
-                      placeholder="hex event id..."
-                      value={eventId}
-                      onChange={(e) => setEventId(e.target.value)}
-                      className="h-8 bg-background border-border font-mono text-xs text-foreground"
+          <Box mb="md" pb="sm" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+            <Group justify="space-between" align="center" wrap="wrap">
+              <Group gap="xs">
+                <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
+                  Connected to
+                </Text>
+                <Text size="xs" ff="monospace" c="dimmed">
+                  {relayUrl}
+                </Text>
+              </Group>
+              <Group gap="md">
+                <UnstyledButton onClick={() => setShowAdvanced((o) => !o)} c="dimmed">
+                  <Group gap={6}>
+                    <Text size="xs" ff="monospace" tt="uppercase">
+                      filters
+                    </Text>
+                    <ChevronDown
+                      size={12}
+                      style={{ transform: showAdvanced ? 'rotate(180deg)' : undefined }}
                     />
-                  </div>
+                  </Group>
+                </UnstyledButton>
+                <Text size="xs" ff="monospace" c="dimmed">
+                  {events.length} events
+                </Text>
+                <LoginArea w={160} />
+              </Group>
+            </Group>
 
-                  {/* Author Filter */}
-                  <div className="space-y-1">
-                    <label htmlFor="author-npub-iframe" className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
-                      Authors
-                    </label>
-                    <Input
-                      id="author-npub-iframe"
-                      type="text"
-                      placeholder="npub1..."
-                      value={authorNpub}
-                      onChange={(e) => setAuthorNpub(e.target.value)}
-                      className="h-8 bg-background border-border font-mono text-xs text-foreground"
-                    />
-                  </div>
-
-                  {/* Kinds Filter */}
-                  <div className="space-y-1">
-                    <label className="text-xs font-mono text-muted-foreground uppercase tracking-wide">
-                      Kinds
-                    </label>
-                    <div className="flex gap-1.5">
-                      <div className="flex-1 relative">
-                        <Input
-                          type="text"
-                          placeholder="Search..."
-                          value={kindSearchQuery}
-                          onChange={(e) => {
-                            setKindSearchQuery(e.target.value);
-                            setShowKindDropdown(true);
-                          }}
-                          onFocus={() => setShowKindDropdown(true)}
-                          onBlur={() => setTimeout(() => setShowKindDropdown(false), 200)}
-                          className="h-8 bg-background border-border font-mono text-xs text-foreground"
-                        />
-                        {showKindDropdown && kindSearchQuery && filteredCommonKinds.length > 0 && (
-                          <div className="absolute z-10 w-full mt-1 bg-popover border border-border rounded-none shadow-xl max-h-48 overflow-y-auto">
-                            {filteredCommonKinds.map((kind) => (
-                              <button
-                                key={kind.value}
-                                onClick={() => handleAddKind(kind.value)}
-                                className="w-full text-left px-3 py-2 hover:bg-muted text-xs font-mono flex items-center justify-between text-foreground"
-                              >
-                                <span>{kind.label}</span>
-                                <span className="text-muted-foreground">{kind.value}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <Input
-                        type="number"
-                        placeholder="#"
-                        value={customKind}
-                        onChange={(e) => setCustomKind(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddCustomKind()}
-                        className="h-8 w-12 bg-background border-border font-mono text-xs text-center text-foreground"
-                        min="0"
-                      />
-                      <Button
-                        onClick={handleAddCustomKind}
-                        disabled={!customKind || isNaN(parseInt(customKind))}
-                        size="sm"
-                        variant="outline"
-                        className="h-8 px-2 font-mono text-xs border-border"
-                      >
-                        +
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Selected Kinds Pills */}
-                {selectedKinds.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-border">
-                    {selectedKinds.sort((a, b) => a - b).map((kind) => (
-                      <button
-                        key={kind}
-                        onClick={() => handleRemoveKind(kind)}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-muted hover:bg-muted/80 border border-border rounded text-xs font-mono text-foreground transition-colors"
-                      >
-                        <span className="text-muted-foreground">{kind}</span>
-                        <span className="text-muted-foreground">·</span>
-                        <span>{COMMON_KINDS.find(k => k.value === kind)?.label || 'Custom'}</span>
-                        <X className="h-3 w-3 ml-0.5 text-muted-foreground" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+            <Collapse in={showAdvanced}>
+              <Box pt="sm" mt="sm" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+                {renderFiltersGrid({ event: 'event-id-iframe', author: 'author-npub-iframe' })}
+              </Box>
+            </Collapse>
+          </Box>
         )}
 
-        {/* Events Display - Fibonacci ratio columns (5:8) */}
         {(isConnected || isConnecting) && (
-          <div className="grid grid-cols-13 gap-4">
-            {/* Left Column - Events List (5 parts) */}
-            <div className={`col-span-5 bg-card border border-border rounded-none overflow-hidden ${iframeMode ? 'h-[calc(100vh-120px)]' : 'h-[calc(100vh-340px)]'}`}>
-              <div className="flex flex-col h-full">
-                <div className="px-4 py-3 border-b border-border bg-card/80 backdrop-blur">
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-                      Events
-                    </h2>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {events.length}
-                    </span>
-                  </div>
-                </div>
-                <div className="overflow-y-auto flex-1">
-                  {events.length === 0 ? (
-                    <div className="p-8 text-center">
-                      <p className="text-xs font-mono text-muted-foreground">Listening for events...</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-border">
-                      {events.map((event) => (
-                        <div
-                          key={event.id}
-                          className={`relative group ${
-                            selectedEvent?.id === event.id
-                              ? 'bg-primary/15 border-l-2 border-primary'
-                              : ''
-                          }`}
-                        >
-                          <button
-                            onClick={() => setSelectedEvent(event)}
-                            className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors"
+          <Flex gap="md" align="stretch" direction={{ base: 'column', md: 'row' }}>
+            <Box style={{ flex: '5 1 0%', minWidth: 0 }}>
+              <Paper withBorder radius={0} h={listHeight} style={{ overflow: 'hidden' }}>
+                <Stack gap={0} h="100%">
+                  <Box px="md" py="sm" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+                    <Group justify="space-between">
+                      <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
+                        Events
+                      </Text>
+                      <Text size="xs" ff="monospace" c="dimmed">
+                        {events.length}
+                      </Text>
+                    </Group>
+                  </Box>
+                  <ScrollArea flex={1} type="auto">
+                    {events.length === 0 ? (
+                      <Box p="xl" ta="center">
+                        <Text size="xs" ff="monospace" c="dimmed">
+                          Listening for events...
+                        </Text>
+                      </Box>
+                    ) : (
+                      <Stack gap={0}>
+                        {events.map((event) => (
+                          <Box
+                            key={event.id}
+                            pos="relative"
+                            style={{
+                              borderBottom: '1px solid var(--mantine-color-default-border)',
+                            }}
+                            className="relay-explorer-event-row"
                           >
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <span className="inline-flex items-center gap-1.5 font-mono text-xs text-foreground">
-                                <span className="text-muted-foreground">kind</span>
-                                <span className="text-foreground">{event.kind}</span>
-                              </span>
-                              <div className="text-right">
-                                <div className="text-xs font-mono text-muted-foreground">
-                                  {new Date(event.created_at * 1000).toLocaleTimeString('en-US', { 
-                                    hour12: false,
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    second: '2-digit'
-                                  })}
-                                </div>
-                                <div className="text-[10px] font-mono text-muted-foreground">
-                                  ({formatDistanceToNow(new Date(event.created_at * 1000), { addSuffix: true })})
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-xs font-mono text-muted-foreground truncate mb-1">
-                              {event.id.substring(0, 32)}...
-                            </div>
-                            {event.content && (
-                              <div className="text-xs text-foreground truncate pr-8">
-                                {event.content.substring(0, 60)}
-                                {event.content.length > 60 ? '...' : ''}
-                              </div>
-                            )}
-                          </button>
-                          
-                          {/* Delete button on hover - bottom right (only show for logged in user's events) */}
-                          {user && event.pubkey === user.pubkey && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteEvent(event.id);
+                            <UnstyledButton
+                              onClick={() => setSelectedEvent(event)}
+                              w="100%"
+                              p="md"
+                              styles={{
+                                root: {
+                                  textAlign: 'left',
+                                  background:
+                                    selectedEvent?.id === event.id
+                                      ? 'color-mix(in srgb, var(--mantine-primary-color-filled) 15%, transparent)'
+                                      : undefined,
+                                  borderLeft:
+                                    selectedEvent?.id === event.id
+                                      ? '2px solid var(--mantine-primary-color-filled)'
+                                      : undefined,
+                                  '&:hover': {
+                                    backgroundColor: 'var(--mantine-color-default-hover)',
+                                  },
+                                },
                               }}
-                              className="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-red-900/90 hover:bg-red-800 border border-red-700 rounded"
-                              title="Delete your event (kind 5)"
                             >
-                              <Trash2 className="h-3 w-3 text-red-200" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+                              <Group justify="space-between" align="flex-start" wrap="nowrap" mb={8}>
+                                <Group gap={6} wrap="nowrap">
+                                  <Text size="xs" ff="monospace" c="dimmed">
+                                    kind
+                                  </Text>
+                                  <Text size="xs" ff="monospace">
+                                    {event.kind}
+                                  </Text>
+                                </Group>
+                                <Box ta="right">
+                                  <Text size="xs" ff="monospace" c="dimmed">
+                                    {new Date(event.created_at * 1000).toLocaleTimeString('en-US', {
+                                      hour12: false,
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      second: '2-digit',
+                                    })}
+                                  </Text>
+                                  <Text fz={10} ff="monospace" c="dimmed">
+                                    ({formatDistanceToNow(new Date(event.created_at * 1000), { addSuffix: true })})
+                                  </Text>
+                                </Box>
+                              </Group>
+                              <Text size="xs" ff="monospace" c="dimmed" truncate mb={4}>
+                                {event.id.substring(0, 32)}...
+                              </Text>
+                              {event.content && (
+                                <Text size="xs" truncate pr={32}>
+                                  {event.content.substring(0, 60)}
+                                  {event.content.length > 60 ? '...' : ''}
+                                </Text>
+                              )}
+                            </UnstyledButton>
+                            {user && event.pubkey === user.pubkey && (
+                              <UnstyledButton
+                                pos="absolute"
+                                right={8}
+                                bottom={8}
+                                p={4}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteEvent(event.id);
+                                }}
+                                title="Delete your event (kind 5)"
+                                style={{
+                                  opacity: 0,
+                                  background: 'rgba(127, 29, 29, 0.9)',
+                                  border: '1px solid rgb(185, 28, 28)',
+                                }}
+                                className="relay-explorer-delete-btn"
+                              >
+                                <Trash2 size={12} color="rgb(254, 202, 202)" />
+                              </UnstyledButton>
+                            )}
+                          </Box>
+                        ))}
+                      </Stack>
+                    )}
+                  </ScrollArea>
+                </Stack>
+              </Paper>
+            </Box>
 
-            {/* Right Column - Event Details (8 parts) */}
-            <div className={`col-span-8 bg-card border border-border rounded-none overflow-hidden ${iframeMode ? 'h-[calc(100vh-120px)]' : 'h-[calc(100vh-340px)]'}`}>
-              <div className="flex flex-col h-full">
-                <div className="px-4 py-3 border-b border-border bg-card/80 backdrop-blur">
-                  <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-                    Event Inspector
-                  </h2>
-                </div>
-                <div className="overflow-y-auto flex-1 p-4">
-                  {selectedEvent ? (
-                    <pre className="text-xs font-mono text-foreground leading-relaxed">
-                      {JSON.stringify(selectedEvent, null, 2)}
-                    </pre>
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-xs font-mono text-muted-foreground">Select an event to inspect</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+            <Box style={{ flex: '8 1 0%', minWidth: 0 }}>
+              <Paper withBorder radius={0} h={listHeight} style={{ overflow: 'hidden' }}>
+                <Stack gap={0} h="100%">
+                  <Box px="md" py="sm" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+                    <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
+                      Event Inspector
+                    </Text>
+                  </Box>
+                  <ScrollArea flex={1} p="md" type="auto">
+                    {selectedEvent ? (
+                      <Text component="pre" size="xs" ff="monospace" style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
+                        {JSON.stringify(selectedEvent, null, 2)}
+                      </Text>
+                    ) : (
+                      <Flex align="center" justify="center" mih={200}>
+                        <Text size="xs" ff="monospace" c="dimmed">
+                          Select an event to inspect
+                        </Text>
+                      </Flex>
+                    )}
+                  </ScrollArea>
+                </Stack>
+              </Paper>
+            </Box>
+          </Flex>
         )}
 
-        {/* Footer */}
         {!iframeMode && (
-          <div className="mt-6 text-center">
-            <a
-              href="https://shakespeare.diy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
-            >
+          <Box mt="lg" ta="center">
+            <Anchor href="https://shakespeare.diy" target="_blank" rel="noopener noreferrer" size="xs" ff="monospace" c="dimmed">
               built with shakespeare
-            </a>
-          </div>
+            </Anchor>
+          </Box>
         )}
-      </div>
-    </div>
+      </Box>
+      <style>{`
+        .relay-explorer-event-row:hover .relay-explorer-delete-btn {
+          opacity: 1 !important;
+        }
+      `}</style>
+    </Box>
   );
 };
 

@@ -10,8 +10,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import App from './App.tsx';
 import './index.css';
 
-// FIXME: a custom font should be used. Eg:
-// import '@fontsource-variable/<font-name>';
+// Optional: import '@fontsource-variable/<font-name>'; @relaykit/ui already loads shared fonts.
 
 const theme = buildRelaykitTheme();
 

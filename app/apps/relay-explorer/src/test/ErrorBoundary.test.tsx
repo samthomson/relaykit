@@ -1,6 +1,15 @@
+import type { ReactNode } from 'react';
+import { MantineProvider } from '@mantine/core';
+import { buildRelaykitTheme } from '@relaykit/ui';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+
+const theme = buildRelaykitTheme();
+
+const withProviders = (node: ReactNode) => (
+  <MantineProvider theme={theme}>{node}</MantineProvider>
+);
 
 
 
@@ -15,9 +24,11 @@ const ThrowError = ({ shouldThrow }: { shouldThrow: boolean }) => {
 describe('ErrorBoundary', () => {
   it('renders children when no error occurs', () => {
     render(
-      <ErrorBoundary>
-        <div>Test content</div>
-      </ErrorBoundary>
+      withProviders(
+        <ErrorBoundary>
+          <div>Test content</div>
+        </ErrorBoundary>
+      )
     );
 
     expect(screen.getByText('Test content')).toBeInTheDocument();
@@ -28,9 +39,11 @@ describe('ErrorBoundary', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(
-      <ErrorBoundary>
-        <ThrowError shouldThrow={true} />
-      </ErrorBoundary>
+      withProviders(
+        <ErrorBoundary>
+          <ThrowError shouldThrow={true} />
+        </ErrorBoundary>
+      )
     );
 
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
@@ -48,9 +61,11 @@ describe('ErrorBoundary', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(
-      <ErrorBoundary fallback={customFallback}>
-        <ThrowError shouldThrow={true} />
-      </ErrorBoundary>
+      withProviders(
+        <ErrorBoundary fallback={customFallback}>
+          <ThrowError shouldThrow={true} />
+        </ErrorBoundary>
+      )
     );
 
     expect(screen.getByText('Custom error message')).toBeInTheDocument();

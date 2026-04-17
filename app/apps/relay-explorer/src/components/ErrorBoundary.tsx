@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { Button, Center, Code, Group, Paper, Stack, Text, Title, rem } from '@mantine/core';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -10,8 +11,6 @@ interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
 }
-
-
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
@@ -54,57 +53,51 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-          <div className="max-w-md w-full space-y-4">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-foreground mb-2">
-                Something went wrong
-              </h2>
-              <p className="text-muted-foreground">
+        <Center mih="100vh" bg="var(--mantine-color-body)" p="md">
+          <Stack gap="md" maw={448} w="100%">
+            <Stack gap="xs" align="center">
+              <Title order={2}>Something went wrong</Title>
+              <Text c="dimmed" ta="center">
                 An unexpected error occurred. The error has been reported.
-              </p>
-            </div>
+              </Text>
+            </Stack>
 
-            <div className="bg-muted p-4 rounded-lg">
-              <details className="text-sm">
-                <summary className="cursor-pointer font-medium text-foreground">
+            <Paper withBorder p="md" radius={0}>
+              <details>
+                <summary style={{ cursor: 'pointer', fontSize: rem(14), fontWeight: 500 }}>
                   Error details
                 </summary>
-                <div className="mt-2 space-y-2">
+                <Stack gap="sm" mt="sm">
                   <div>
-                    <strong className="text-foreground">Message:</strong>
-                    <p className="text-muted-foreground mt-1">
+                    <Text size="sm" fw={500}>
+                      Message:
+                    </Text>
+                    <Text size="sm" c="dimmed" mt={4}>
                       {this.state.error?.message}
-                    </p>
+                    </Text>
                   </div>
                   {this.state.error?.stack && (
                     <div>
-                      <strong className="text-foreground">Stack trace:</strong>
-                      <pre className="text-xs text-muted-foreground mt-1 overflow-auto max-h-32">
+                      <Text size="sm" fw={500}>
+                        Stack trace:
+                      </Text>
+                      <Code block mt={4} fz="xs" style={{ maxHeight: rem(128), overflow: 'auto' }}>
                         {this.state.error.stack}
-                      </pre>
+                      </Code>
                     </div>
                   )}
-                </div>
+                </Stack>
               </details>
-            </div>
+            </Paper>
 
-            <div className="flex gap-2">
-              <button
-                onClick={this.handleReset}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-              >
-                Try again
-              </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
-              >
+            <Group grow>
+              <Button onClick={this.handleReset}>Try again</Button>
+              <Button variant="default" onClick={() => window.location.reload()}>
                 Reload page
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+            </Group>
+          </Stack>
+        </Center>
       );
     }
 
