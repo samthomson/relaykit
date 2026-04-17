@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build -l error && cp dist/index.html dist/404.html",
-    "test": "tsc --noEmit && eslint && vitest run --reporter=dot --silent && vite build -l error && cp dist/index.html dist/404.html"
+    "build": "vite build -l error",
+    "test": "tsc --noEmit && eslint && vitest run --reporter=dot --silent && vite build -l error"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.6",
