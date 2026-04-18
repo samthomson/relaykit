@@ -76,12 +76,12 @@ const Index = () => {
 
   const [relayUrl, setRelayUrl] = useState(() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get('standalone') === '1') {
+      return '';
+    }
     const relayParam = params.get('relay');
     if (relayParam) {
       return relayParam;
-    }
-    if (params.get('standalone') === '1') {
-      return '';
     }
     return localStorage.getItem('relay-explorer:url') || '';
   });
@@ -114,7 +114,14 @@ const Index = () => {
     const relayParam = params.get('relay');
     const standaloneParam = params.get('standalone');
 
-    if (embeddedParam === '1' || standaloneParam === '1') {
+    if (standaloneParam === '1') {
+      setIframeMode(true);
+      setIframeRelay(null);
+      setRelayUrl('');
+      return;
+    }
+
+    if (embeddedParam === '1') {
       setIframeMode(true);
     }
 
