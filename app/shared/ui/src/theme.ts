@@ -26,6 +26,24 @@ export const buildRelaykitTheme = (options: RelaykitThemeOptions = {}): MantineT
         defaultProps: { radius: 0 },
         styles: { root: { textTransform: 'none' } },
       },
+      Pill: {
+        defaultProps: { radius: 0, size: 'md' },
+        styles: {
+          root: {
+            background: 'var(--mantine-primary-color-filled)',
+            border: '1px solid var(--mantine-primary-color-filled)',
+            color: 'var(--mantine-primary-color-contrast)',
+            fontFamily: MONOSPACE,
+            fontWeight: 600,
+          },
+          remove: {
+            color: 'inherit',
+          },
+        },
+      },
+      PillsInput: {
+        defaultProps: { radius: 0, size: 'md' },
+      },
       Notification: {
         defaultProps: { radius: 0, color: options.primaryColor ?? 'relaykit', withBorder: true },
       },

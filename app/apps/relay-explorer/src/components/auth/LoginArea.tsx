@@ -24,15 +24,15 @@ export const LoginArea = ({ className, w }: LoginAreaProps) => {
   };
 
   return (
-    <Box className={className} w={w} display="inline-flex" style={{ justifyContent: 'center', alignItems: 'center' }}>
+    <Box className={className} w={w}>
       {currentUser ? (
         <AccountSwitcher onAddAccountClick={() => setLoginDialogOpen(true)} />
       ) : (
-        <Group gap="sm" grow wrap="nowrap">
-          <Button onClick={() => setLoginDialogOpen(true)}>
+        <Group gap="xs" wrap="nowrap">
+          <Button size="xs" onClick={() => setLoginDialogOpen(true)}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Log in</span>
           </Button>
-          <Button onClick={() => setSignupDialogOpen(true)} variant="outline">
+          <Button size="xs" onClick={() => setSignupDialogOpen(true)} variant="outline">
             Sign up
           </Button>
         </Group>

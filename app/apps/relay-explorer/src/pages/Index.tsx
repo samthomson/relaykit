@@ -7,15 +7,16 @@ import {
   Collapse,
   Flex,
   Group,
+  Pill,
+  PillsInput,
   Paper,
   ScrollArea,
   Stack,
   Text,
-  TextInput,
   UnstyledButton,
   rem,
 } from '@mantine/core';
-import { ChevronDown, Trash2, X } from 'lucide-react';
+import { ChevronDown, Trash2 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { formatDistanceToNow } from 'date-fns';
@@ -45,6 +46,15 @@ const COMMON_KINDS = [
   { value: 31990, label: 'App Handler' },
 ];
 
+const normalizeRelayUrl = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('ws://') || trimmed.startsWith('wss://')) {
+    return trimmed;
+  }
+  return `wss://${trimmed}`;
+};
+
 const Index = () => {
   useSeoMeta({
     title: 'Relay Note Explorer',
@@ -64,6 +74,7 @@ const Index = () => {
     }
     return localStorage.getItem('relay-explorer:url') || '';
   });
+  const [relayDraft, setRelayDraft] = useState('');
 
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [connectionError, setConnectionError] = useState<string>('');
@@ -74,9 +85,9 @@ const Index = () => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [authorNpub, setAuthorNpub] = useState('');
+  const [authorDraft, setAuthorDraft] = useState('');
   const [eventId, setEventId] = useState('');
   const [selectedKinds, setSelectedKinds] = useState<number[]>([]);
-  const [customKind, setCustomKind] = useState('');
   const [kindSearchQuery, setKindSearchQuery] = useState('');
   const [showKindDropdown, setShowKindDropdown] = useState(false);
 
@@ -100,6 +111,14 @@ const Index = () => {
       localStorage.setItem('relay-explorer:url', relayUrl);
     }
   }, [relayUrl, iframeMode]);
+
+  useEffect(() => {
+    setRelayDraft('');
+  }, [relayUrl]);
+
+  useEffect(() => {
+    setAuthorDraft('');
+  }, [authorNpub]);
 
   useEffect(() => {
     if (ws && isConnected) {
@@ -177,10 +196,8 @@ const Index = () => {
       return;
     }
 
-    let url = relayUrl;
-    if (!url.startsWith('ws://') && !url.startsWith('wss://')) {
-      url = url.includes('.local') ? `ws://${url}` : `wss://${url}`;
-    }
+    const url = normalizeRelayUrl(relayUrl);
+    if (!url) return;
     setConnectionState('connecting');
     setConnectionError('');
 
@@ -298,7 +315,7 @@ const Index = () => {
   };
 
   const handleRelayUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setRelayUrl(e.target.value);
+    setRelayDraft(e.target.value);
   };
 
   const handleAddKind = (kind: number) => {
@@ -313,12 +330,43 @@ const Index = () => {
     setSelectedKinds(selectedKinds.filter((k) => k !== kind));
   };
 
-  const handleAddCustomKind = () => {
-    const kind = parseInt(customKind, 10);
-    if (!isNaN(kind) && kind >= 0 && !selectedKinds.includes(kind)) {
-      setSelectedKinds([...selectedKinds, kind]);
-      setCustomKind('');
+  const disconnectRelay = () => {
+    if (ws) {
+      ws.close();
     }
+    if (connectionTimeout) {
+      clearTimeout(connectionTimeout);
+    }
+    setWs(null);
+    setConnectionState('disconnected');
+    setConnectionError('');
+    setEvents([]);
+    setSelectedEvent(null);
+  };
+
+  const commitRelayDraft = () => {
+    const nextRelay = relayDraft.trim();
+    if (!nextRelay) return;
+    setRelayUrl(normalizeRelayUrl(nextRelay));
+    setRelayDraft('');
+  };
+
+  const clearRelayValue = () => {
+    disconnectRelay();
+    setRelayDraft('');
+    setRelayUrl('');
+  };
+
+  const commitAuthorDraft = () => {
+    const nextAuthor = authorDraft.trim();
+    if (!nextAuthor) return;
+    setAuthorNpub(nextAuthor);
+    setAuthorDraft('');
+  };
+
+  const clearAuthor = () => {
+    setAuthorDraft('');
+    setAuthorNpub('');
   };
 
   const handleDeleteEvent = async (eventIdToDelete: string) => {
@@ -363,44 +411,92 @@ const Index = () => {
       k.value.toString().includes(kindSearchQuery),
   );
 
-  const protocolPrefix =
-    relayUrl.includes('.local') || relayUrl.startsWith('ws://') ? 'ws://' : 'wss://';
+  const protocolPrefix = relayUrl.startsWith('ws://') ? 'ws://' : 'wss://';
 
   const listHeight = iframeMode ? 'calc(100vh - 120px)' : 'calc(100vh - 340px)';
 
-  const renderKindPills = () =>
-    selectedKinds.length > 0 ? (
-      <Group gap={6} mt="xs" pt="xs" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
-        {selectedKinds
-          .slice()
-          .sort((a, b) => a - b)
-          .map((kind) => (
-            <UnstyledButton
-              key={kind}
-              onClick={() => handleRemoveKind(kind)}
-              px={6}
-              py={2}
-              style={{
-                border: '1px solid var(--mantine-color-default-border)',
-                background: 'var(--mantine-color-body)',
-              }}
-            >
-              <Group gap={4} wrap="nowrap">
-                <Text size="xs" ff="monospace" c="dimmed">
-                  {kind}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  ·
-                </Text>
-                <Text size="xs" ff="monospace">
-                  {COMMON_KINDS.find((k) => k.value === kind)?.label || 'Custom'}
-                </Text>
-                <X size={12} color="var(--mantine-color-dimmed)" />
-              </Group>
-            </UnstyledButton>
-          ))}
-      </Group>
-    ) : null;
+  const handleKindQuerySubmit = () => {
+    const query = kindSearchQuery.trim();
+    if (!query) return;
+
+    const numericKind = Number.parseInt(query, 10);
+    if (!Number.isNaN(numericKind)) {
+      handleAddKind(numericKind);
+      return;
+    }
+
+    if (filteredCommonKinds.length > 0) {
+      handleAddKind(filteredCommonKinds[0].value);
+    }
+  };
+
+  const formatPillValue = (value: string, max = 28) =>
+    value.length > max ? `${value.slice(0, max)}...` : value;
+
+  const pillInputStyles = { input: { minHeight: rem(44), fontSize: rem(14), alignItems: 'center' } };
+
+  const renderRelayPillInput = (id: string) => (
+    <PillsInput
+      style={{ flex: 1 }}
+      radius={0}
+      styles={pillInputStyles}
+      onKeyDownCapture={(e) => {
+        if ((e.key === 'Backspace' || e.key === 'Delete') && relayDraft.trim().length === 0 && relayUrl) {
+          e.preventDefault();
+          clearRelayValue();
+        }
+      }}
+    >
+      <Pill.Group>
+        {relayUrl && (
+          <Pill
+            withRemoveButton
+            onRemove={clearRelayValue}
+            title={relayUrl}
+            style={{ flexShrink: 0 }}
+          >
+            {protocolPrefix}
+            {formatPillValue(relayUrl.replace(/^wss?:\/\//, ''), 38)}
+          </Pill>
+        )}
+        <PillsInput.Field
+          id={id}
+          aria-label="relay url"
+          value={relayDraft}
+          onChange={handleRelayUrlChange}
+          onBlur={commitRelayDraft}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              commitRelayDraft();
+              if (isValidUrl && !isConnected && !isConnecting) {
+                handleConnect();
+              }
+            }
+            if ((e.key === 'Backspace' || e.key === 'Delete') && relayDraft.trim().length === 0 && relayUrl) {
+              e.preventDefault();
+              clearRelayValue();
+            }
+          }}
+          disabled={false}
+          placeholder={relayUrl ? 'paste a new relay url and press enter...' : 'relay.ditto.pub or chapartest.local'}
+          style={{
+            flex: 1,
+            minWidth: rem(140),
+            height: rem(30),
+            lineHeight: 1.2,
+            paddingTop: 0,
+            paddingBottom: 0,
+            alignSelf: 'center',
+            fontFamily:
+              '"SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+            fontSize: rem(14),
+            color: 'var(--mantine-color-text)',
+            opacity: relayUrl ? 0.9 : 1,
+          }}
+        />
+      </Pill.Group>
+    </PillsInput>
+  );
 
   const renderFiltersGrid = (ids: { event: string; author: string }) => (
     <Box>
@@ -409,103 +505,158 @@ const Index = () => {
           <Text component="label" htmlFor={ids.event} size="xs" ff="monospace" tt="uppercase" c="dimmed">
             Event ID
           </Text>
-          <TextInput
-            id={ids.event}
-            placeholder="hex event id..."
-            value={eventId}
-            onChange={(e) => setEventId(e.target.value)}
-            size="xs"
-            ff="monospace"
-          />
+          <PillsInput radius={0} styles={pillInputStyles}>
+            <Pill.Group>
+              <PillsInput.Field
+                id={ids.event}
+                aria-label="event id filter"
+                placeholder="hex event id..."
+                value={eventId}
+                onChange={(e) => setEventId(e.target.value)}
+                style={{
+                  minWidth: rem(140),
+                  height: rem(30),
+                  lineHeight: 1.2,
+                  paddingTop: 0,
+                  paddingBottom: 0,
+                  alignSelf: 'center',
+                  fontFamily:
+                    '"SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                  fontSize: rem(14),
+                  color: 'var(--mantine-color-text)',
+                }}
+              />
+            </Pill.Group>
+          </PillsInput>
         </Stack>
         <Stack gap={4}>
           <Text component="label" htmlFor={ids.author} size="xs" ff="monospace" tt="uppercase" c="dimmed">
             Authors
           </Text>
-          <TextInput
-            id={ids.author}
-            placeholder="npub1..."
-            value={authorNpub}
-            onChange={(e) => setAuthorNpub(e.target.value)}
-            size="xs"
-            ff="monospace"
-          />
+          <PillsInput radius={0} styles={pillInputStyles}>
+            <Pill.Group>
+              {authorNpub && (
+                <Pill withRemoveButton onRemove={clearAuthor} title={authorNpub} style={{ flexShrink: 0 }}>
+                  {formatPillValue(authorNpub, 24)}
+                </Pill>
+              )}
+              <PillsInput.Field
+                id={ids.author}
+                aria-label="author filter"
+                placeholder={authorNpub ? 'replace author...' : 'npub1... or nprofile1...'}
+                value={authorDraft}
+                onChange={(e) => setAuthorDraft(e.target.value)}
+                onBlur={commitAuthorDraft}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    commitAuthorDraft();
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  minWidth: rem(120),
+                  height: rem(30),
+                  lineHeight: 1.2,
+                  paddingTop: 0,
+                  paddingBottom: 0,
+                  alignSelf: 'center',
+                  fontFamily:
+                    '"SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                  fontSize: rem(14),
+                  color: 'var(--mantine-color-text)',
+                }}
+              />
+            </Pill.Group>
+          </PillsInput>
         </Stack>
         <Stack gap={4}>
           <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
             Kinds
           </Text>
-          <Group gap={6} wrap="nowrap" align="flex-start">
-            <Box pos="relative" style={{ flex: 1, minWidth: rem(120) }}>
-              <TextInput
-                placeholder="Search..."
-                value={kindSearchQuery}
-                onChange={(e) => {
-                  setKindSearchQuery(e.target.value);
-                  setShowKindDropdown(true);
-                }}
-                onFocus={() => setShowKindDropdown(true)}
-                onBlur={() => setTimeout(() => setShowKindDropdown(false), 200)}
-                size="xs"
-                ff="monospace"
-              />
-              {showKindDropdown && kindSearchQuery && filteredCommonKinds.length > 0 && (
-                <Paper
-                  withBorder
-                  shadow="md"
-                  pos="absolute"
-                  left={0}
-                  right={0}
-                  top="calc(100% + 4px)"
-                  mah={192}
-                  style={{ zIndex: 10, overflowY: 'auto' }}
-                >
-                  {filteredCommonKinds.map((kind) => (
-                    <UnstyledButton
-                      key={kind.value}
-                      onClick={() => handleAddKind(kind.value)}
-                      w="100%"
-                      px="sm"
-                      py={8}
-                      style={{ textAlign: 'left' }}
-                    >
-                      <Group justify="space-between" wrap="nowrap">
-                        <Text size="xs" ff="monospace">
-                          {kind.label}
-                        </Text>
-                        <Text size="xs" ff="monospace" c="dimmed">
-                          {kind.value}
-                        </Text>
-                      </Group>
-                    </UnstyledButton>
+          <Box pos="relative" style={{ flex: 1, minWidth: rem(160) }}>
+            <PillsInput radius={0} styles={pillInputStyles}>
+              <Pill.Group>
+                {selectedKinds
+                  .slice()
+                  .sort((a, b) => a - b)
+                  .map((kind) => (
+                    <Pill key={kind} withRemoveButton onRemove={() => handleRemoveKind(kind)}>
+                      {kind}
+                    </Pill>
                   ))}
-                </Paper>
-              )}
-            </Box>
-            <TextInput
-              type="number"
-              placeholder="#"
-              value={customKind}
-              onChange={(e) => setCustomKind(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddCustomKind()}
-              size="xs"
-              w={48}
-              ta="center"
-              ff="monospace"
-              min={0}
-            />
-            <Button
-              onClick={handleAddCustomKind}
-              disabled={!customKind || isNaN(parseInt(customKind, 10))}
-              size="xs"
-              variant="default"
-            >
-              +
-            </Button>
-          </Group>
+                <PillsInput.Field
+                  aria-label="kinds filter"
+                  placeholder="type kind or search..."
+                  value={kindSearchQuery}
+                  onChange={(e) => {
+                    setKindSearchQuery(e.target.value);
+                    setShowKindDropdown(true);
+                  }}
+                  onFocus={() => setShowKindDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowKindDropdown(false), 200)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleKindQuerySubmit();
+                    }
+                    if (e.key === 'Backspace' && kindSearchQuery.length === 0 && selectedKinds.length > 0) {
+                      e.preventDefault();
+                      const lastKind = selectedKinds[selectedKinds.length - 1];
+                      handleRemoveKind(lastKind);
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: rem(120),
+                    height: rem(30),
+                    lineHeight: 1.2,
+                    paddingTop: 0,
+                    paddingBottom: 0,
+                    alignSelf: 'center',
+                    fontFamily:
+                      '"SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                    fontSize: rem(14),
+                    color: 'var(--mantine-color-text)',
+                  }}
+                />
+              </Pill.Group>
+            </PillsInput>
+            {showKindDropdown && kindSearchQuery && filteredCommonKinds.length > 0 && (
+              <Paper
+                withBorder
+                shadow="md"
+                pos="absolute"
+                left={0}
+                right={0}
+                top="calc(100% + 4px)"
+                mah={192}
+                style={{ zIndex: 10, overflowY: 'auto' }}
+              >
+                {filteredCommonKinds.map((kind) => (
+                  <UnstyledButton
+                    key={kind.value}
+                    onClick={() => handleAddKind(kind.value)}
+                    w="100%"
+                    px="sm"
+                    py={8}
+                    style={{ textAlign: 'left' }}
+                  >
+                    <Group justify="space-between" wrap="nowrap">
+                      <Text size="xs" ff="monospace">
+                        {kind.label}
+                      </Text>
+                      <Text size="xs" ff="monospace" c="dimmed">
+                        {kind.value}
+                      </Text>
+                    </Group>
+                  </UnstyledButton>
+                ))}
+              </Paper>
+            )}
+          </Box>
         </Stack>
       </Group>
-      {renderKindPills()}
     </Box>
   );
 
@@ -531,32 +682,13 @@ const Index = () => {
         {!iframeMode && (
           <Paper withBorder p="md" mb="lg" radius={0}>
             <Group gap="sm" align="flex-start" wrap="nowrap" mb="sm">
-              <TextInput
-                style={{ flex: 1 }}
-                type="text"
-                placeholder="relay.ditto.pub (or chapartest.local)"
-                value={relayUrl}
-                onChange={handleRelayUrlChange}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && isValidUrl && !isConnected && !isConnecting) {
-                    handleConnect();
-                  }
-                }}
-                disabled={isConnected || isConnecting}
-                leftSection={
-                  <Text size="xs" c="dimmed" ff="monospace" style={{ minWidth: rem(44) }}>
-                    {protocolPrefix}
-                  </Text>
-                }
-                size="sm"
-                ff="monospace"
-              />
+              {renderRelayPillInput('relay-url')}
               <Button
                 onClick={handleConnect}
                 disabled={!isValidUrl && !isConnected && !isConnecting}
                 color={isConnected ? 'red' : undefined}
                 loading={isConnecting}
-                size="sm"
+                size="md"
                 ff="monospace"
               >
                 {isConnecting ? 'connecting...' : isConnected ? 'disconnect' : 'connect'}
@@ -606,15 +738,13 @@ const Index = () => {
         {iframeMode && (
           <Box mb="md" pb="sm" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
             <Group justify="space-between" align="center" wrap="wrap">
-              <Group gap="xs">
-                <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
+              <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                <Text size="xs" ff="monospace" tt="uppercase" c="dimmed" style={{ flexShrink: 0 }}>
                   Connected to
                 </Text>
-                <Text size="xs" ff="monospace" c="dimmed">
-                  {relayUrl}
-                </Text>
+                {renderRelayPillInput('relay-url-iframe')}
               </Group>
-              <Group gap="md">
+              <Group gap="xs" wrap="nowrap">
                 <UnstyledButton onClick={() => setShowAdvanced((o) => !o)} c="dimmed">
                   <Group gap={6}>
                     <Text size="xs" ff="monospace" tt="uppercase">
@@ -626,10 +756,7 @@ const Index = () => {
                     />
                   </Group>
                 </UnstyledButton>
-                <Text size="xs" ff="monospace" c="dimmed">
-                  {events.length} events
-                </Text>
-                <LoginArea w={160} />
+                <LoginArea />
               </Group>
             </Group>
 
