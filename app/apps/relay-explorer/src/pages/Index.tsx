@@ -4,9 +4,9 @@ import {
   Anchor,
   Box,
   Button,
-  Collapse,
   Flex,
   Group,
+  Menu,
   Pill,
   PillsInput,
   Paper,
@@ -16,12 +16,14 @@ import {
   UnstyledButton,
   rem,
 } from '@mantine/core';
-import { ChevronDown, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
+import { IconChevronDown } from '@tabler/icons-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { formatDistanceToNow } from 'date-fns';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { LoginArea } from '@/components/auth/LoginArea';
+import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
+import LoginDialog from '@/components/auth/LoginDialog';
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected';
 
@@ -82,7 +84,7 @@ const Index = () => {
   const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<NostrEvent | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   const [authorNpub, setAuthorNpub] = useState('');
   const [authorDraft, setAuthorDraft] = useState('');
@@ -90,6 +92,8 @@ const Index = () => {
   const [selectedKinds, setSelectedKinds] = useState<number[]>([]);
   const [kindSearchQuery, setKindSearchQuery] = useState('');
   const [showKindDropdown, setShowKindDropdown] = useState(false);
+
+  const { currentUser, removeLogin } = useLoggedInAccounts();
 
   const isValidUrl = relayUrl.length > 0;
   const isConnected = connectionState === 'connected';
@@ -412,6 +416,14 @@ const Index = () => {
   );
 
   const protocolPrefix = relayUrl.startsWith('ws://') ? 'ws://' : 'wss://';
+  const currentNpub = (() => {
+    if (!currentUser) return '';
+    try {
+      return nip19.npubEncode(currentUser.pubkey);
+    } catch {
+      return '';
+    }
+  })();
 
   const listHeight = iframeMode ? 'calc(100vh - 120px)' : 'calc(100vh - 340px)';
 
@@ -432,6 +444,11 @@ const Index = () => {
 
   const formatPillValue = (value: string, max = 28) =>
     value.length > max ? `${value.slice(0, max)}...` : value;
+
+  const formatNpubMiddle = (value: string) => {
+    if (value.length <= 16) return value;
+    return `${value.slice(0, 8)}...${value.slice(-4)}`;
+  };
 
   const pillInputStyles = { input: { minHeight: rem(44), fontSize: rem(14), alignItems: 'center' } };
 
@@ -660,29 +677,63 @@ const Index = () => {
     </Box>
   );
 
+  const renderAuthControl = () => (
+    <Menu shadow="md" position="bottom-end">
+      <Menu.Target>
+        <Button
+          size="md"
+          variant="filled"
+          rightSection={<IconChevronDown size={14} />}
+          style={{ maxWidth: '100%', height: rem(44), justifyContent: 'space-between' }}
+        >
+          <Box ta="left" style={{ minWidth: 0 }}>
+            <Text size="sm" ff="monospace">
+              {currentUser ? 'authed' : 'authenticate'}
+            </Text>
+            {currentUser && (
+              <Text size="xs" c="rgba(255,255,255,0.75)" ff="monospace" style={{ maxWidth: rem(300) }}>
+                {formatNpubMiddle(currentNpub)}
+              </Text>
+            )}
+          </Box>
+        </Button>
+      </Menu.Target>
+      <Menu.Dropdown>
+        {!currentUser && <Menu.Item onClick={() => setLoginDialogOpen(true)}>auth options</Menu.Item>}
+        <Menu.Item
+          color="red"
+          disabled={!currentUser}
+          onClick={() => {
+            if (currentUser) {
+              removeLogin(currentUser.id);
+            }
+          }}
+        >
+          remove auth
+        </Menu.Item>
+      </Menu.Dropdown>
+    </Menu>
+  );
+
   return (
     <Box mih="100vh" bg="var(--mantine-color-body)">
       <Box maw={1200} mx="auto" p="md">
         {!iframeMode && (
           <Box mb="lg" pb="md" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
-            <Group justify="space-between" align="flex-start" wrap="wrap">
-              <Box>
-                <Text size="xl" fw={600} ff="monospace" mb={4}>
-                  relay-explorer
-                </Text>
-                <Text size="sm" c="dimmed" ff="monospace">
-                  WebSocket event inspector for Nostr relays
-                </Text>
-              </Box>
-              <LoginArea w={240} />
-            </Group>
+            <Text size="xl" fw={600} ff="monospace" mb={4}>
+              relay-explorer
+            </Text>
+            <Text size="sm" c="dimmed" ff="monospace">
+              WebSocket event inspector for Nostr relays
+            </Text>
           </Box>
         )}
 
         {!iframeMode && (
           <Paper withBorder p="md" mb="lg" radius={0}>
-            <Group gap="sm" align="flex-start" wrap="nowrap" mb="sm">
+            <Group gap="sm" align="flex-start" wrap="wrap" mb="sm">
               {renderRelayPillInput('relay-url')}
+              {renderAuthControl()}
               <Button
                 onClick={handleConnect}
                 disabled={!isValidUrl && !isConnected && !isConnecting}
@@ -703,41 +754,15 @@ const Index = () => {
               </Paper>
             )}
 
-            <Stack gap="xs">
-              <UnstyledButton onClick={() => setShowAdvanced((o) => !o)} c="dimmed">
-                <Group gap={6}>
-                  <Text size="xs" ff="monospace" tt="uppercase">
-                    filters
-                  </Text>
-                  <ChevronDown
-                    size={12}
-                    style={{ transform: showAdvanced ? 'rotate(180deg)' : undefined }}
-                  />
-                  {isConnected && (selectedKinds.length > 0 || authorNpub || eventId) && (
-                    <>
-                      <Text size="xs" c="dimmed">
-                        ·
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        live update enabled
-                      </Text>
-                    </>
-                  )}
-                </Group>
-              </UnstyledButton>
-
-              <Collapse in={showAdvanced}>
-                <Box pt="sm" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
-                  {renderFiltersGrid({ event: 'event-id', author: 'author-npub' })}
-                </Box>
-              </Collapse>
-            </Stack>
+            <Box pt="sm">
+              {renderFiltersGrid({ event: 'event-id', author: 'author-npub' })}
+            </Box>
           </Paper>
         )}
 
         {iframeMode && (
           <Box mb="md" pb="sm" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
-            <Group justify="space-between" align="center" wrap="wrap">
+            <Group justify="space-between" align="center" wrap="wrap" gap="sm">
               <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                 <Text size="xs" ff="monospace" tt="uppercase" c="dimmed" style={{ flexShrink: 0 }}>
                   Connected to
@@ -745,26 +770,13 @@ const Index = () => {
                 {renderRelayPillInput('relay-url-iframe')}
               </Group>
               <Group gap="xs" wrap="nowrap">
-                <UnstyledButton onClick={() => setShowAdvanced((o) => !o)} c="dimmed">
-                  <Group gap={6}>
-                    <Text size="xs" ff="monospace" tt="uppercase">
-                      filters
-                    </Text>
-                    <ChevronDown
-                      size={12}
-                      style={{ transform: showAdvanced ? 'rotate(180deg)' : undefined }}
-                    />
-                  </Group>
-                </UnstyledButton>
-                <LoginArea />
+                {renderAuthControl()}
               </Group>
             </Group>
 
-            <Collapse in={showAdvanced}>
-              <Box pt="sm" mt="sm" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
-                {renderFiltersGrid({ event: 'event-id-iframe', author: 'author-npub-iframe' })}
-              </Box>
-            </Collapse>
+            <Box pt="sm" mt="sm">
+              {renderFiltersGrid({ event: 'event-id-iframe', author: 'author-npub-iframe' })}
+            </Box>
           </Box>
         )}
 
@@ -920,6 +932,11 @@ const Index = () => {
           </Box>
         )}
       </Box>
+      <LoginDialog
+        isOpen={loginDialogOpen}
+        onClose={() => setLoginDialogOpen(false)}
+        onLogin={() => setLoginDialogOpen(false)}
+      />
       <style>{`
         .relay-explorer-event-row:hover .relay-explorer-delete-btn {
           opacity: 1 !important;

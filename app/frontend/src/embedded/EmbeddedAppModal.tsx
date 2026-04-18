@@ -11,6 +11,7 @@ type Props = {
 export const EmbeddedAppModal = ({ appId, context, onClose }: Props) => {
   const app = EMBEDDABLE_APPS[appId]
   const src = buildEmbeddedAppSrc(appId, context)
+
   return (
     <Modal
       opened

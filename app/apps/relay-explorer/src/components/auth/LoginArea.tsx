@@ -1,19 +1,23 @@
 // NOTE: This file is stable and usually should not be modified.
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, Button, Group } from '@mantine/core';
 import LoginDialog from './LoginDialog';
 import SignupDialog from './SignupDialog';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
 import { AccountSwitcher } from './AccountSwitcher';
 
+export type AuthRequest = 'login' | 'signup' | null;
+
 export interface LoginAreaProps {
   className?: string;
   w?: number | string;
+  request?: AuthRequest;
+  onRequestHandled?: () => void;
 }
 
-export const LoginArea = ({ className, w }: LoginAreaProps) => {
+export const LoginArea = ({ className, w, request, onRequestHandled }: LoginAreaProps) => {
   const { currentUser } = useLoggedInAccounts();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
@@ -22,6 +26,19 @@ export const LoginArea = ({ className, w }: LoginAreaProps) => {
     setLoginDialogOpen(false);
     setSignupDialogOpen(false);
   };
+
+  useEffect(() => {
+    if (!request) return;
+    if (request === 'login') {
+      setLoginDialogOpen(true);
+      setSignupDialogOpen(false);
+    }
+    if (request === 'signup') {
+      setSignupDialogOpen(true);
+      setLoginDialogOpen(false);
+    }
+    onRequestHandled?.();
+  }, [request, onRequestHandled]);
 
   return (
     <Box className={className} w={w}>
