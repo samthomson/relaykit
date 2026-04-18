@@ -1,6 +1,6 @@
-import { RubixLoader } from '@samthomson/rubix-loader'
+import { RubixLoader, RubixLoaderColor } from '@samthomson/rubix-loader'
 import { ActionIcon, Box, Divider, Group, Modal, Text } from '@mantine/core'
-import { IconX } from '@tabler/icons-react'
+import { IconChevronRight, IconX } from '@tabler/icons-react'
 import { useEffect, useMemo, useState } from 'react'
 import { serviceTypeToRubixLoaderColor } from '../lib/serviceTypeColor'
 import { buildEmbeddedAppSrc, EMBEDDABLE_APPS, type EmbeddableAppId } from './registry'
@@ -18,6 +18,7 @@ export const EmbeddedAppModal = ({ appId, context, serviceType, presetId, onClos
   const src = buildEmbeddedAppSrc(appId, context)
   const [loaded, setLoaded] = useState(false)
   const color = useMemo(() => serviceTypeToRubixLoaderColor(serviceType, presetId), [serviceType, presetId])
+  const appName = app.id.replace(/-/g, ' ')
 
   useEffect(() => {
     setLoaded(false)
@@ -41,9 +42,34 @@ export const EmbeddedAppModal = ({ appId, context, serviceType, presetId, onClos
     >
       <Box px="md" py="xs" style={{ flexShrink: 0 }}>
         <Group justify="space-between" wrap="nowrap" gap="sm">
-          <Text size="sm" ff="monospace" fw={600} c="dimmed" style={{ textTransform: 'lowercase' }}>
-            {`relaykit apps > ${app.id}`}
-          </Text>
+          <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
+            <Box style={{ width: 18, height: 18, flexShrink: 0, lineHeight: 0 }}>
+              <RubixLoader size={18} colors={[RubixLoaderColor.RelayKit]} />
+            </Box>
+            <Text
+              size="sm"
+              className="brand-title"
+              c="relaykit"
+              style={{ lineHeight: 1, transform: 'translateY(1px)' }}
+            >
+              relaykit
+            </Text>
+            <IconChevronRight size={14} color="var(--mantine-color-dimmed)" style={{ flexShrink: 0, opacity: 0.6 }} />
+            <Box
+              px={8}
+              py={2}
+              style={{
+                border: '1px solid var(--mantine-color-default-border)',
+                background: 'var(--mantine-color-default-hover)',
+                borderLeft: '2px solid var(--mantine-primary-color-filled)',
+                minWidth: 0,
+              }}
+            >
+              <Text size="sm" ff="monospace" fw={700} c="text" truncate style={{ textTransform: 'lowercase' }}>
+                {appName}
+              </Text>
+            </Box>
+          </Group>
           <ActionIcon variant="subtle" color="gray" size="lg" onClick={onClose} aria-label="close" radius={0}>
             <IconX size={18} />
           </ActionIcon>
