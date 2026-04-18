@@ -9,6 +9,7 @@ import { InsightsPage } from './components/InsightsPage';
 import { AccountModal } from './components/AccountModal';
 import { NavServerSummary } from './components/NavServerSummary';
 import { DebugPage } from './pages/DebugPage';
+import { AppsPage } from './pages/AppsPage';
 import { LoginScreen } from './pages/LoginScreen';
 import { ServiceList } from './pages/ServicesPage';
 import { serviceTypeToRubixLoaderColor } from './lib/serviceTypeColor';
@@ -31,6 +32,8 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown } from '@tabler/icons-react';
+
+type RubixColor = (typeof RubixLoaderColor)[keyof typeof RubixLoaderColor];
 
 const DokployConnectionAlert = ({ message }: { message: string }) => (
   <Paper color="red" p="md">
@@ -118,7 +121,7 @@ const App = () => {
   }, [isAuthenticated, refreshTrigger]);
 
   const rubixLoaderColors = useMemo(() => {
-    const seen = new Set<RubixLoaderColor>();
+    const seen = new Set<RubixColor>();
     for (const service of services) {
       seen.add(serviceTypeToRubixLoaderColor(service.type, service.presetId));
     }
@@ -216,6 +219,12 @@ const App = () => {
             />
             <NavLink
               component={RouterNavLink}
+              to="/apps"
+              label="apps"
+              onClick={closeMobileMenu}
+            />
+            <NavLink
+              component={RouterNavLink}
               to="/insights"
               label="insights"
               onClick={closeMobileMenu}
@@ -230,6 +239,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<ServicesHomeRoute />} />
             <Route path="/debug" element={<DebugPage />} />
+            <Route path="/apps" element={<AppsPage />} />
             <Route path="/insights" element={<InsightsPage />} />
           </Routes>
         </AppShell.Main>
