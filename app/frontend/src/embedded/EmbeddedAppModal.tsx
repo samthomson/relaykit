@@ -100,6 +100,7 @@ export const EmbeddedAppModal = ({ appId, context, serviceType, presetId, onClos
         <iframe
           src={src}
           title={app.label}
+          allow="clipboard-read; clipboard-write"
           onLoad={() => setLoaded(true)}
           style={{
             flex: 1,
