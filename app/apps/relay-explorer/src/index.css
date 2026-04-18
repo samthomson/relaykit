@@ -1,3 +1,13 @@
 @import "@mantine/core/styles.css";
 @import "@mantine/notifications/styles.css";
 @import "@relaykit/ui/src/fonts.css";
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}

@@ -736,7 +736,7 @@ const Index = () => {
   );
 
   return (
-    <Box mih={iframeMode ? undefined : '100vh'} h={iframeMode ? '100vh' : undefined} bg="var(--mantine-color-body)">
+    <Box mih={iframeMode ? undefined : '100vh'} h={iframeMode ? '100%' : undefined} bg="var(--mantine-color-body)">
       <Box
         maw={1200}
         mx="auto"

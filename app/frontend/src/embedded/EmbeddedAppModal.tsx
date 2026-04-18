@@ -36,7 +36,7 @@ export const EmbeddedAppModal = ({ appId, context, serviceType, presetId, onClos
       centered
       styles={{
         header: { display: 'none' },
-        body: { padding: 0, height: '80vh', display: 'flex', flexDirection: 'column', background: 'var(--mantine-color-body)' },
+        body: { padding: 0, height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--mantine-color-body)' },
         content: { height: '85vh', background: 'var(--mantine-color-body)' },
       }}
     >
