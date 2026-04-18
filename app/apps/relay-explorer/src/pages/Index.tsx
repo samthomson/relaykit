@@ -784,6 +784,16 @@ const Index = () => {
               </Group>
               <Group gap="xs" wrap="nowrap">
                 {renderAuthControl()}
+                <Button
+                  onClick={handleConnect}
+                  disabled={!isValidUrl && !isConnected && !isConnecting}
+                  color={isConnected ? 'red' : undefined}
+                  loading={isConnecting}
+                  size="md"
+                  ff="monospace"
+                >
+                  {isConnecting ? 'connecting...' : isConnected ? 'disconnect' : 'connect'}
+                </Button>
               </Group>
             </Group>
 
@@ -793,12 +803,27 @@ const Index = () => {
           </Box>
         )}
 
+        {!isConnected && !isConnecting && (
+          <Paper withBorder radius={0} p="xl" ta="center" bg="var(--mantine-color-default)">
+            <Text size="xs" ff="monospace" c="dimmed">
+              enter a relay url above and press enter to start
+            </Text>
+          </Paper>
+        )}
+
         {(isConnected || isConnecting) && (
           <Flex gap="md" align="stretch" direction={{ base: 'column', md: 'row' }}>
             <Box style={{ flex: '5 1 0%', minWidth: 0 }}>
-              <Paper withBorder radius={0} h={listHeight} style={{ overflow: 'hidden' }}>
+              <Paper withBorder radius={0} h={listHeight} style={{ overflow: 'hidden' }} bg="var(--mantine-color-default)">
                 <Stack gap={0} h="100%">
-                  <Box px="md" py="sm" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+                  <Box
+                    px="md"
+                    py="sm"
+                    style={{
+                      borderBottom: '1px solid var(--mantine-color-default-border)',
+                      background: 'var(--mantine-color-default-hover)',
+                    }}
+                  >
                     <Group justify="space-between">
                       <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
                         Events
@@ -812,7 +837,7 @@ const Index = () => {
                     {events.length === 0 ? (
                       <Box p="xl" ta="center">
                         <Text size="xs" ff="monospace" c="dimmed">
-                          Listening for events...
+                          {isConnecting ? 'connecting to relay...' : 'listening for events...'}
                         </Text>
                       </Box>
                     ) : (
@@ -823,6 +848,7 @@ const Index = () => {
                             pos="relative"
                             style={{
                               borderBottom: '1px solid var(--mantine-color-default-border)',
+                              background: 'color-mix(in srgb, var(--mantine-color-body) 90%, var(--mantine-color-default-hover))',
                             }}
                             className="relay-explorer-event-row"
                           >
@@ -835,11 +861,15 @@ const Index = () => {
                                   textAlign: 'left',
                                   background:
                                     selectedEvent?.id === event.id
-                                      ? 'color-mix(in srgb, var(--mantine-primary-color-filled) 15%, transparent)'
+                                      ? 'color-mix(in srgb, var(--mantine-primary-color-filled) 22%, transparent)'
                                       : undefined,
                                   borderLeft:
                                     selectedEvent?.id === event.id
-                                      ? '2px solid var(--mantine-primary-color-filled)'
+                                      ? '3px solid var(--mantine-primary-color-filled)'
+                                      : undefined,
+                                  boxShadow:
+                                    selectedEvent?.id === event.id
+                                      ? 'inset 0 0 0 1px color-mix(in srgb, var(--mantine-primary-color-filled) 45%, transparent)'
                                       : undefined,
                                   '&:hover': {
                                     backgroundColor: 'var(--mantine-color-default-hover)',
@@ -911,22 +941,37 @@ const Index = () => {
             </Box>
 
             <Box style={{ flex: '8 1 0%', minWidth: 0 }}>
-              <Paper withBorder radius={0} h={listHeight} style={{ overflow: 'hidden' }}>
+              <Paper withBorder radius={0} h={listHeight} style={{ overflow: 'hidden' }} bg="var(--mantine-color-body)">
                 <Stack gap={0} h="100%">
-                  <Box px="md" py="sm" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+                  <Box
+                    px="md"
+                    py="sm"
+                    style={{
+                      borderBottom: '1px solid var(--mantine-color-default-border)',
+                      background: 'var(--mantine-color-default-hover)',
+                    }}
+                  >
                     <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
                       Event Inspector
                     </Text>
                   </Box>
                   <ScrollArea flex={1} p="md" type="auto">
                     {selectedEvent ? (
-                      <Text component="pre" size="xs" ff="monospace" style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
-                        {JSON.stringify(selectedEvent, null, 2)}
-                      </Text>
+                      <Box
+                        p="md"
+                        style={{
+                          border: '1px solid var(--mantine-color-default-border)',
+                          background: 'var(--mantine-color-default)',
+                        }}
+                      >
+                        <Text component="pre" size="xs" ff="monospace" style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
+                          {JSON.stringify(selectedEvent, null, 2)}
+                        </Text>
+                      </Box>
                     ) : (
                       <Flex align="center" justify="center" mih={200}>
                         <Text size="xs" ff="monospace" c="dimmed">
-                          Select an event to inspect
+                          {isConnecting ? 'connecting to relay...' : 'select an event to inspect'}
                         </Text>
                       </Flex>
                     )}
