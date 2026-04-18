@@ -445,7 +445,7 @@ const Index = () => {
     }
   })();
 
-  const listHeight = iframeMode ? 'calc(100vh - 120px)' : 'calc(100vh - 340px)';
+  const listHeight = iframeMode ? undefined : 'calc(100vh - 340px)';
 
   const handleKindQuerySubmit = () => {
     const query = kindSearchQuery.trim();
@@ -736,8 +736,14 @@ const Index = () => {
   );
 
   return (
-    <Box mih="100vh" bg="var(--mantine-color-body)">
-      <Box maw={1200} mx="auto" p="md">
+    <Box mih={iframeMode ? undefined : '100vh'} h={iframeMode ? '100vh' : undefined} bg="var(--mantine-color-body)">
+      <Box
+        maw={1200}
+        mx="auto"
+        px="md"
+        py={iframeMode ? 'xs' : 'md'}
+        style={iframeMode ? { height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 } : undefined}
+      >
         {!iframeMode && (
           <Box mb="lg" pb="md" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
             <Text size="xl" fw={600} ff="monospace" mb={4}>
@@ -781,7 +787,7 @@ const Index = () => {
         )}
 
         {iframeMode && (
-          <Box mb="md" pb="sm" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+          <Box mb="xs" pb="xs" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
             <Group justify="space-between" align="center" wrap="wrap" gap="sm">
               <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                 <Text size="xs" ff="monospace" tt="uppercase" c="dimmed" style={{ flexShrink: 0 }}>
@@ -810,18 +816,21 @@ const Index = () => {
           </Box>
         )}
 
-        {!isConnected && !isConnecting && (
-          <Paper withBorder radius={0} p="xl" ta="center" bg="var(--mantine-color-default)">
-            <Text size="xs" ff="monospace" c="dimmed">
-              enter a relay url above and press enter to start
-            </Text>
-          </Paper>
-        )}
-
-        {(isConnected || isConnecting) && (
-          <Flex gap="md" align="stretch" direction={{ base: 'column', md: 'row' }}>
-            <Box style={{ flex: '5 1 0%', minWidth: 0 }}>
-              <Paper withBorder radius={0} h={listHeight} style={{ overflow: 'hidden' }} bg="var(--mantine-color-default)">
+        {(isConnected || isConnecting || iframeMode) && (
+          <Flex
+            gap="md"
+            align="stretch"
+            direction={{ base: 'column', md: 'row' }}
+            style={iframeMode ? { flex: 1, minHeight: 0 } : undefined}
+          >
+            <Box style={iframeMode ? { flex: '5 1 0%', minWidth: 0, display: 'flex', minHeight: 0 } : { flex: '5 1 0%', minWidth: 0 }}>
+              <Paper
+                withBorder
+                radius={0}
+                h={listHeight}
+                style={iframeMode ? { overflow: 'hidden', flex: 1, minHeight: 0 } : { overflow: 'hidden' }}
+                bg="var(--mantine-color-default)"
+              >
                 <Stack gap={0} h="100%">
                   <Box
                     px="md"
@@ -844,7 +853,11 @@ const Index = () => {
                     {events.length === 0 ? (
                       <Box p="xl" ta="center">
                         <Text size="xs" ff="monospace" c="dimmed">
-                          {isConnecting ? 'connecting to relay...' : 'listening for events...'}
+                          {isConnecting
+                            ? 'connecting to relay...'
+                            : isConnected
+                              ? 'listening for events...'
+                              : 'connect to a relay to load events'}
                         </Text>
                       </Box>
                     ) : (
@@ -947,8 +960,14 @@ const Index = () => {
               </Paper>
             </Box>
 
-            <Box style={{ flex: '8 1 0%', minWidth: 0 }}>
-              <Paper withBorder radius={0} h={listHeight} style={{ overflow: 'hidden' }} bg="var(--mantine-color-body)">
+            <Box style={iframeMode ? { flex: '8 1 0%', minWidth: 0, display: 'flex', minHeight: 0 } : { flex: '8 1 0%', minWidth: 0 }}>
+              <Paper
+                withBorder
+                radius={0}
+                h={listHeight}
+                style={iframeMode ? { overflow: 'hidden', flex: 1, minHeight: 0 } : { overflow: 'hidden' }}
+                bg="var(--mantine-color-body)"
+              >
                 <Stack gap={0} h="100%">
                   <Box
                     px="md"
@@ -978,7 +997,11 @@ const Index = () => {
                     ) : (
                       <Flex align="center" justify="center" mih={200}>
                         <Text size="xs" ff="monospace" c="dimmed">
-                          {isConnecting ? 'connecting to relay...' : 'select an event to inspect'}
+                          {isConnecting
+                            ? 'connecting to relay...'
+                            : isConnected
+                              ? 'select an event to inspect'
+                              : 'connect to a relay to inspect events'}
                         </Text>
                       </Flex>
                     )}

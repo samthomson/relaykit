@@ -31,12 +31,12 @@ export const EmbeddedAppModal = ({ appId, context, serviceType, presetId, onClos
       withCloseButton={false}
       padding={0}
       radius={0}
-      size="90vw"
+      size="96vw"
       centered
       styles={{
         header: { display: 'none' },
-        body: { padding: 0, height: '80vh', display: 'flex', flexDirection: 'column', background: 'var(--mantine-color-body)' },
-        content: { height: '85vh', background: 'var(--mantine-color-body)' },
+        body: { padding: 0, height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--mantine-color-body)' },
+        content: { height: '96vh', maxHeight: '96dvh', background: 'var(--mantine-color-body)' },
       }}
     >
       <Box px="md" py="xs" style={{ flexShrink: 0 }}>
