@@ -1,9 +1,11 @@
 import { useSeoMeta } from '@unhead/react';
 import { useState, useEffect } from 'react';
 import {
+  ActionIcon,
   Anchor,
   Box,
   Button,
+  CopyButton,
   Flex,
   Group,
   Menu,
@@ -12,12 +14,14 @@ import {
   Paper,
   ScrollArea,
   Stack,
+  Table,
   Text,
   UnstyledButton,
   rem,
 } from '@mantine/core';
+import { CodeHighlight } from '@mantine/code-highlight';
 import { Trash2 } from 'lucide-react';
-import { IconChevronDown } from '@tabler/icons-react';
+import { IconBraces, IconCheck, IconChevronDown, IconCopy, IconTable } from '@tabler/icons-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { formatDistanceToNow } from 'date-fns';
@@ -101,6 +105,8 @@ const Index = () => {
   const [selectedKinds, setSelectedKinds] = useState<number[]>([]);
   const [kindSearchQuery, setKindSearchQuery] = useState('');
   const [showKindDropdown, setShowKindDropdown] = useState(false);
+  const [showInspectorTable, setShowInspectorTable] = useState(true);
+  const [showInspectorJson, setShowInspectorJson] = useState(true);
 
   const { currentUser, removeLogin } = useLoggedInAccounts();
 
@@ -977,23 +983,244 @@ const Index = () => {
                       background: 'var(--mantine-color-default-hover)',
                     }}
                   >
-                    <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
-                      Event Inspector
-                    </Text>
+                    <Group justify="space-between" align="center" wrap="nowrap">
+                      <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
+                        Event Inspector
+                      </Text>
+                      <Group gap="xs" wrap="nowrap">
+                        <Button
+                          size="xs"
+                          radius={0}
+                          variant={showInspectorTable ? 'light' : 'subtle'}
+                          color={showInspectorTable ? 'relaykit' : 'gray'}
+                          leftSection={<IconTable size={12} />}
+                          onClick={() => setShowInspectorTable((prev) => !prev)}
+                          disabled={!isConnected}
+                          ff="monospace"
+                          styles={{ root: { textTransform: 'lowercase' } }}
+                        >
+                          table
+                        </Button>
+                        <Button
+                          size="xs"
+                          radius={0}
+                          variant={showInspectorJson ? 'light' : 'subtle'}
+                          color={showInspectorJson ? 'relaykit' : 'gray'}
+                          leftSection={<IconBraces size={12} />}
+                          onClick={() => setShowInspectorJson((prev) => !prev)}
+                          disabled={!isConnected}
+                          ff="monospace"
+                          styles={{ root: { textTransform: 'lowercase' } }}
+                        >
+                          json
+                        </Button>
+                      </Group>
+                    </Group>
                   </Box>
                   <ScrollArea flex={1} p="md" type="auto">
                     {selectedEvent ? (
-                      <Box
-                        p="md"
-                        style={{
-                          border: '1px solid var(--mantine-color-default-border)',
-                          background: 'var(--mantine-color-default)',
-                        }}
-                      >
-                        <Text component="pre" size="xs" ff="monospace" style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
-                          {JSON.stringify(selectedEvent, null, 2)}
-                        </Text>
-                      </Box>
+                      <Stack gap="sm">
+                        {showInspectorTable && (
+                          <Box
+                            style={{
+                              border: '1px solid var(--mantine-color-default-border)',
+                              background: 'var(--mantine-color-default)',
+                            }}
+                          >
+                            <Table withTableBorder={false} highlightOnHover stickyHeader stickyHeaderOffset={0}>
+                              <Table.Thead>
+                                <Table.Tr>
+                                  <Table.Th style={{ width: rem(140) }}>prop</Table.Th>
+                                  <Table.Th>value</Table.Th>
+                                  <Table.Th style={{ width: rem(52) }} />
+                                </Table.Tr>
+                              </Table.Thead>
+                              <Table.Tbody>
+                                {[
+                                  { label: 'kind', value: String(selectedEvent.kind), color: 'yellow' as const, empty: false },
+                                  {
+                                    label: 'created_at',
+                                    value: `${selectedEvent.created_at} (${new Date(selectedEvent.created_at * 1000).toISOString()})`,
+                                    color: 'blue' as const,
+                                    empty: false,
+                                  },
+                                  { label: 'id', value: selectedEvent.id, color: 'grape' as const, empty: false },
+                                  { label: 'pubkey', value: selectedEvent.pubkey, color: 'cyan' as const, empty: false },
+                                  { label: 'sig', value: selectedEvent.sig, color: 'orange' as const, empty: false },
+                                  { label: 'content', value: selectedEvent.content || '(empty)', color: 'gray' as const, empty: !selectedEvent.content },
+                                ].map((field) => (
+                                  <Table.Tr key={field.label}>
+                                    <Table.Td>
+                                      <Text size="xs" ff="monospace" c={`${field.color}.4`} fw={700}>
+                                        {field.label}
+                                      </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                      <Text
+                                        size="xs"
+                                        ff="monospace"
+                                        c={field.empty ? 'dimmed' : undefined}
+                                        fs={field.empty ? 'italic' : undefined}
+                                        style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}
+                                      >
+                                        {field.value}
+                                      </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                      <CopyButton value={field.value} timeout={1200}>
+                                        {({ copied, copy }) => (
+                                          <ActionIcon
+                                            variant="subtle"
+                                            color={copied ? 'green' : 'gray'}
+                                            size="sm"
+                                            radius={0}
+                                            onClick={copy}
+                                            aria-label={`copy ${field.label}`}
+                                          >
+                                            {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+                                          </ActionIcon>
+                                        )}
+                                      </CopyButton>
+                                    </Table.Td>
+                                  </Table.Tr>
+                                ))}
+                                <Table.Tr>
+                                  <Table.Td colSpan={3}>
+                                    <Text size="xs" ff="monospace" c="teal.4" fw={700}>
+                                      tags
+                                    </Text>
+                                  </Table.Td>
+                                </Table.Tr>
+                                {selectedEvent.tags.length === 0 ? (
+                                  <Table.Tr>
+                                    <Table.Td>
+                                      <Text size="xs" ff="monospace" c="teal.4" fw={700}>
+                                        tag
+                                      </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                      <Text size="xs" ff="monospace" c="dimmed" fs="italic">
+                                        (no tags)
+                                      </Text>
+                                    </Table.Td>
+                                    <Table.Td />
+                                  </Table.Tr>
+                                ) : (
+                                  selectedEvent.tags.map((tag, index) => {
+                                    const tagParts = Array.isArray(tag) ? tag.map((part) => String(part)) : [];
+                                    const tagName = tagParts[0] || 'unknown';
+                                    const tagValues = tagParts.slice(1);
+                                    const tagCopyValue = JSON.stringify(tag);
+                                    return (
+                                      <Table.Tr key={`${tagName}-${index}`}>
+                                        <Table.Td>
+                                          <Text size="xs" ff="monospace" c="teal.4" fw={700}>
+                                            {`tag ${index + 1}`}
+                                          </Text>
+                                        </Table.Td>
+                                        <Table.Td>
+                                          <Stack gap={6}>
+                                            <Group gap={8} wrap="nowrap" align="flex-start">
+                                              <Text size="xs" ff="monospace" c="dimmed">
+                                                key
+                                              </Text>
+                                              <Text size="xs" ff="monospace" fw={700} c="teal.5">
+                                                {tagName}
+                                              </Text>
+                                            </Group>
+                                            <Group gap={8} wrap="nowrap" align="flex-start">
+                                              <Text size="xs" ff="monospace" c="dimmed" style={{ minWidth: rem(48) }}>
+                                                values
+                                              </Text>
+                                              <Group gap={6} wrap="wrap" style={{ minWidth: 0 }}>
+                                                {tagValues.length > 0 ? (
+                                                  tagValues.map((value, valueIndex) => (
+                                                    <Text
+                                                      key={`${tagName}-${index}-${valueIndex}`}
+                                                      size="xs"
+                                                      ff="monospace"
+                                                      style={{
+                                                        padding: '2px 6px',
+                                                        border: '1px solid var(--mantine-color-default-border)',
+                                                        background: 'var(--mantine-color-default-hover)',
+                                                      }}
+                                                    >
+                                                      {value}
+                                                    </Text>
+                                                  ))
+                                                ) : (
+                                                  <Text size="xs" ff="monospace" c="dimmed" fs="italic">
+                                                    (empty)
+                                                  </Text>
+                                                )}
+                                              </Group>
+                                            </Group>
+                                          </Stack>
+                                        </Table.Td>
+                                        <Table.Td style={{ verticalAlign: 'top' }}>
+                                          <CopyButton value={tagCopyValue} timeout={1200}>
+                                            {({ copied, copy }) => (
+                                              <ActionIcon
+                                                variant="subtle"
+                                                color={copied ? 'green' : 'gray'}
+                                                size="sm"
+                                                radius={0}
+                                                onClick={copy}
+                                                aria-label={`copy tag ${index + 1}`}
+                                              >
+                                                {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+                                              </ActionIcon>
+                                            )}
+                                          </CopyButton>
+                                        </Table.Td>
+                                      </Table.Tr>
+                                    );
+                                  })
+                                )}
+                              </Table.Tbody>
+                            </Table>
+                          </Box>
+                        )}
+                        {showInspectorJson && (
+                          <Stack gap={6}>
+                            <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
+                              raw event
+                            </Text>
+                            <Box
+                              p="md"
+                              style={{
+                                border: '1px solid var(--mantine-color-default-border)',
+                                background: 'var(--mantine-color-default)',
+                              }}
+                            >
+                              <CodeHighlight
+                                code={JSON.stringify(selectedEvent, null, 2)}
+                                language="json"
+                                withCopyButton={false}
+                                className="relay-json-highlight"
+                                styles={{
+                                  pre: {
+                                    margin: 0,
+                                    background: 'transparent',
+                                    borderRadius: 0,
+                                    padding: 0,
+                                    whiteSpace: 'pre-wrap',
+                                    wordBreak: 'break-word',
+                                    fontSize: rem(12),
+                                  },
+                                }}
+                              />
+                            </Box>
+                          </Stack>
+                        )}
+                        {!showInspectorTable && !showInspectorJson && (
+                          <Flex align="center" justify="center" mih={120}>
+                            <Text size="xs" ff="monospace" c="dimmed">
+                              enable table or json view
+                            </Text>
+                          </Flex>
+                        )}
+                      </Stack>
                     ) : (
                       <Flex align="center" justify="center" mih={200}>
                         <Text size="xs" ff="monospace" c="dimmed">
