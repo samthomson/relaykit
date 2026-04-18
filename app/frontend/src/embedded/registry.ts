@@ -20,21 +20,21 @@ export const EMBEDDABLE_APPS: Record<EmbeddableAppId, EmbeddableApp> = {
     label: 'relay explorer',
     devUrl: 'http://localhost:5174/apps/relay-explorer/',
     prodPath: '/apps/relay-explorer/',
-    buildContext: (ctx) => qs({ embedded: '1', relay: ctx.relay }),
+    buildContext: (ctx) => qs({ embedded: '1', relay: ctx.relay, standalone: ctx.standalone, session: ctx.session }),
   },
   'blossom-explorer': {
     id: 'blossom-explorer',
     label: 'blossom explorer',
     devUrl: 'http://localhost:5175/apps/blossom-explorer/',
     prodPath: '/apps/blossom-explorer/',
-    buildContext: (ctx) => qs({ embedded: '1', server: ctx.server }),
+    buildContext: (ctx) => qs({ embedded: '1', server: ctx.server, standalone: ctx.standalone, session: ctx.session }),
   },
   'nsite-explorer': {
     id: 'nsite-explorer',
     label: 'nsite explorer',
     devUrl: 'http://localhost:5176/apps/nsite-explorer/',
     prodPath: '/apps/nsite-explorer/',
-    buildContext: (ctx) => qs({ embedded: '1', gateway: ctx.gateway, pubkey: ctx.pubkey }),
+    buildContext: (ctx) => qs({ embedded: '1', gateway: ctx.gateway, pubkey: ctx.pubkey, standalone: ctx.standalone, session: ctx.session }),
   },
 }
 

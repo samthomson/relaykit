@@ -44,11 +44,16 @@ const defaultConfig: AppConfig = {
 };
 
 export function App() {
+  const params = new URLSearchParams(window.location.search);
+  const standalone = params.get('standalone') === '1';
+  const session = params.get('session') || 'default';
+  const loginStorageKey = standalone ? `nostr:login:standalone:${session}` : 'nostr:login';
+
   return (
     <UnheadProvider head={head}>
       <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
         <QueryClientProvider client={queryClient}>
-          <NostrLoginProvider storageKey='nostr:login'>
+          <NostrLoginProvider storageKey={loginStorageKey}>
             <NostrProvider>
               <NostrSync />
               <NWCProvider>

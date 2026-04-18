@@ -57,6 +57,11 @@ const normalizeRelayUrl = (value: string): string => {
   return `wss://${trimmed}`;
 };
 
+const isStandaloneEmbeddedMode = (): boolean => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('standalone') === '1';
+};
+
 const Index = () => {
   useSeoMeta({
     title: 'Relay Note Explorer',
@@ -64,6 +69,7 @@ const Index = () => {
   });
 
   const { user } = useCurrentUser();
+  const standaloneEmbeddedMode = isStandaloneEmbeddedMode();
 
   const [iframeMode, setIframeMode] = useState(false);
   const [iframeRelay, setIframeRelay] = useState<string | null>(null);
@@ -73,6 +79,9 @@ const Index = () => {
     const relayParam = params.get('relay');
     if (relayParam) {
       return relayParam;
+    }
+    if (params.get('standalone') === '1') {
+      return '';
     }
     return localStorage.getItem('relay-explorer:url') || '';
   });
@@ -101,20 +110,25 @@ const Index = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const embeddedParam = params.get('embedded');
     const relayParam = params.get('relay');
+    const standaloneParam = params.get('standalone');
+
+    if (embeddedParam === '1' || standaloneParam === '1') {
+      setIframeMode(true);
+    }
 
     if (relayParam) {
-      setIframeMode(true);
       setIframeRelay(relayParam);
       setRelayUrl(relayParam);
     }
   }, []);
 
   useEffect(() => {
-    if (relayUrl && !iframeMode) {
+    if (relayUrl && !iframeMode && !standaloneEmbeddedMode) {
       localStorage.setItem('relay-explorer:url', relayUrl);
     }
-  }, [relayUrl, iframeMode]);
+  }, [relayUrl, iframeMode, standaloneEmbeddedMode]);
 
   useEffect(() => {
     setRelayDraft('');
