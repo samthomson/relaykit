@@ -581,13 +581,31 @@ const ServiceCard = ({
   return (
     <>
       {showExplorer && domain && (
-        <EmbeddedAppModal appId="relay-explorer" context={{ relay: wssUrl }} onClose={() => setShowExplorer(false)} />
+        <EmbeddedAppModal
+          appId="relay-explorer"
+          context={{ relay: wssUrl }}
+          serviceType={service.type}
+          presetId={service.presetId}
+          onClose={() => setShowExplorer(false)}
+        />
       )}
       {showBlossomExplorer && domain && (
-        <EmbeddedAppModal appId="blossom-explorer" context={{ server: httpsUrl }} onClose={() => setShowBlossomExplorer(false)} />
+        <EmbeddedAppModal
+          appId="blossom-explorer"
+          context={{ server: httpsUrl }}
+          serviceType={service.type}
+          presetId={service.presetId}
+          onClose={() => setShowBlossomExplorer(false)}
+        />
       )}
       {showNsiteExplorer && domain && (
-        <EmbeddedAppModal appId="nsite-explorer" context={{ gateway: httpsUrl }} onClose={() => setShowNsiteExplorer(false)} />
+        <EmbeddedAppModal
+          appId="nsite-explorer"
+          context={{ gateway: httpsUrl }}
+          serviceType={service.type}
+          presetId={service.presetId}
+          onClose={() => setShowNsiteExplorer(false)}
+        />
       )}
       {showMoveModal && (
         <MoveServiceModal
