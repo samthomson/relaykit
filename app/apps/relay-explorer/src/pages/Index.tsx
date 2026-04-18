@@ -184,23 +184,22 @@ const Index = () => {
     return filter;
   };
 
-  const handleConnect = () => {
-    if (connectionState === 'connected' || connectionState === 'connecting') {
-      if (ws) {
-        ws.close();
-      }
-      if (connectionTimeout) {
-        clearTimeout(connectionTimeout);
-      }
-      setWs(null);
-      setConnectionState('disconnected');
-      setConnectionError('');
-      setEvents([]);
-      setSelectedEvent(null);
-      return;
+  const disconnectRelay = () => {
+    if (ws) {
+      ws.close();
     }
+    if (connectionTimeout) {
+      clearTimeout(connectionTimeout);
+    }
+    setWs(null);
+    setConnectionState('disconnected');
+    setConnectionError('');
+    setEvents([]);
+    setSelectedEvent(null);
+  };
 
-    const url = normalizeRelayUrl(relayUrl);
+  const connectToRelay = (inputRelayUrl: string) => {
+    const url = normalizeRelayUrl(inputRelayUrl);
     if (!url) return;
     setConnectionState('connecting');
     setConnectionError('');
@@ -318,6 +317,14 @@ const Index = () => {
     setWs(websocket);
   };
 
+  const handleConnect = () => {
+    if (connectionState === 'connected' || connectionState === 'connecting') {
+      disconnectRelay();
+      return;
+    }
+    connectToRelay(relayUrl);
+  };
+
   const handleRelayUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRelayDraft(e.target.value);
   };
@@ -334,25 +341,17 @@ const Index = () => {
     setSelectedKinds(selectedKinds.filter((k) => k !== kind));
   };
 
-  const disconnectRelay = () => {
-    if (ws) {
-      ws.close();
-    }
-    if (connectionTimeout) {
-      clearTimeout(connectionTimeout);
-    }
-    setWs(null);
-    setConnectionState('disconnected');
-    setConnectionError('');
-    setEvents([]);
-    setSelectedEvent(null);
-  };
-
   const commitRelayDraft = () => {
     const nextRelay = relayDraft.trim();
     if (!nextRelay) return;
-    setRelayUrl(normalizeRelayUrl(nextRelay));
+    const normalizedRelay = normalizeRelayUrl(nextRelay);
+    const hasChanged = normalizedRelay !== relayUrl;
+    setRelayUrl(normalizedRelay);
     setRelayDraft('');
+    if (iframeMode && hasChanged) {
+      disconnectRelay();
+      setTimeout(() => connectToRelay(normalizedRelay), 50);
+    }
   };
 
   const clearRelayValue = () => {
