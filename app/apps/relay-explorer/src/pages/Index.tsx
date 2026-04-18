@@ -1119,43 +1119,48 @@ const Index = () => {
                                           </Text>
                                         </Table.Td>
                                         <Table.Td>
-                                          <Stack gap={6}>
-                                            <Group gap={8} wrap="nowrap" align="flex-start">
-                                              <Text size="xs" ff="monospace" c="dimmed">
-                                                key
-                                              </Text>
-                                              <Text size="xs" ff="monospace" fw={700} c="teal.5">
-                                                {tagName}
-                                              </Text>
-                                            </Group>
-                                            <Group gap={8} wrap="nowrap" align="flex-start">
-                                              <Text size="xs" ff="monospace" c="dimmed" style={{ minWidth: rem(48) }}>
-                                                values
-                                              </Text>
-                                              <Group gap={6} wrap="wrap" style={{ minWidth: 0 }}>
-                                                {tagValues.length > 0 ? (
-                                                  tagValues.map((value, valueIndex) => (
-                                                    <Text
-                                                      key={`${tagName}-${index}-${valueIndex}`}
-                                                      size="xs"
-                                                      ff="monospace"
-                                                      style={{
-                                                        padding: '2px 6px',
-                                                        border: '1px solid var(--mantine-color-default-border)',
-                                                        background: 'var(--mantine-color-default-hover)',
-                                                      }}
-                                                    >
-                                                      {value}
-                                                    </Text>
-                                                  ))
-                                                ) : (
-                                                  <Text size="xs" ff="monospace" c="dimmed" fs="italic">
-                                                    (empty)
+                                          <Box
+                                            style={{
+                                              display: 'grid',
+                                              gridTemplateColumns: `${rem(56)} minmax(0, 1fr)`,
+                                              columnGap: rem(10),
+                                              rowGap: rem(6),
+                                              alignItems: 'start',
+                                            }}
+                                          >
+                                            <Text size="xs" ff="monospace" c="dimmed">
+                                              key
+                                            </Text>
+                                            <Text size="xs" ff="monospace" fw={700} c="teal.5">
+                                              {tagName}
+                                            </Text>
+
+                                            <Text size="xs" ff="monospace" c="dimmed">
+                                              values
+                                            </Text>
+                                            <Group gap={6} wrap="wrap" style={{ minWidth: 0 }}>
+                                              {tagValues.length > 0 ? (
+                                                tagValues.map((value, valueIndex) => (
+                                                  <Text
+                                                    key={`${tagName}-${index}-${valueIndex}`}
+                                                    size="xs"
+                                                    ff="monospace"
+                                                    style={{
+                                                      padding: '2px 6px',
+                                                      border: '1px solid var(--mantine-color-default-border)',
+                                                      background: 'var(--mantine-color-default-hover)',
+                                                    }}
+                                                  >
+                                                    {value}
                                                   </Text>
-                                                )}
-                                              </Group>
+                                                ))
+                                              ) : (
+                                                <Text size="xs" ff="monospace" c="dimmed" fs="italic">
+                                                  (empty)
+                                                </Text>
+                                              )}
                                             </Group>
-                                          </Stack>
+                                          </Box>
                                         </Table.Td>
                                         <Table.Td style={{ verticalAlign: 'top' }}>
                                           <CopyButton value={tagCopyValue} timeout={1200}>
