@@ -31,18 +31,18 @@ export const EmbeddedAppModal = ({ appId, context, serviceType, presetId, onClos
       withCloseButton={false}
       padding={0}
       radius={0}
-      size="96vw"
+      size="90vw"
       centered
       styles={{
         header: { display: 'none' },
-        body: { padding: 0, height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--mantine-color-body)' },
-        content: { height: '96vh', maxHeight: '96dvh', background: 'var(--mantine-color-body)' },
+        body: { padding: 0, height: '80vh', display: 'flex', flexDirection: 'column', background: 'var(--mantine-color-body)' },
+        content: { height: '85vh', background: 'var(--mantine-color-body)' },
       }}
     >
       <Box px="md" py="xs" style={{ flexShrink: 0 }}>
         <Group justify="space-between" wrap="nowrap" gap="sm">
           <Text size="sm" ff="monospace" fw={600} c="dimmed" style={{ textTransform: 'lowercase' }}>
-            {app.label}
+            {`relaykit apps > ${app.id}`}
           </Text>
           <ActionIcon variant="subtle" color="gray" size="lg" onClick={onClose} aria-label="close" radius={0}>
             <IconX size={18} />
