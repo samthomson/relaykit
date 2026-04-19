@@ -9,12 +9,14 @@ import {
   Flex,
   Group,
   Menu,
+  Modal,
   Pill,
   PillsInput,
   Paper,
   ScrollArea,
   Stack,
   Table,
+  TagsInput,
   Text,
   UnstyledButton,
   rem,
@@ -113,16 +115,15 @@ const Index = () => {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<NostrEvent | null>(null);
   const seenEventIdsRef = useRef<Set<string>>(new Set());
+  const activeFilterRef = useRef<NostrFilter>({ limit: 500 });
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
-  const [authorNpub, setAuthorNpub] = useState('');
-  const [authorDraft, setAuthorDraft] = useState('');
-  const [eventId, setEventId] = useState('');
-  const [selectedKinds, setSelectedKinds] = useState<number[]>([]);
-  const [kindSearchQuery, setKindSearchQuery] = useState('');
-  const [showKindDropdown, setShowKindDropdown] = useState(false);
+  const [eventIdTags, setEventIdTags] = useState<string[]>([]);
+  const [authorTags, setAuthorTags] = useState<string[]>([]);
+  const [kindTags, setKindTags] = useState<string[]>([]);
   const [showInspectorTable, setShowInspectorTable] = useState(true);
   const [showInspectorJson, setShowInspectorJson] = useState(true);
+  const [queryModalOpen, setQueryModalOpen] = useState(false);
   const relayCombobox = useCombobox();
 
   const { currentUser, removeLogin } = useLoggedInAccounts();
@@ -166,8 +167,8 @@ const Index = () => {
   }, [relayUrl]);
 
   useEffect(() => {
-    setAuthorDraft('');
-  }, [authorNpub]);
+    activeFilterRef.current = buildFilter();
+  }, [eventIdTags, authorTags, kindTags]); // eslint-disable-line react-hooks/exhaustive-deps -- buildFilter closure
 
   useEffect(() => {
     if (ws && isConnected) {
@@ -177,13 +178,14 @@ const Index = () => {
         setEvents([]);
         setSelectedEvent(null);
         const filter = buildFilter();
+        activeFilterRef.current = filter;
         console.log('AUTO-RESUBSCRIBE with filter:', filter);
         ws.send(JSON.stringify(['REQ', 'all-events', filter]));
       }, 300);
 
       return () => clearTimeout(timer);
     }
-  }, [eventId, authorNpub, selectedKinds, isConnected, ws]); // eslint-disable-line react-hooks/exhaustive-deps -- buildFilter closure
+  }, [eventIdTags, authorTags, kindTags, isConnected, ws]); // eslint-disable-line react-hooks/exhaustive-deps -- buildFilter closure
 
   useEffect(() => {
     return () => {
@@ -204,30 +206,47 @@ const Index = () => {
   const buildFilter = (): NostrFilter => {
     const filter: NostrFilter = {};
 
-    if (eventId.trim()) {
-      filter.ids = [eventId.trim()];
+    const idHex = eventIdTags[0]?.trim();
+    if (idHex) {
+      filter.ids = [idHex];
     }
 
-    if (selectedKinds.length > 0) {
-      filter.kinds = selectedKinds;
+    const kindNums = kindTags
+      .map((s) => Number.parseInt(s, 10))
+      .filter((n) => !Number.isNaN(n))
+      .sort((a, b) => a - b);
+    if (kindNums.length > 0) {
+      filter.kinds = kindNums;
     }
 
-    if (authorNpub.trim()) {
+    const authorStr = authorTags[0]?.trim();
+    if (authorStr) {
       try {
-        const decoded = nip19.decode(authorNpub.trim());
+        const decoded = nip19.decode(authorStr);
         if (decoded.type === 'npub') {
           filter.authors = [decoded.data];
         } else if (decoded.type === 'nprofile') {
           filter.authors = [decoded.data.pubkey];
         }
       } catch (e) {
-        console.error('Invalid npub:', e);
+        if (/^[a-fA-F0-9]{64}$/.test(authorStr)) {
+          filter.authors = [authorStr.toLowerCase()];
+        } else {
+          console.error('Invalid author filter:', e);
+        }
       }
     }
 
     filter.limit = 500;
 
     return filter;
+  };
+
+  const eventMatchesFilter = (event: NostrEvent, filter: NostrFilter): boolean => {
+    if (filter.ids && filter.ids.length > 0 && !filter.ids.includes(event.id)) return false;
+    if (filter.kinds && filter.kinds.length > 0 && !filter.kinds.includes(event.kind)) return false;
+    if (filter.authors && filter.authors.length > 0 && !filter.authors.includes(event.pubkey)) return false;
+    return true;
   };
 
   const disconnectRelay = () => {
@@ -272,6 +291,7 @@ const Index = () => {
       setConnectionState('connected');
       setConnectionError('');
       const filter = buildFilter();
+      activeFilterRef.current = filter;
       console.log('📤 Sending REQ with filter:', filter);
       const subscription = JSON.stringify(['REQ', 'all-events', filter]);
       websocket.send(subscription);
@@ -312,6 +332,10 @@ const Index = () => {
         if (data[0] === 'EVENT' && data[2]) {
           const incomingEvent = data[2] as NostrEvent;
           setEvents((prev) => {
+            const activeFilter = activeFilterRef.current;
+            if (!eventMatchesFilter(incomingEvent, activeFilter)) {
+              return prev;
+            }
             if (seenEventIdsRef.current.has(incomingEvent.id)) {
               return prev;
             }
@@ -409,18 +433,6 @@ const Index = () => {
     persistPreviousRelays(nextRelays);
   };
 
-  const handleAddKind = (kind: number) => {
-    if (!selectedKinds.includes(kind)) {
-      setSelectedKinds([...selectedKinds, kind]);
-    }
-    setKindSearchQuery('');
-    setShowKindDropdown(false);
-  };
-
-  const handleRemoveKind = (kind: number) => {
-    setSelectedKinds(selectedKinds.filter((k) => k !== kind));
-  };
-
   const commitRelayDraft = ({ persistPrevious = false }: { persistPrevious?: boolean } = {}) => {
     const nextRelay = relayDraft.trim();
     if (!nextRelay) return;
@@ -454,18 +466,6 @@ const Index = () => {
     disconnectRelay();
     setRelayDraft('');
     setRelayUrl('');
-  };
-
-  const commitAuthorDraft = () => {
-    const nextAuthor = authorDraft.trim();
-    if (!nextAuthor) return;
-    setAuthorNpub(nextAuthor);
-    setAuthorDraft('');
-  };
-
-  const clearAuthor = () => {
-    setAuthorDraft('');
-    setAuthorNpub('');
   };
 
   const handleDeleteEvent = async (eventIdToDelete: string) => {
@@ -505,10 +505,69 @@ const Index = () => {
     }
   };
 
-  const filteredCommonKinds = COMMON_KINDS.filter(
-    (k) =>
-      k.label.toLowerCase().includes(kindSearchQuery.toLowerCase()) ||
-      k.value.toString().includes(kindSearchQuery),
+  const kindComboboxData = useMemo(
+    () =>
+      COMMON_KINDS.map((k) => ({
+        value: String(k.value),
+        label: String(k.value),
+      })),
+    [],
+  );
+
+  const baseFilterTagsInputStyles = useMemo(
+    () => ({
+      pill: {
+        '--pill-fz': 'var(--pill-fz-xs)',
+        '--pill-height': 'var(--pill-height-xs)',
+        fontFamily: 'var(--mantine-font-family-monospace)',
+      },
+      inputField: {
+        fontFamily: 'var(--mantine-font-family-monospace)',
+        fontSize: rem(12),
+        minWidth: rem(64),
+      },
+      pillsList: {
+        gap: rem(4),
+        flexWrap: 'nowrap',
+        overflowX: 'auto',
+        alignItems: 'center',
+      },
+    }),
+    [],
+  );
+
+  const neutralFilterTagsInputStyles = useMemo(
+    () => ({
+      ...baseFilterTagsInputStyles,
+      pill: {
+        ...baseFilterTagsInputStyles.pill,
+        background: 'color-mix(in srgb, var(--mantine-color-relaykit-filled) 80%, white)',
+        color: 'var(--mantine-color-white)',
+        border: 'none',
+      },
+    }),
+    [baseFilterTagsInputStyles],
+  );
+
+  const kindFilterTagsInputStyles = baseFilterTagsInputStyles;
+
+  const kindPillCss = useMemo(
+    () =>
+      kindTags
+        .map((value, idx) => {
+          const parsed = Number.parseInt(value, 10);
+          if (Number.isNaN(parsed)) return '';
+          const color = getKindPillColors(parsed);
+          return `.relay-kinds-tags-input .relay-kind-pill:nth-of-type(${idx + 1}) { background: ${color.backgroundColor} !important; color: ${color.color} !important; border: none !important; }`;
+        })
+        .filter(Boolean)
+        .join('\n'),
+    [kindTags],
+  );
+
+  const subscriptionWireJson = useMemo(
+    () => JSON.stringify(['REQ', 'all-events', buildFilter()], null, 2),
+    [eventIdTags, authorTags, kindTags],
   );
 
   const serviceRelayOptions = useMemo(() => {
@@ -570,21 +629,6 @@ const Index = () => {
     () => (selectedEvent ? JSON.stringify(selectedEvent, null, 2) : ''),
     [selectedEvent],
   );
-
-  const handleKindQuerySubmit = () => {
-    const query = kindSearchQuery.trim();
-    if (!query) return;
-
-    const numericKind = Number.parseInt(query, 10);
-    if (!Number.isNaN(numericKind)) {
-      handleAddKind(numericKind);
-      return;
-    }
-
-    if (filteredCommonKinds.length > 0) {
-      handleAddKind(filteredCommonKinds[0].value);
-    }
-  };
 
   const formatPillValue = (value: string, max = 28) =>
     value.length > max ? `${value.slice(0, max)}...` : value;
@@ -669,7 +713,7 @@ const Index = () => {
       </Combobox.Target>
 
       <Combobox.Dropdown>
-        <Combobox.Options mah={192} style={{ overflowY: 'auto' }}>
+        <Combobox.Options mah={420} style={{ overflowY: 'auto' }}>
           {filteredRelayOptions.length > 0 ? (
             filteredRelayOptions.map((relayOption) => (
               <Combobox.Option
@@ -709,158 +753,101 @@ const Index = () => {
 
   const renderFiltersGrid = (ids: { event: string; author: string }) => (
     <Box>
-      <Group grow align="flex-start" gap="xs" wrap="wrap">
-        <Stack gap={4}>
+      <Group align="flex-start" gap="xs" wrap="wrap">
+        <Stack gap={4} style={{ flex: '0 1 auto', minWidth: 0, alignSelf: 'flex-start' }} maw={rem(400)}>
           <Text component="label" htmlFor={ids.event} size="xs" ff="monospace" tt="uppercase" c="dimmed">
             Event ID
           </Text>
-          <PillsInput size="xs" radius={0}>
-            <Pill.Group>
-              <PillsInput.Field
-                id={ids.event}
-                aria-label="event id filter"
-                placeholder="hex event id..."
-                value={eventId}
-                onChange={(e) => setEventId(e.target.value)}
-                style={{
-                  minWidth: rem(140),
-                }}
-              />
-            </Pill.Group>
-          </PillsInput>
+          <TagsInput
+            id={ids.event}
+            size="xs"
+            radius={0}
+            maxTags={1}
+            placeholder={eventIdTags.length > 0 ? '' : 'hex event id...'}
+            value={eventIdTags}
+            onChange={setEventIdTags}
+            style={{ width: rem(eventIdTags.length > 0 ? 120 : 156), maxWidth: '100%' }}
+            styles={neutralFilterTagsInputStyles}
+            comboboxProps={{ withinPortal: false }}
+          />
         </Stack>
-        <Stack gap={4}>
+        <Stack gap={4} style={{ flex: '0 1 auto', minWidth: 0, alignSelf: 'flex-start' }} maw={rem(440)}>
           <Text component="label" htmlFor={ids.author} size="xs" ff="monospace" tt="uppercase" c="dimmed">
             Authors
           </Text>
-          <PillsInput size="xs" radius={0}>
-            <Pill.Group>
-              {authorNpub && (
-                <Pill withRemoveButton onRemove={clearAuthor} title={authorNpub} style={{ flexShrink: 0 }}>
-                  {formatPillValue(authorNpub, 24)}
-                </Pill>
-              )}
-              <PillsInput.Field
-                id={ids.author}
-                aria-label="author filter"
-                placeholder={authorNpub ? 'replace author...' : 'npub1... or nprofile1...'}
-                value={authorDraft}
-                onChange={(e) => setAuthorDraft(e.target.value)}
-                onBlur={commitAuthorDraft}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    commitAuthorDraft();
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  minWidth: rem(120),
-                }}
-              />
-            </Pill.Group>
-          </PillsInput>
+          <TagsInput
+            id={ids.author}
+            size="xs"
+            radius={0}
+            maxTags={1}
+            placeholder={authorTags.length > 0 ? '' : 'npub1... or nprofile1...'}
+            value={authorTags}
+            onChange={setAuthorTags}
+            style={{ width: rem(authorTags.length > 0 ? 132 : 180), maxWidth: '100%' }}
+            styles={neutralFilterTagsInputStyles}
+            comboboxProps={{ withinPortal: false }}
+          />
         </Stack>
-        <Stack gap={4}>
+        <Stack gap={4} style={{ flex: '1 1 220px', minWidth: 0, alignSelf: 'stretch' }}>
           <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
             Kinds
           </Text>
-          <Box pos="relative" style={{ flex: 1, minWidth: rem(160) }}>
-            <PillsInput size="xs" radius={0}>
-              <Pill.Group>
-                {selectedKinds
-                  .slice()
-                  .sort((a, b) => a - b)
-                  .map((kind) => (
-                    <Pill
-                      key={kind}
+          <Group gap="xs" align="center" wrap="nowrap" style={{ minWidth: 0 }}>
+            <TagsInput
+              aria-label="kinds filter"
+              className="relay-kinds-tags-input"
+              size="xs"
+              radius={0}
+              placeholder={kindTags.length > 0 ? '' : 'type kind or search...'}
+              value={kindTags}
+              onChange={setKindTags}
+              data={kindComboboxData}
+              renderOption={({ option }) => {
+                const meta = COMMON_KINDS.find((k) => String(k.value) === option.value);
+                return (
+                  <Group justify="space-between" gap="xs" wrap="nowrap" w="100%">
+                    <Text size="xs" ff="monospace" truncate>
+                      {meta?.label ?? option.value}
+                    </Text>
+                    <Badge
                       size="xs"
-                      withRemoveButton
-                      onRemove={() => handleRemoveKind(kind)}
+                      variant="filled"
+                      tt="unset"
+                      ff="monospace"
                       style={{ flexShrink: 0 }}
                       styles={{
                         root: {
-                          ...getKindPillColors(kind),
+                          ...getKindPillColors(Number(option.value)),
+                          fontWeight: 600,
                           border: 'none',
                         },
                       }}
                     >
-                      {kind}
-                    </Pill>
-                  ))}
-                <PillsInput.Field
-                  aria-label="kinds filter"
-                  placeholder="type kind or search..."
-                  value={kindSearchQuery}
-                  onChange={(e) => {
-                    setKindSearchQuery(e.target.value);
-                    setShowKindDropdown(true);
-                  }}
-                  onFocus={() => setShowKindDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowKindDropdown(false), 200)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleKindQuerySubmit();
-                    }
-                    if (e.key === 'Backspace' && kindSearchQuery.length === 0 && selectedKinds.length > 0) {
-                      e.preventDefault();
-                      const lastKind = selectedKinds[selectedKinds.length - 1];
-                      handleRemoveKind(lastKind);
-                    }
-                  }}
-                  style={{
-                    flex: 1,
-                    minWidth: rem(120),
-                  }}
-                />
-              </Pill.Group>
-            </PillsInput>
-            {showKindDropdown && kindSearchQuery && filteredCommonKinds.length > 0 && (
-              <Paper
-                withBorder
-                shadow="md"
-                pos="absolute"
-                left={0}
-                right={0}
-                top="calc(100% + 4px)"
-                mah={192}
-                style={{ zIndex: 10, overflowY: 'auto' }}
-              >
-                {filteredCommonKinds.map((kind) => (
-                  <UnstyledButton
-                    key={kind.value}
-                    onClick={() => handleAddKind(kind.value)}
-                    w="100%"
-                    px="sm"
-                    py={8}
-                    style={{ textAlign: 'left' }}
-                  >
-                    <Group justify="space-between" wrap="nowrap">
-                      <Text size="xs" ff="monospace">
-                        {kind.label}
-                      </Text>
-                      <Badge
-                        size="xs"
-                        variant="filled"
-                        tt="unset"
-                        ff="monospace"
-                        styles={{
-                          root: {
-                            ...getKindPillColors(kind.value),
-                            fontWeight: 600,
-                            border: 'none',
-                          },
-                        }}
-                      >
-                        {kind.value}
-                      </Badge>
-                    </Group>
-                  </UnstyledButton>
-                ))}
-              </Paper>
-            )}
-          </Box>
+                      {option.value}
+                    </Badge>
+                  </Group>
+                );
+              }}
+              style={{ flex: 1, minWidth: 0 }}
+              styles={kindFilterTagsInputStyles}
+              classNames={{ pill: 'relay-kind-pill' }}
+              w="100%"
+              comboboxProps={{ withinPortal: false }}
+            />
+            <Button
+              type="button"
+              variant="light"
+              color="relaykit"
+              size="xs"
+              fz={rem(12)}
+              ff="monospace"
+              style={{ flexShrink: 0 }}
+              disabled={!isConnected}
+              onClick={() => setQueryModalOpen(true)}
+            >
+              query
+            </Button>
+          </Group>
         </Stack>
       </Group>
     </Box>
@@ -1266,7 +1253,23 @@ const Index = () => {
                                       </Text>
                                     </Table.Td>
                                     <Table.Td>
-                                      {'relativeLabel' in field && field.relativeLabel ? (
+                                      {field.label === 'kind' ? (
+                                        <Badge
+                                          size="xs"
+                                          variant="filled"
+                                          tt="unset"
+                                          ff="monospace"
+                                          styles={{
+                                            root: {
+                                              ...getKindPillColors(selectedEvent.kind),
+                                              fontWeight: 600,
+                                              border: 'none',
+                                            },
+                                          }}
+                                        >
+                                          {field.value}
+                                        </Badge>
+                                      ) : 'relativeLabel' in field && field.relativeLabel ? (
                                         <Stack gap={2}>
                                           <Text
                                             size="xs"
@@ -1440,6 +1443,43 @@ const Index = () => {
           </Box>
         )}
       </Box>
+      <Modal
+        opened={queryModalOpen}
+        onClose={() => setQueryModalOpen(false)}
+        title={
+          <Text fz={rem(12)} ff="monospace" fw={600}>
+            active subscription
+          </Text>
+        }
+        radius={0}
+        size="lg"
+      >
+        <Text size="xs" c="dimmed" ff="monospace" mb="sm">
+          REQ sent on connect and whenever event id, authors, or kinds change (300ms debounce). Events are merged newest-first; client keeps at most 500.
+        </Text>
+        <Paper withBorder radius={0} p="sm">
+          <CodeHighlight
+            code={subscriptionWireJson}
+            language="json"
+            withCopyButton
+            className="relay-json-highlight"
+            styles={{
+              code: {
+                fontSize: rem(11),
+                lineHeight: 1.45,
+              },
+              pre: {
+                margin: 0,
+                background: 'transparent',
+                borderRadius: 0,
+                padding: 0,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              },
+            }}
+          />
+        </Paper>
+      </Modal>
       <LoginDialog
         isOpen={loginDialogOpen}
         onClose={() => setLoginDialogOpen(false)}
@@ -1449,7 +1489,8 @@ const Index = () => {
         .relay-explorer-event-row:hover .relay-explorer-delete-btn {
           opacity: 1 !important;
         }
-      `}</style>
+        ${kindPillCss}
+        `}</style>
     </Box>
   );
 };
