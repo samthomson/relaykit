@@ -4,6 +4,11 @@ import { EmbeddedAppModal } from '../embedded/EmbeddedAppModal';
 import { EMBEDDABLE_APPS, type EmbeddableAppId } from '../embedded/registry';
 
 const APP_IDS: EmbeddableAppId[] = ['relay-explorer', 'blossom-explorer', 'nsite-explorer'];
+const APP_SUMMARIES: Record<EmbeddableAppId, string> = {
+  'relay-explorer': 'inspect live nostr relay events',
+  'blossom-explorer': 'browse and verify blossom blobs',
+  'nsite-explorer': 'inspect and debug nsite data',
+};
 
 export const AppsPage = () => {
   const [activeLaunch, setActiveLaunch] = useState<{ appId: EmbeddableAppId; session: string } | null>(null);
@@ -30,7 +35,7 @@ export const AppsPage = () => {
               <Stack gap="md">
                 <Stack gap={2}>
                   <Text fw={600}>{app.label}</Text>
-                  <Text size="sm" c="dimmed">{app.prodPath}</Text>
+                  <Text size="sm" c="dimmed">{APP_SUMMARIES[app.id]}</Text>
                 </Stack>
 
                 <Group justify="flex-start">
