@@ -53,29 +53,31 @@ export const LoginScreen = () => {
         </Stack>
 
 
-        {!hasNostrExtension ? (
-          <Paper color="yellow" p="md" mb="md">
-            <Text fw={700} mb={8}>Nostr Extension Required</Text>
-            <Text size="sm" c="dimmed" mb="md">
-              Please install a Nostr browser extension to continue:
-            </Text>
-            <Stack gap="xs">
-              <Anchor href="https://getalby.com" target="_blank">
-                Alby (Chrome, Firefox)
-              </Anchor>
-              <Anchor href="https://nos2x.org" target="_blank">
-                nos2x (Chrome, Firefox)
-              </Anchor>
-              <Anchor href="https://blockcore.net/wallet" target="_blank">
-                Blockcore (Chrome, Edge, Firefox, Brave)
-              </Anchor>
-            </Stack>
-          </Paper>
-        ) : (
-          <Button size="lg" fullWidth onClick={handleLogin} loading={loggingIn} color="relaykit">
-            Connect with Nostr
-          </Button>
-        )}
+        <Stack align="center">
+          {!hasNostrExtension ? (
+            <Paper color="yellow" p="md" mb="md">
+              <Text fw={700} mb={8}>Nostr Extension Required</Text>
+              <Text size="sm" c="dimmed" mb="md">
+                Please install a Nostr browser extension to continue:
+              </Text>
+              <Stack gap="xs">
+                <Anchor href="https://getalby.com" target="_blank">
+                  Alby (Chrome, Firefox)
+                </Anchor>
+                <Anchor href="https://nos2x.org" target="_blank">
+                  nos2x (Chrome, Firefox)
+                </Anchor>
+                <Anchor href="https://blockcore.net/wallet" target="_blank">
+                  Blockcore (Chrome, Edge, Firefox, Brave)
+                </Anchor>
+              </Stack>
+            </Paper>
+          ) : (
+            <Button size="md" onClick={handleLogin} loading={loggingIn} color="relaykit">
+              connect with nostr
+            </Button>
+          )}
+        </Stack>
       </Paper>
     </Stack>
   )
