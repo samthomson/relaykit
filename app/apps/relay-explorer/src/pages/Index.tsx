@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   ActionIcon,
   Anchor,
@@ -24,7 +24,7 @@ import {
 } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { Trash2 } from 'lucide-react';
-import { IconBraces, IconChevronDown, IconTable, IconX } from '@tabler/icons-react';
+import { IconBraces, IconCheck, IconChevronDown, IconTable, IconX } from '@tabler/icons-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { formatDistanceToNow } from 'date-fns';
@@ -45,7 +45,8 @@ interface NostrFilter {
 
 const PREVIOUS_RELAYS_STORAGE_KEY = 'relay-explorer:previous-relays';
 const MAX_PREVIOUS_RELAYS = 20;
-const MAX_EVENT_COUNT = 500;
+const LIMIT_OPTIONS = [50, 250, 500, 750, 1000, 'infinity'] as const;
+type EventLimitOption = (typeof LIMIT_OPTIONS)[number];
 
 const COMMON_KINDS = [
   { value: 0, label: 'Metadata' },
@@ -74,6 +75,19 @@ const isStandaloneEmbeddedMode = (): boolean => {
   const params = new URLSearchParams(window.location.search);
   return params.get('standalone') === '1';
 };
+
+const DropdownButton = ({
+  target,
+  children,
+}: {
+  target: ReactNode;
+  children: ReactNode;
+}) => (
+  <Menu shadow="md" position="bottom-end">
+    <Menu.Target>{target}</Menu.Target>
+    <Menu.Dropdown>{children}</Menu.Dropdown>
+  </Menu>
+);
 
 const Index = () => {
   const { user } = useCurrentUser();
@@ -121,6 +135,7 @@ const Index = () => {
   const [eventIdTags, setEventIdTags] = useState<string[]>([]);
   const [authorTags, setAuthorTags] = useState<string[]>([]);
   const [kindTags, setKindTags] = useState<string[]>([]);
+  const [eventLimit, setEventLimit] = useState<EventLimitOption>(500);
   const [showInspectorTable, setShowInspectorTable] = useState(true);
   const [showInspectorJson, setShowInspectorJson] = useState(true);
   const [queryModalOpen, setQueryModalOpen] = useState(false);
@@ -168,7 +183,7 @@ const Index = () => {
 
   useEffect(() => {
     activeFilterRef.current = buildFilter();
-  }, [eventIdTags, authorTags, kindTags]); // eslint-disable-line react-hooks/exhaustive-deps -- buildFilter closure
+  }, [eventIdTags, authorTags, kindTags, eventLimit]); // eslint-disable-line react-hooks/exhaustive-deps -- buildFilter closure
 
   useEffect(() => {
     if (ws && isConnected) {
@@ -185,7 +200,7 @@ const Index = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [eventIdTags, authorTags, kindTags, isConnected, ws]); // eslint-disable-line react-hooks/exhaustive-deps -- buildFilter closure
+  }, [eventIdTags, authorTags, kindTags, eventLimit, isConnected, ws]); // eslint-disable-line react-hooks/exhaustive-deps -- buildFilter closure
 
   useEffect(() => {
     return () => {
@@ -244,7 +259,9 @@ const Index = () => {
       filter.authors = [parsedAuthor.author];
     }
 
-    filter.limit = 500;
+    if (eventLimit !== 'infinity') {
+      filter.limit = eventLimit;
+    }
 
     return filter;
   };
@@ -354,8 +371,9 @@ const Index = () => {
             } else {
               next.splice(insertAt, 0, incomingEvent);
             }
-            if (next.length > MAX_EVENT_COUNT) {
-              const removedEvents = next.splice(MAX_EVENT_COUNT);
+            const activeLimit = activeFilterRef.current.limit;
+            if (typeof activeLimit === 'number' && next.length > activeLimit) {
+              const removedEvents = next.splice(activeLimit);
               removedEvents.forEach((event) => seenEventIdsRef.current.delete(event.id));
             }
             return next;
@@ -593,7 +611,7 @@ const Index = () => {
 
   const subscriptionWireJson = useMemo(
     () => JSON.stringify(['REQ', 'all-events', buildFilter()], null, 2),
-    [eventIdTags, authorTags, kindTags],
+    [eventIdTags, authorTags, kindTags, eventLimit],
   );
 
   const serviceRelayOptions = useMemo(() => {
@@ -860,6 +878,7 @@ const Index = () => {
               w="100%"
               comboboxProps={{ withinPortal: false }}
             />
+            {renderLimitControl()}
             <Button
               type="button"
               variant="light"
@@ -887,8 +906,8 @@ const Index = () => {
   );
 
   const renderAuthControl = () => (
-    <Menu shadow="md" position="bottom-end">
-      <Menu.Target>
+    <DropdownButton
+      target={
         <Button
           size="xs"
           variant="light"
@@ -907,8 +926,9 @@ const Index = () => {
             )}
           </Box>
         </Button>
-      </Menu.Target>
-      <Menu.Dropdown>
+      }
+    >
+      <>
         {!currentUser && (
           <Menu.Item ff="monospace" fz={rem(12)} onClick={() => setLoginDialogOpen(true)}>
             auth options
@@ -927,8 +947,44 @@ const Index = () => {
         >
           remove auth
         </Menu.Item>
-      </Menu.Dropdown>
-    </Menu>
+      </>
+    </DropdownButton>
+  );
+
+  const renderLimitControl = () => (
+    <DropdownButton
+      target={
+        <Button
+          type="button"
+          variant="light"
+          color="relaykit"
+          size="xs"
+          fz={rem(12)}
+          ff="monospace"
+          rightSection={<IconChevronDown size={10} />}
+          style={{ flexShrink: 0 }}
+          disabled={!isConnected}
+        >
+          {eventLimit === 'infinity' ? '∞' : eventLimit}
+        </Button>
+      }
+    >
+      <>
+        {LIMIT_OPTIONS.map((option) => (
+          <Menu.Item
+            key={String(option)}
+            ff="monospace"
+            fz={rem(12)}
+            c={eventLimit === option ? 'relaykit' : undefined}
+            fw={eventLimit === option ? 700 : undefined}
+            rightSection={eventLimit === option ? <IconCheck size={12} /> : undefined}
+            onClick={() => setEventLimit(option)}
+          >
+            {option === 'infinity' ? '∞' : option}
+          </Menu.Item>
+        ))}
+      </>
+    </DropdownButton>
   );
 
   return (
@@ -1100,10 +1156,6 @@ const Index = () => {
                                   background:
                                     selectedEvent?.id === row.event.id
                                       ? 'color-mix(in srgb, var(--mantine-primary-color-filled) 22%, transparent)'
-                                      : undefined,
-                                  borderLeft:
-                                    selectedEvent?.id === row.event.id
-                                      ? '3px solid var(--mantine-primary-color-filled)'
                                       : undefined,
                                   boxShadow:
                                     selectedEvent?.id === row.event.id
@@ -1488,7 +1540,7 @@ const Index = () => {
         size="lg"
       >
         <Text size="xs" c="dimmed" ff="monospace" mb="sm">
-          REQ sent on connect and whenever event id, authors, or kinds change (300ms debounce). Events are merged newest-first; client keeps at most 500.
+          REQ sent on connect and whenever event id, authors, kinds, or limit change (300ms debounce). Events are merged newest-first; client keeps at most {eventLimit === 'infinity' ? '∞' : eventLimit}.
         </Text>
         <Paper withBorder radius={0} p="sm">
           <CodeHighlight
