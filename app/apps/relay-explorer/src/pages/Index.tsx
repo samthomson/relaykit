@@ -1107,15 +1107,23 @@ const Index = () => {
                                   {row.event.kind}
                                 </Badge>
                                 <Box ta="right" style={{ flexShrink: 0 }}>
-                                  <Text size="xs" ff="monospace" c="dimmed" lh={1.2}>
+                                  <Text size="xs" ff="monospace" fw={600} lh={1.2}>
                                     {row.timeLabel}
                                   </Text>
-                                  <Text fz={10} ff="monospace" c="dimmed" lh={1.2}>
-                                    ({row.ageLabel})
+                                  <Text fz={10} ff="monospace" c="dimmed" fs="italic" lh={1.2}>
+                                    {row.ageLabel}
                                   </Text>
                                 </Box>
                               </Group>
-                              <Text size="xs" ff="monospace" c="dimmed" truncate mb={2} style={{ minWidth: 0 }}>
+                              <Text
+                                size="xs"
+                                ff="monospace"
+                                c="dimmed"
+                                opacity={0.85}
+                                truncate
+                                mb={2}
+                                style={{ minWidth: 0 }}
+                              >
                                 {row.idPreview}
                               </Text>
                               {row.event.content && (
