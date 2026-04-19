@@ -203,6 +203,26 @@ const Index = () => {
     }
   }, [iframeMode, iframeRelay]); // eslint-disable-line react-hooks/exhaustive-deps -- one-shot iframe connect
 
+  const parseAuthorTag = (input: string): { author: string | null; error: string | null } => {
+    const value = input.trim();
+    if (!value) return { author: null, error: null };
+    try {
+      const decoded = nip19.decode(value);
+      if (decoded.type === 'npub') {
+        return { author: decoded.data, error: null };
+      }
+      if (decoded.type === 'nprofile') {
+        return { author: decoded.data.pubkey, error: null };
+      }
+      return { author: null, error: 'author must be npub, nprofile, or 64-char hex pubkey' };
+    } catch {
+      if (/^[a-fA-F0-9]{64}$/.test(value)) {
+        return { author: value.toLowerCase(), error: null };
+      }
+      return { author: null, error: 'author must be npub, nprofile, or 64-char hex pubkey' };
+    }
+  };
+
   const buildFilter = (): NostrFilter => {
     const filter: NostrFilter = {};
 
@@ -219,22 +239,9 @@ const Index = () => {
       filter.kinds = kindNums;
     }
 
-    const authorStr = authorTags[0]?.trim();
-    if (authorStr) {
-      try {
-        const decoded = nip19.decode(authorStr);
-        if (decoded.type === 'npub') {
-          filter.authors = [decoded.data];
-        } else if (decoded.type === 'nprofile') {
-          filter.authors = [decoded.data.pubkey];
-        }
-      } catch (e) {
-        if (/^[a-fA-F0-9]{64}$/.test(authorStr)) {
-          filter.authors = [authorStr.toLowerCase()];
-        } else {
-          console.error('Invalid author filter:', e);
-        }
-      }
+    const parsedAuthor = parseAuthorTag(authorTags[0] ?? '');
+    if (parsedAuthor.author) {
+      filter.authors = [parsedAuthor.author];
     }
 
     filter.limit = 500;
@@ -528,9 +535,9 @@ const Index = () => {
       },
       pillsList: {
         gap: rem(4),
-        flexWrap: 'nowrap',
-        overflowX: 'auto',
-        alignItems: 'center',
+        flexWrap: 'nowrap' as const,
+        overflowX: 'auto' as const,
+        alignItems: 'center' as const,
       },
     }),
     [],
@@ -550,6 +557,25 @@ const Index = () => {
   );
 
   const kindFilterTagsInputStyles = baseFilterTagsInputStyles;
+
+  const invalidAuthorTagsInputStyles = useMemo(
+    () => ({
+      ...neutralFilterTagsInputStyles,
+      input: {
+        borderColor: 'var(--mantine-color-red-6)',
+        boxShadow: 'inset 0 0 0 1px var(--mantine-color-red-6)',
+        background: 'color-mix(in srgb, var(--mantine-color-red-9) 15%, transparent)',
+      },
+      pill: {
+        ...neutralFilterTagsInputStyles.pill,
+        background: 'var(--mantine-color-red-light)',
+        color: 'var(--mantine-color-red-filled)',
+      },
+    }),
+    [neutralFilterTagsInputStyles],
+  );
+
+  const authorValidation = useMemo(() => parseAuthorTag(authorTags[0] ?? ''), [authorTags]);
 
   const kindPillCss = useMemo(
     () =>
@@ -754,7 +780,7 @@ const Index = () => {
   const renderFiltersGrid = (ids: { event: string; author: string }) => (
     <Box>
       <Group align="flex-start" gap="xs" wrap="wrap">
-        <Stack gap={4} style={{ flex: '0 1 auto', minWidth: 0, alignSelf: 'flex-start' }} maw={rem(400)}>
+        <Stack gap={4} style={{ flex: '1 1 220px', minWidth: rem(180), alignSelf: 'flex-start' }}>
           <Text component="label" htmlFor={ids.event} size="xs" ff="monospace" tt="uppercase" c="dimmed">
             Event ID
           </Text>
@@ -766,12 +792,12 @@ const Index = () => {
             placeholder={eventIdTags.length > 0 ? '' : 'hex event id...'}
             value={eventIdTags}
             onChange={setEventIdTags}
-            style={{ width: rem(eventIdTags.length > 0 ? 120 : 156), maxWidth: '100%' }}
+            style={{ width: '100%', maxWidth: '100%' }}
             styles={neutralFilterTagsInputStyles}
             comboboxProps={{ withinPortal: false }}
           />
         </Stack>
-        <Stack gap={4} style={{ flex: '0 1 auto', minWidth: 0, alignSelf: 'flex-start' }} maw={rem(440)}>
+        <Stack gap={4} style={{ flex: '1 1 220px', minWidth: rem(180), alignSelf: 'flex-start' }}>
           <Text component="label" htmlFor={ids.author} size="xs" ff="monospace" tt="uppercase" c="dimmed">
             Authors
           </Text>
@@ -783,12 +809,12 @@ const Index = () => {
             placeholder={authorTags.length > 0 ? '' : 'npub1... or nprofile1...'}
             value={authorTags}
             onChange={setAuthorTags}
-            style={{ width: rem(authorTags.length > 0 ? 132 : 180), maxWidth: '100%' }}
-            styles={neutralFilterTagsInputStyles}
+            style={{ width: '100%', maxWidth: '100%' }}
+            styles={authorValidation.error ? invalidAuthorTagsInputStyles : neutralFilterTagsInputStyles}
             comboboxProps={{ withinPortal: false }}
           />
         </Stack>
-        <Stack gap={4} style={{ flex: '1 1 220px', minWidth: 0, alignSelf: 'stretch' }}>
+        <Stack gap={4} style={{ flex: '2 1 320px', minWidth: rem(240), alignSelf: 'stretch' }}>
           <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
             Kinds
           </Text>
@@ -850,6 +876,13 @@ const Index = () => {
           </Group>
         </Stack>
       </Group>
+      {authorValidation.error && (
+        <Paper mt="xs" p="xs" radius={0} bg="var(--mantine-color-red-light)" c="var(--mantine-color-red-filled)">
+          <Text size="xs" ff="monospace">
+            {authorValidation.error}
+          </Text>
+        </Paper>
+      )}
     </Box>
   );
 
