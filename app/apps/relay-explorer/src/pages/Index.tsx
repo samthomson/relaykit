@@ -496,7 +496,12 @@ const Index = () => {
             withRemoveButton
             onRemove={clearRelayValue}
             title={relayUrl}
-            style={{ flexShrink: 0 }}
+            style={{
+              flexShrink: 0,
+              background: 'var(--mantine-color-default-hover)',
+              border: '1px solid var(--mantine-color-default-border)',
+              color: 'var(--mantine-color-relaykit-3)',
+            }}
           >
             {protocolPrefix}
             {formatPillValue(relayUrl.replace(/^wss?:\/\//, ''), 38)}
@@ -708,7 +713,8 @@ const Index = () => {
       <Menu.Target>
         <Button
           size="md"
-          variant="filled"
+          variant="light"
+          color="relaykit"
           rightSection={<IconChevronDown size={14} />}
           style={{ maxWidth: '100%', height: rem(44), justifyContent: 'space-between' }}
         >
@@ -717,7 +723,7 @@ const Index = () => {
               {currentUser ? 'authed' : 'authenticate'}
             </Text>
             {currentUser && (
-              <Text size="xs" c="rgba(255,255,255,0.75)" ff="monospace" style={{ maxWidth: rem(300) }}>
+              <Text size="xs" c="dimmed" ff="monospace" style={{ maxWidth: rem(300) }}>
                 {formatNpubMiddle(currentNpub)}
               </Text>
             )}
@@ -769,7 +775,8 @@ const Index = () => {
               <Button
                 onClick={handleConnect}
                 disabled={!isValidUrl && !isConnected && !isConnecting}
-                color={isConnected ? 'red' : undefined}
+                variant="light"
+                color={isConnected ? 'red' : 'relaykit'}
                 loading={isConnecting}
                 size="md"
                 ff="monospace"
@@ -806,7 +813,8 @@ const Index = () => {
                 <Button
                   onClick={handleConnect}
                   disabled={!isValidUrl && !isConnected && !isConnecting}
-                  color={isConnected ? 'red' : undefined}
+                  variant="light"
+                  color={isConnected ? 'red' : 'relaykit'}
                   loading={isConnecting}
                   size="md"
                   ff="monospace"
