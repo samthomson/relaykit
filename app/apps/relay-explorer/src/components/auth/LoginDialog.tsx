@@ -206,8 +206,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin }) =
               placeholder="nsec1..."
               autoComplete="off"
             />
-            <Group grow>
-              <Button type="submit" size="md" disabled={isLoading || !nsec.trim()} loading={isLoading}>
+            <Group align="stretch" wrap="nowrap">
+              <Button type="submit" size="md" disabled={isLoading || !nsec.trim()} loading={isLoading} style={{ flex: 1 }}>
                 {isLoading ? 'Verifying...' : 'Log in'}
               </Button>
               <input type="file" accept=".txt" style={{ display: 'none' }} ref={fileInputRef} onChange={handleFileUpload} />
@@ -217,6 +217,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin }) =
                 size="md"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isLoading || isFileLoading}
+                style={{ flexShrink: 0 }}
               >
                 <Upload size={16} />
               </Button>
