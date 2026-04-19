@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, Card, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { EmbeddedAppModal } from '../embedded/EmbeddedAppModal';
 import { EMBEDDABLE_APPS, type EmbeddableAppId } from '../embedded/registry';
+import { useRefreshServices } from '../contexts/RefreshServicesContext';
+import { isRelayType } from '../../../shared/serviceType';
 
 const APP_IDS: EmbeddableAppId[] = ['relay-explorer', 'blossom-explorer', 'nsite-explorer'];
 const APP_SUMMARIES: Record<EmbeddableAppId, string> = {
@@ -12,13 +14,32 @@ const APP_SUMMARIES: Record<EmbeddableAppId, string> = {
 
 export const AppsPage = () => {
   const [activeLaunch, setActiveLaunch] = useState<{ appId: EmbeddableAppId; session: string } | null>(null);
+  const { services } = useRefreshServices();
+
+  const knownRelays = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (Array.isArray(services) ? services : [])
+            .filter((service: any) => isRelayType(service?.type) && service?.domains?.[0]?.host)
+            .map((service: any) => `wss://${service.domains[0].host}`),
+        ),
+      ),
+    [services],
+  );
+
+  const relayOptionsParam = useMemo(() => (knownRelays.length > 0 ? knownRelays.join(',') : undefined), [knownRelays]);
 
   return (
     <Stack gap="xl" p="xl">
       {activeLaunch && (
         <EmbeddedAppModal
           appId={activeLaunch.appId}
-          context={{ standalone: '1', session: activeLaunch.session }}
+          context={{
+            standalone: '1',
+            session: activeLaunch.session,
+            relays: activeLaunch.appId === 'relay-explorer' ? relayOptionsParam : undefined,
+          }}
           onClose={() => setActiveLaunch(null)}
         />
       )}

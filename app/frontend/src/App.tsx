@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, NavLink as RouterNavLink } from 'react-router-dom';
 import { RubixLoader, RubixLoaderColor } from '@samthomson/rubix-loader';
-import { trpc } from './trpc';
 import { useAuth } from './contexts/AuthContext';
 import { useDokploy } from './contexts/DokployContext';
 import { useRefreshServices } from './contexts/RefreshServicesContext';
@@ -47,21 +46,18 @@ const DokployConnectionAlert = ({ message }: { message: string }) => (
 
 const DokployInitialCheck = () => {
   const { setDokployConnectionError, setDokployReady } = useDokploy();
-  const { logout } = useAuth();
+  const { servicesLoading, servicesError } = useRefreshServices();
+
   useEffect(() => {
-    trpc.listServices
-      .query()
-      .then(() => setDokployReady(true))
-      .catch((error: any) => {
-        const code = error?.data?.code;
-        const msg = error?.message || '';
-        if (code === 'UNAUTHORIZED' && msg.includes('Authentication required')) {
-          logout();
-          return;
-        }
-        setDokployConnectionError(msg || 'Could not load services. Run the setup script (see README).');
-      });
-  }, [setDokployConnectionError, setDokployReady, logout]);
+    if (servicesLoading) return;
+    if (servicesError) {
+      setDokployConnectionError(servicesError);
+      return;
+    }
+    setDokployConnectionError(null);
+    setDokployReady(true);
+  }, [servicesLoading, servicesError, setDokployConnectionError, setDokployReady]);
+
   return null;
 };
 
@@ -93,32 +89,10 @@ const ServicesHomeRoute = () => {
 
 const App = () => {
   const { isAuthenticated, isLoading, logout } = useAuth();
-  const { refreshTrigger } = useRefreshServices();
+  const { services } = useRefreshServices();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [mobileMenuOpened, { toggle: toggleMobileMenu, close: closeMobileMenu }] = useDisclosure(false);
   const [accountModalOpen, { open: openAccountModal, close: closeAccountModal }] = useDisclosure(false);
-  const [services, setServices] = useState<Array<{ type?: string | null; presetId?: string | null }>>([]);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setServices([]);
-      return;
-    }
-    let mounted = true;
-    trpc.listServices
-      .query()
-      .then((next) => {
-        if (!mounted) return;
-        setServices(Array.isArray(next) ? next : []);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setServices([]);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [isAuthenticated, refreshTrigger]);
 
   const rubixLoaderColors = useMemo(() => {
     const seen = new Set<RubixColor>();

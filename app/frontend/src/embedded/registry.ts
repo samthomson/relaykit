@@ -20,7 +20,7 @@ export const EMBEDDABLE_APPS: Record<EmbeddableAppId, EmbeddableApp> = {
     label: 'relay explorer',
     devUrl: 'http://localhost:5174/apps/relay-explorer/',
     prodPath: '/apps/relay-explorer/',
-    buildContext: (ctx) => qs({ embedded: '1', relay: ctx.relay, standalone: ctx.standalone, session: ctx.session }),
+    buildContext: (ctx) => qs({ embedded: '1', relay: ctx.relay, relays: ctx.relays, standalone: ctx.standalone, session: ctx.session }),
   },
   'blossom-explorer': {
     id: 'blossom-explorer',

@@ -1,10 +1,11 @@
 import { useSeoMeta } from '@unhead/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Anchor,
   Badge,
   Box,
   Button,
+  Combobox,
   Flex,
   Group,
   Menu,
@@ -17,6 +18,7 @@ import {
   Text,
   UnstyledButton,
   rem,
+  useCombobox,
 } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { Trash2 } from 'lucide-react';
@@ -107,6 +109,7 @@ const Index = () => {
   const [showKindDropdown, setShowKindDropdown] = useState(false);
   const [showInspectorTable, setShowInspectorTable] = useState(true);
   const [showInspectorJson, setShowInspectorJson] = useState(true);
+  const relayCombobox = useCombobox();
 
   const { currentUser, removeLogin } = useLoggedInAccounts();
 
@@ -355,6 +358,8 @@ const Index = () => {
 
   const handleRelayUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRelayDraft(e.target.value);
+    relayCombobox.openDropdown();
+    relayCombobox.updateSelectedOptionIndex();
   };
 
   const handleAddKind = (kind: number) => {
@@ -376,6 +381,19 @@ const Index = () => {
     const hasChanged = normalizedRelay !== relayUrl;
     setRelayUrl(normalizedRelay);
     setRelayDraft('');
+    if (iframeMode && hasChanged) {
+      disconnectRelay();
+      setTimeout(() => connectToRelay(normalizedRelay), 50);
+    }
+  };
+
+  const selectRelayOption = (nextRelay: string) => {
+    const normalizedRelay = normalizeRelayUrl(nextRelay);
+    if (!normalizedRelay) return;
+    const hasChanged = normalizedRelay !== relayUrl;
+    setRelayUrl(normalizedRelay);
+    setRelayDraft('');
+    relayCombobox.closeDropdown();
     if (iframeMode && hasChanged) {
       disconnectRelay();
       setTimeout(() => connectToRelay(normalizedRelay), 50);
@@ -442,6 +460,26 @@ const Index = () => {
       k.value.toString().includes(kindSearchQuery),
   );
 
+  const relayOptions = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const relaysParam = params.get('relays');
+    if (!relaysParam) return [];
+    return Array.from(
+      new Set(
+        relaysParam
+          .split(',')
+          .map((relay) => normalizeRelayUrl(relay.trim()))
+          .filter(Boolean),
+      ),
+    );
+  }, []);
+
+  const filteredRelayOptions = useMemo(() => {
+    const query = relayDraft.trim().toLowerCase();
+    if (!query) return relayOptions;
+    return relayOptions.filter((relay) => relay.toLowerCase().includes(query));
+  }, [relayOptions, relayDraft]);
+
   const protocolPrefix = relayUrl.startsWith('ws://') ? 'ws://' : 'wss://';
   const currentNpub = (() => {
     if (!currentUser) return '';
@@ -480,64 +518,93 @@ const Index = () => {
   const pillInputStyles = { input: { minHeight: rem(44), fontSize: rem(14), alignItems: 'center' } };
 
   const renderRelayPillInput = (id: string) => (
-    <PillsInput
-      style={{ flex: 1 }}
-      radius={0}
-      styles={pillInputStyles}
-      onKeyDownCapture={(e) => {
-        if ((e.key === 'Backspace' || e.key === 'Delete') && relayDraft.trim().length === 0 && relayUrl) {
-          e.preventDefault();
-          clearRelayValue();
-        }
-      }}
+    <Combobox
+      store={relayCombobox}
+      withinPortal={false}
+      onOptionSubmit={(value) => selectRelayOption(value)}
     >
-      <Pill.Group>
-        {relayUrl && (
-          <Pill
-            color="relaykit"
-            variant="light"
-            withRemoveButton
-            onRemove={clearRelayValue}
-            title={relayUrl}
-            style={{ flexShrink: 0 }}
-          >
-            {protocolPrefix}
-            {formatPillValue(relayUrl.replace(/^wss?:\/\//, ''), 38)}
-          </Pill>
-        )}
-        <PillsInput.Field
-          id={id}
-          aria-label="relay url"
-          value={relayDraft}
-          onChange={handleRelayUrlChange}
-          onBlur={commitRelayDraft}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              commitRelayDraft();
-              if (isValidUrl && !isConnected && !isConnecting) {
-                handleConnect();
-              }
-            }
+      <Combobox.Target>
+        <PillsInput
+          style={{ flex: 1 }}
+          radius={0}
+          styles={pillInputStyles}
+          onClick={() => relayCombobox.openDropdown()}
+          onKeyDownCapture={(e) => {
             if ((e.key === 'Backspace' || e.key === 'Delete') && relayDraft.trim().length === 0 && relayUrl) {
               e.preventDefault();
               clearRelayValue();
             }
           }}
-          disabled={false}
-          placeholder={relayUrl ? 'paste a new relay url and press enter...' : 'relay.ditto.pub or chapartest.local'}
-          style={{
-            flex: 1,
-            minWidth: rem(140),
-            height: rem(30),
-            lineHeight: 1.2,
-            paddingTop: 0,
-            paddingBottom: 0,
-            alignSelf: 'center',
-            opacity: relayUrl ? 0.9 : 1,
-          }}
-        />
-      </Pill.Group>
-    </PillsInput>
+        >
+          <Pill.Group>
+            {relayUrl && (
+              <Pill
+                color="relaykit"
+                variant="light"
+                withRemoveButton
+                onRemove={clearRelayValue}
+                title={relayUrl}
+                style={{ flexShrink: 0 }}
+              >
+                {protocolPrefix}
+                {formatPillValue(relayUrl.replace(/^wss?:\/\//, ''), 38)}
+              </Pill>
+            )}
+            <PillsInput.Field
+              id={id}
+              aria-label="relay url"
+              value={relayDraft}
+              onChange={handleRelayUrlChange}
+              onFocus={() => relayCombobox.openDropdown()}
+              onBlur={() => {
+                commitRelayDraft();
+                relayCombobox.closeDropdown();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !relayCombobox.dropdownOpened) {
+                  commitRelayDraft();
+                  if (isValidUrl && !isConnected && !isConnecting) {
+                    handleConnect();
+                  }
+                }
+                if ((e.key === 'Backspace' || e.key === 'Delete') && relayDraft.trim().length === 0 && relayUrl) {
+                  e.preventDefault();
+                  clearRelayValue();
+                }
+              }}
+              disabled={false}
+              placeholder={relayUrl ? 'paste a new relay url and press enter...' : 'relay.ditto.pub or chapartest.local'}
+              style={{
+                flex: 1,
+                minWidth: rem(140),
+                height: rem(30),
+                lineHeight: 1.2,
+                paddingTop: 0,
+                paddingBottom: 0,
+                alignSelf: 'center',
+                opacity: relayUrl ? 0.9 : 1,
+              }}
+            />
+          </Pill.Group>
+        </PillsInput>
+      </Combobox.Target>
+
+      <Combobox.Dropdown>
+        <Combobox.Options mah={192} style={{ overflowY: 'auto' }}>
+          {filteredRelayOptions.length > 0 ? (
+            filteredRelayOptions.map((relay) => (
+              <Combobox.Option key={relay} value={relay}>
+                <Text size="xs" ff="monospace" truncate>
+                  {relay}
+                </Text>
+              </Combobox.Option>
+            ))
+          ) : (
+            <Combobox.Empty>no relay matches</Combobox.Empty>
+          )}
+        </Combobox.Options>
+      </Combobox.Dropdown>
+    </Combobox>
   );
 
   const renderFiltersGrid = (ids: { event: string; author: string }) => (
