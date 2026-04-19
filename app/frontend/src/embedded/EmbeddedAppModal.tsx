@@ -59,7 +59,6 @@ export const EmbeddedAppModal = ({ appId, context, serviceType, presetId, onClos
               style={{
                 border: '1px solid var(--mantine-color-default-border)',
                 background: 'var(--mantine-color-default-hover)',
-                borderLeft: '2px solid var(--mantine-primary-color-filled)',
                 minWidth: 0,
               }}
             >
