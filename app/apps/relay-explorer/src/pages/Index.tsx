@@ -889,9 +889,15 @@ const Index = () => {
         </Button>
       </Menu.Target>
       <Menu.Dropdown>
-        {!currentUser && <Menu.Item onClick={() => setLoginDialogOpen(true)}>auth options</Menu.Item>}
+        {!currentUser && (
+          <Menu.Item ff="monospace" fz={rem(12)} onClick={() => setLoginDialogOpen(true)}>
+            auth options
+          </Menu.Item>
+        )}
         <Menu.Item
           color="red"
+          ff="monospace"
+          fz={rem(12)}
           disabled={!currentUser}
           onClick={() => {
             if (currentUser) {
