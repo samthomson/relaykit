@@ -129,13 +129,13 @@ const Index = () => {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<NostrEvent | null>(null);
   const seenEventIdsRef = useRef<Set<string>>(new Set());
-  const activeFilterRef = useRef<NostrFilter>({ limit: 500 });
+  const activeFilterRef = useRef<NostrFilter>({ limit: 250 });
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   const [eventIdTags, setEventIdTags] = useState<string[]>([]);
   const [authorTags, setAuthorTags] = useState<string[]>([]);
   const [kindTags, setKindTags] = useState<string[]>([]);
-  const [eventLimit, setEventLimit] = useState<EventLimitOption>(500);
+  const [eventLimit, setEventLimit] = useState<EventLimitOption>(250);
   const [showInspectorTable, setShowInspectorTable] = useState(true);
   const [showInspectorJson, setShowInspectorJson] = useState(true);
   const [queryModalOpen, setQueryModalOpen] = useState(false);
@@ -1051,7 +1051,7 @@ const Index = () => {
               <Group justify="space-between" align="center" wrap="wrap" gap="sm">
                 <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                   <Text size="xs" ff="monospace" tt="uppercase" c="dimmed" style={{ flexShrink: 0 }}>
-                    Connected to
+                    Connect to
                   </Text>
                   {renderRelayPillInput('relay-url-iframe')}
                 </Group>
