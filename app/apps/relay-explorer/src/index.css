@@ -1,0 +1,90 @@
+@import "@mantine/core/styles.css";
+@import "@mantine/code-highlight/styles.css";
+@import "@mantine/notifications/styles.css";
+@import "@relaykit/ui/src/fonts.css";
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+[data-mantine-color-scheme="dark"] .relay-json-highlight .hljs {
+  color: var(--mantine-color-gray-2);
+}
+
+[data-mantine-color-scheme="dark"] .relay-json-highlight .hljs-attr {
+  color: var(--mantine-color-relaykit-3);
+  font-weight: 700;
+}
+
+[data-mantine-color-scheme="dark"] .relay-json-highlight .hljs-string {
+  color: var(--mantine-color-cyan-3);
+}
+
+[data-mantine-color-scheme="dark"] .relay-json-highlight .hljs-number {
+  color: var(--mantine-color-yellow-3);
+}
+
+[data-mantine-color-scheme="dark"] .relay-json-highlight .hljs-literal {
+  color: var(--mantine-color-orange-3);
+}
+
+[data-mantine-color-scheme="dark"] .relay-json-highlight .hljs-punctuation {
+  color: var(--mantine-color-gray-6);
+}
+
+[data-mantine-color-scheme="light"] .relay-json-highlight .hljs {
+  color: var(--mantine-color-gray-9);
+}
+
+[data-mantine-color-scheme="light"] .relay-json-highlight .hljs-attr {
+  color: var(--mantine-color-relaykit-8);
+  font-weight: 700;
+}
+
+[data-mantine-color-scheme="light"] .relay-json-highlight .hljs-string {
+  color: var(--mantine-color-blue-7);
+}
+
+[data-mantine-color-scheme="light"] .relay-json-highlight .hljs-number {
+  color: var(--mantine-color-yellow-8);
+}
+
+[data-mantine-color-scheme="light"] .relay-json-highlight .hljs-literal {
+  color: var(--mantine-color-orange-8);
+}
+
+[data-mantine-color-scheme="light"] .relay-json-highlight .hljs-punctuation {
+  color: var(--mantine-color-gray-6);
+}
+
+.relay-option {
+  border-left: 0;
+}
+
+.relay-option + .relay-option {
+  margin-top: 1px;
+}
+
+.relay-option-service {
+  background: var(--mantine-primary-color-light);
+}
+
+.relay-option-previous {
+  background: var(--mantine-color-default-hover);
+}
+
+.relay-option:hover,
+.relay-option[data-combobox-selected] {
+  background: var(--mantine-primary-color-light-hover);
+}
+
+.relay-option[data-combobox-selected] {
+  outline: 1px solid var(--mantine-primary-color-filled);
+  outline-offset: -1px;
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { RubixLoader, RubixLoaderColor } from '@samthomson/rubix-loader';
 import { trpc } from '../trpc';
@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDokploy } from '../contexts/DokployContext';
 import { useRefreshServices } from '../contexts/RefreshServicesContext';
 import { SERVICE_TYPE, isNpanelType, isRelayType } from '../../../shared/serviceType';
+import { EmbeddedAppModal } from '../embedded/EmbeddedAppModal';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from '../components/NsiteDeployFields';
 import { ServiceDetailsContent, ServiceDetailsModalContext } from '../components/ServiceDetailsContent';
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from '../components/InlineTextEditRow';
@@ -430,23 +431,6 @@ const AddServiceButton = ({
   );
 };
 
-const RelayExplorerModal = ({ relayUrl, onClose }: { relayUrl: string; onClose: () => void }) => {
-  const explorerUrl = `https://relay-explorer.shakespeare.wtf/?relay=${encodeURIComponent(relayUrl)}`;
-  return (
-    <Modal opened onClose={onClose} title="Relay Explorer" size="90vw" centered styles={{ body: { height: '80vh', padding: 0 }, content: { height: '85vh' } }}>
-      <iframe src={explorerUrl} style={{ flex: 1, width: '100%', border: 'none', height: '100%' }} title="Relay Explorer" />
-    </Modal>
-  );
-};
-
-const BlossomExplorerModal = ({ serverUrl, onClose }: { serverUrl: string; onClose: () => void }) => {
-  const explorerUrl = `https://blossom-explorer.shakespeare.wtf/?server=${encodeURIComponent(serverUrl)}`;
-  return (
-    <Modal opened onClose={onClose} title="Blossom Explorer" size="90vw" centered styles={{ body: { height: '80vh', padding: 0 }, content: { height: '85vh' } }}>
-      <iframe src={explorerUrl} style={{ flex: 1, width: '100%', border: 'none', height: '100%' }} title="Blossom Explorer" />
-    </Modal>
-  );
-};
 
 const ServiceCard = ({
   service,
@@ -464,6 +448,7 @@ const ServiceCard = ({
   onEditConfig,
   onMove,
   allEnvironments,
+  availableRelays,
   showDetails,
   summary,
 }: {
@@ -482,6 +467,7 @@ const ServiceCard = ({
   onEditConfig: (service: any) => void;
   onMove: (composeId: string, targetEnvironmentId: string) => void;
   allEnvironments: { environmentId: string; label: string }[];
+  availableRelays: string[];
   showDetails: boolean;
   summary?: {
     cpuPct: number | null;
@@ -500,6 +486,7 @@ const ServiceCard = ({
   const serviceCardBg = colorScheme === 'dark' ? theme.colors.dark[5] : theme.white;
   const [showExplorer, setShowExplorer] = useState(false);
   const [showBlossomExplorer, setShowBlossomExplorer] = useState(false);
+  const [showNsiteExplorer, setShowNsiteExplorer] = useState(false);
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const domain = service.domains?.[0];
@@ -590,15 +577,37 @@ const ServiceCard = ({
     onCopy,
     onOpenRelayExplorer: () => setShowExplorer(true),
     onOpenBlossomExplorer: () => setShowBlossomExplorer(true),
+    onOpenNsiteExplorer: () => setShowNsiteExplorer(true),
   };
 
   return (
     <>
       {showExplorer && domain && (
-        <RelayExplorerModal relayUrl={domain.host} onClose={() => setShowExplorer(false)} />
+        <EmbeddedAppModal
+          appId="relay-explorer"
+          context={{ relay: wssUrl, relays: availableRelays.join(',') }}
+          serviceType={service.type}
+          presetId={service.presetId}
+          onClose={() => setShowExplorer(false)}
+        />
       )}
       {showBlossomExplorer && domain && (
-        <BlossomExplorerModal serverUrl={httpsUrl} onClose={() => setShowBlossomExplorer(false)} />
+        <EmbeddedAppModal
+          appId="blossom-explorer"
+          context={{ server: httpsUrl }}
+          serviceType={service.type}
+          presetId={service.presetId}
+          onClose={() => setShowBlossomExplorer(false)}
+        />
+      )}
+      {showNsiteExplorer && domain && (
+        <EmbeddedAppModal
+          appId="nsite-explorer"
+          context={{ gateway: httpsUrl }}
+          serviceType={service.type}
+          presetId={service.presetId}
+          onClose={() => setShowNsiteExplorer(false)}
+        />
       )}
       {showMoveModal && (
         <MoveServiceModal
@@ -804,6 +813,17 @@ const ServiceCard = ({
                             explorer
                           </Button>
                         )}
+                        {domain && isNpanelType(service.type) && (
+                          <Button
+                            size="xs"
+                            variant="light"
+                            color="relaykit"
+                            onClick={() => setShowNsiteExplorer(true)}
+                            rightSection={<IconExternalLink size={12} />}
+                          >
+                            explorer
+                          </Button>
+                        )}
                         <Button
                           size="xs"
                           variant="light"
@@ -873,10 +893,9 @@ export const ServiceList = () => {
   const projectBg = colorScheme === 'dark' ? theme.colors.dark[8] : theme.colors.gray[0];
   const envBorderColor = colorScheme === 'dark' ? theme.colors.dark[3] : theme.colors.gray[4];
   const envBg = colorScheme === 'dark' ? theme.colors.dark[7] : theme.colors.gray[1];
-  const { refreshTrigger, triggerRefresh } = useRefreshServices();
+  const { refreshTrigger, triggerRefresh, services, servicesLoading, servicesError } = useRefreshServices();
   const { setDokployConnectionError, setDokployReady } = useDokploy();
   const { logout } = useAuth();
-  const [services, setServices] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [serverIp, setServerIp] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -917,15 +936,25 @@ export const ServiceList = () => {
     p.environments.map((e: any) => ({ environmentId: e.environmentId, label: `${p.name} → ${e.name}` }))
   );
 
+  const availableRelays = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          services
+            .filter((service: any) => isRelayType(service.type) && service.domains?.[0]?.host)
+            .map((service: any) => `wss://${service.domains[0].host}`),
+        ),
+      ),
+    [services],
+  );
+
   const loadData = async () => {
     setDokployConnectionError(null);
     try {
-      const [svcResult, projResult, ipResult] = await Promise.all([
-        trpc.listServices.query(),
+      const [projResult, ipResult] = await Promise.all([
         trpc.listProjects.query(),
         trpc.getServerIp.query().catch(() => null),
       ]);
-      setServices(svcResult);
       setProjects(projResult);
       setServerIp(ipResult?.ip ?? null);
       setDokployReady(true);
@@ -937,7 +966,6 @@ export const ServiceList = () => {
         return;
       }
       setDokployConnectionError(msg || 'Could not load services. Run the setup script (see README).');
-      setServices([]);
       setProjects([]);
     } finally {
       setListLoaded(true);
@@ -947,6 +975,15 @@ export const ServiceList = () => {
   useEffect(() => {
     loadData();
   }, [refreshTrigger]);
+
+  useEffect(() => {
+    if (servicesLoading) return;
+    if (servicesError) {
+      setDokployConnectionError(servicesError);
+      return;
+    }
+    setDokployConnectionError(null);
+  }, [servicesLoading, servicesError, setDokployConnectionError]);
 
   useEffect(() => {
     if (showDetails) return;
@@ -1228,7 +1265,7 @@ export const ServiceList = () => {
     name === 'relaykit.ungrouped' ? '' : name;
   const viewToggleBg = colorScheme === 'dark' ? '#111315' : theme.colors.gray[1];
 
-  if (!listLoaded) {
+  if (!listLoaded || servicesLoading) {
     return (
       <Stack align="center" justify="center" gap="sm" style={{ minHeight: rem(480) }}>
         <RubixLoader size={144} colors={[RubixLoaderColor.RelayKit]} speed={1.35} />
@@ -1411,6 +1448,7 @@ export const ServiceList = () => {
                                   onEditConfig={handleEditConfig}
                                   onMove={handleMoveService}
                                   allEnvironments={allEnvironments}
+                                  availableRelays={availableRelays}
                                   showDetails={showDetails}
                                   summary={serviceOverviewSummaries[service.composeId] ?? null}
                                 />
@@ -1491,6 +1529,7 @@ export const ServiceList = () => {
                                       onEditConfig={handleEditConfig}
                                       onMove={handleMoveService}
                                       allEnvironments={allEnvironments}
+                                      availableRelays={availableRelays}
                                       showDetails={showDetails}
                                       summary={serviceOverviewSummaries[service.composeId] ?? null}
                                     />

@@ -32,9 +32,10 @@ app.use(
 if (process.env.NODE_ENV === 'production') {
   const frontendDistPath = path.join(__dirname, '../../frontend/dist');
   app.use(express.static(frontendDistPath));
-  
-  // Handle client-side routing - serve index.html for all non-API routes
-  app.get('*', (req, res) => {
+
+  // Handle client-side routing - serve index.html for all non-API routes,
+  // skipping /apps/ so embedded SPAs keep their own routing.
+  app.get(/^(?!\/apps\/).*/, (req, res) => {
     res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
 } else {

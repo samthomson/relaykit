@@ -95,9 +95,8 @@ Run these commands from the project directory (the folder containing `docker-com
 
 3. **Start the stack**  
    In the same project directory:
-   ```bash
-   docker compose --profile dev up -d
-   ```
+   `docker compose --profile dev up`
+   
    Wait until the containers are up (Dokploy at http://localhost:3020, RelayKit at http://localhost:5173).
 
 4. **Run the setup script**  

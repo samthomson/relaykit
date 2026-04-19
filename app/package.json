@@ -2,9 +2,17 @@
   "name": "relaykit",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared",
+    "shared/ui",
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "concurrently \"cd backend && yarn dev\" \"cd frontend && yarn dev --host\"",
-    "start": "cd backend && yarn start"
+    "dev": "concurrently \"cd backend && yarn dev\" \"cd frontend && yarn dev --host\" \"cd apps/relay-explorer && yarn dev --host --port 5174\" \"cd apps/blossom-explorer && yarn dev --host --port 5175\" \"cd apps/nsite-explorer && yarn dev --host --port 5176\"",
+    "start": "cd backend && yarn start",
+    "build:apps": "yarn workspace app-relay-explorer build && yarn workspace app-blossom-explorer build && yarn workspace app-nsite-explorer build"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

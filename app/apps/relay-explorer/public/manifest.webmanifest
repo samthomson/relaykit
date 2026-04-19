@@ -1,0 +1,8 @@
+{
+  "name": "relay-explorer",
+  "short_name": "relay-explorer",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff"
+}
