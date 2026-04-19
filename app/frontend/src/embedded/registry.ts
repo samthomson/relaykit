@@ -3,8 +3,10 @@ export type EmbeddableAppId = 'relay-explorer' | 'blossom-explorer' | 'nsite-exp
 export type EmbeddableApp = {
   id: EmbeddableAppId
   label: string
-  devUrl: string
-  prodPath: string
+  description: string
+  /** Each embed runs its own Vite dev server; prod serves the same path on this origin. */
+  devPort: number
+  basePath: string
   buildContext: (ctx: Record<string, string | undefined>) => string
 }
 
@@ -14,26 +16,31 @@ const qs = (params: Record<string, string | undefined>): string => {
   return pairs.length ? `?${pairs.join('&')}` : ''
 }
 
+export const EMBEDDABLE_APP_IDS: EmbeddableAppId[] = ['relay-explorer', 'blossom-explorer', 'nsite-explorer']
+
 export const EMBEDDABLE_APPS: Record<EmbeddableAppId, EmbeddableApp> = {
   'relay-explorer': {
     id: 'relay-explorer',
     label: 'relay explorer',
-    devUrl: 'http://localhost:5174/apps/relay-explorer/',
-    prodPath: '/apps/relay-explorer/',
+    description: 'inspect live nostr relay events',
+    devPort: 5174,
+    basePath: '/apps/relay-explorer/',
     buildContext: (ctx) => qs({ embedded: '1', relay: ctx.relay, relays: ctx.relays, standalone: ctx.standalone, session: ctx.session }),
   },
   'blossom-explorer': {
     id: 'blossom-explorer',
     label: 'blossom explorer',
-    devUrl: 'http://localhost:5175/apps/blossom-explorer/',
-    prodPath: '/apps/blossom-explorer/',
+    description: 'browse and verify blossom blobs',
+    devPort: 5175,
+    basePath: '/apps/blossom-explorer/',
     buildContext: (ctx) => qs({ embedded: '1', server: ctx.server, standalone: ctx.standalone, session: ctx.session }),
   },
   'nsite-explorer': {
     id: 'nsite-explorer',
-    label: 'nsite explorer',
-    devUrl: 'http://localhost:5176/apps/nsite-explorer/',
-    prodPath: '/apps/nsite-explorer/',
+    label: 'nPanel',
+    description: 'inspect and debug nsite data',
+    devPort: 5176,
+    basePath: '/apps/nsite-explorer/',
     buildContext: (ctx) => qs({ embedded: '1', gateway: ctx.gateway, pubkey: ctx.pubkey, standalone: ctx.standalone, session: ctx.session }),
   },
 }
@@ -42,6 +49,6 @@ const isDev = ((import.meta as unknown) as { env?: { DEV?: boolean } }).env?.DEV
 
 export const buildEmbeddedAppSrc = (appId: EmbeddableAppId, ctx: Record<string, string | undefined>): string => {
   const app = EMBEDDABLE_APPS[appId]
-  const base = isDev ? app.devUrl : app.prodPath
+  const base = isDev ? `http://localhost:${app.devPort}${app.basePath}` : app.basePath
   return `${base}${app.buildContext(ctx)}`
 }

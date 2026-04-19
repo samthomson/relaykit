@@ -1,16 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Button, Card, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { EmbeddedAppModal } from '../embedded/EmbeddedAppModal';
-import { EMBEDDABLE_APPS, type EmbeddableAppId } from '../embedded/registry';
+import { EMBEDDABLE_APPS, EMBEDDABLE_APP_IDS, type EmbeddableAppId } from '../embedded/registry';
 import { useRefreshServices } from '../contexts/RefreshServicesContext';
 import { isRelayType } from '../../../shared/serviceType';
-
-const APP_IDS: EmbeddableAppId[] = ['relay-explorer', 'blossom-explorer', 'nsite-explorer'];
-const APP_SUMMARIES: Record<EmbeddableAppId, string> = {
-  'relay-explorer': 'inspect live nostr relay events',
-  'blossom-explorer': 'browse and verify blossom blobs',
-  'nsite-explorer': 'inspect and debug nsite data',
-};
 
 export const AppsPage = () => {
   const [activeLaunch, setActiveLaunch] = useState<{ appId: EmbeddableAppId; session: string } | null>(null);
@@ -45,14 +38,14 @@ export const AppsPage = () => {
       )}
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md" verticalSpacing="md">
-        {APP_IDS.map((appId) => {
+        {EMBEDDABLE_APP_IDS.map((appId) => {
           const app = EMBEDDABLE_APPS[appId];
           return (
             <Card key={app.id} withBorder p="md">
               <Stack gap="md">
                 <Stack gap={2}>
                   <Text fw={600}>{app.label}</Text>
-                  <Text size="sm" c="dimmed">{APP_SUMMARIES[app.id]}</Text>
+                  <Text size="sm" c="dimmed">{app.description}</Text>
                 </Stack>
 
                 <Group justify="flex-start">
