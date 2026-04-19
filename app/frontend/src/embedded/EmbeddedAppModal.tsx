@@ -43,11 +43,11 @@ export const EmbeddedAppModal = ({ appId, context, serviceType, presetId, onClos
       <Box px="md" py="xs" style={{ flexShrink: 0 }}>
         <Group justify="space-between" wrap="nowrap" gap="sm">
           <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
-            <Box style={{ width: 18, height: 18, flexShrink: 0, lineHeight: 0 }}>
-              <RubixLoader size={18} colors={[RubixLoaderColor.RelayKit]} />
+            <Box style={{ width: 32, height: 32, flexShrink: 0, lineHeight: 0 }}>
+              <RubixLoader size={32} colors={[RubixLoaderColor.RelayKit]} />
             </Box>
             <Text
-              size="sm"
+              size="xl"
               className="brand-title"
               c="relaykit"
               style={{ lineHeight: 1, transform: 'translateY(1px)' }}
