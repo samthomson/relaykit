@@ -886,7 +886,8 @@ const Index = () => {
         maw={1200}
         mx="auto"
         px="md"
-        py={iframeMode ? 'xs' : 'md'}
+        pt="md"
+        pb="md"
         style={iframeMode ? { height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 } : undefined}
       >
         {!iframeMode && (
@@ -938,7 +939,7 @@ const Index = () => {
         )}
 
         {iframeMode && (
-          <Box mb="xs">
+          <Paper withBorder p="sm" mb="md" radius={0}>
             <Stack gap="xs">
               <Group justify="space-between" align="center" wrap="wrap" gap="sm">
                 <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
@@ -970,7 +971,7 @@ const Index = () => {
                 </Box>
               )}
             </Stack>
-          </Box>
+          </Paper>
         )}
 
         {hasActiveConnection && (
