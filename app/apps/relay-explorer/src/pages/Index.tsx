@@ -65,7 +65,6 @@ const isStandaloneEmbeddedMode = (): boolean => {
   const params = new URLSearchParams(window.location.search);
   return params.get('standalone') === '1';
 };
-const INSPECTOR_HEADER_HEIGHT = rem(38);
 
 const Index = () => {
   useSeoMeta({
@@ -114,6 +113,7 @@ const Index = () => {
   const isValidUrl = relayUrl.length > 0;
   const isConnected = connectionState === 'connected';
   const isConnecting = connectionState === 'connecting';
+  const hasActiveConnection = isConnected || isConnecting;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -775,9 +775,11 @@ const Index = () => {
               </Paper>
             )}
 
-            <Box pt="sm">
-              {renderFiltersGrid({ event: 'event-id', author: 'author-npub' })}
-            </Box>
+            {hasActiveConnection && (
+              <Box pt="sm">
+                {renderFiltersGrid({ event: 'event-id', author: 'author-npub' })}
+              </Box>
+            )}
           </Paper>
         )}
 
@@ -806,13 +808,15 @@ const Index = () => {
               </Group>
             </Group>
 
-            <Box pt="sm" mt="sm">
-              {renderFiltersGrid({ event: 'event-id-iframe', author: 'author-npub-iframe' })}
-            </Box>
+            {hasActiveConnection && (
+              <Box pt="sm" mt="sm">
+                {renderFiltersGrid({ event: 'event-id-iframe', author: 'author-npub-iframe' })}
+              </Box>
+            )}
           </Box>
         )}
 
-        {(isConnected || isConnecting || iframeMode) && (
+        {hasActiveConnection && (
           <Flex
             gap="md"
             align="stretch"
@@ -830,12 +834,11 @@ const Index = () => {
                 <Stack gap={0} h="100%">
                   <Box
                     px="md"
-                    h={INSPECTOR_HEADER_HEIGHT}
+                    py="xs"
+                    pos="relative"
                     style={{
                       borderBottom: '1px solid var(--mantine-color-default-border)',
                       background: 'var(--mantine-color-default-hover)',
-                      display: 'flex',
-                      alignItems: 'center',
                     }}
                   >
                     <Group justify="space-between" align="center" w="100%">
@@ -964,49 +967,53 @@ const Index = () => {
                 radius={0}
                 h={listHeight}
                 style={iframeMode ? { overflow: 'hidden', flex: 1, minHeight: 0 } : { overflow: 'hidden' }}
-                bg="var(--mantine-color-body)"
+                bg="var(--mantine-color-default)"
               >
                 <Stack gap={0} h="100%">
                   <Box
                     px="md"
-                    h={INSPECTOR_HEADER_HEIGHT}
+                    py="xs"
+                    pos="relative"
                     style={{
                       borderBottom: '1px solid var(--mantine-color-default-border)',
                       background: 'var(--mantine-color-default-hover)',
-                      display: 'flex',
-                      alignItems: 'center',
                     }}
                   >
-                    <Group justify="space-between" align="center" wrap="nowrap" w="100%">
-                      <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
-                        inspect
-                      </Text>
-                      <Group gap="xs" wrap="nowrap">
-                        <Button
-                          size="compact-xs"
-                          radius={0}
-                          variant={showInspectorTable ? 'light' : 'subtle'}
-                          color={showInspectorTable ? 'relaykit' : 'gray'}
-                          leftSection={<IconTable size={12} />}
-                          onClick={() => setShowInspectorTable((prev) => !prev)}
-                          disabled={!isConnected}
-                          ff="monospace"
-                        >
-                          table
-                        </Button>
-                        <Button
-                          size="compact-xs"
-                          radius={0}
-                          variant={showInspectorJson ? 'light' : 'subtle'}
-                          color={showInspectorJson ? 'relaykit' : 'gray'}
-                          leftSection={<IconBraces size={12} />}
-                          onClick={() => setShowInspectorJson((prev) => !prev)}
-                          disabled={!isConnected}
-                          ff="monospace"
-                        >
-                          json
-                        </Button>
-                      </Group>
+                    <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
+                      inspect
+                    </Text>
+                    <Group
+                      gap="xs"
+                      wrap="nowrap"
+                      pos="absolute"
+                      right={8}
+                      top="50%"
+                      style={{ transform: 'translateY(-50%)' }}
+                    >
+                      <Button
+                        size="compact-xs"
+                        radius={0}
+                        variant={showInspectorTable ? 'light' : 'subtle'}
+                        color={showInspectorTable ? 'relaykit' : 'gray'}
+                        leftSection={<IconTable size={12} />}
+                        onClick={() => setShowInspectorTable((prev) => !prev)}
+                        disabled={!isConnected}
+                        ff="monospace"
+                      >
+                        table
+                      </Button>
+                      <Button
+                        size="compact-xs"
+                        radius={0}
+                        variant={showInspectorJson ? 'light' : 'subtle'}
+                        color={showInspectorJson ? 'relaykit' : 'gray'}
+                        leftSection={<IconBraces size={12} />}
+                        onClick={() => setShowInspectorJson((prev) => !prev)}
+                        disabled={!isConnected}
+                        ff="monospace"
+                      >
+                        json
+                      </Button>
                     </Group>
                   </Box>
                   <ScrollArea flex={1} p="md" type="auto">
