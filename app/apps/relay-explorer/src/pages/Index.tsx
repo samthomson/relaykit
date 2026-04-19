@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import {
   ActionIcon,
   Anchor,
+  Badge,
   Box,
   Button,
   CopyButton,
@@ -478,6 +479,23 @@ const Index = () => {
 
   const pillInputStyles = { input: { minHeight: rem(44), fontSize: rem(14), alignItems: 'center' } };
 
+  const renderCopyAction = (value: string, label: string) => (
+    <CopyButton value={value} timeout={1200}>
+      {({ copied, copy }) => (
+        <ActionIcon
+          variant="subtle"
+          color={copied ? 'green' : 'gray'}
+          size="sm"
+          radius={0}
+          onClick={copy}
+          aria-label={label}
+        >
+          {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+        </ActionIcon>
+      )}
+    </CopyButton>
+  );
+
   const renderRelayPillInput = (id: string) => (
     <PillsInput
       style={{ flex: 1 }}
@@ -493,15 +511,12 @@ const Index = () => {
       <Pill.Group>
         {relayUrl && (
           <Pill
+            color="relaykit"
+            variant="light"
             withRemoveButton
             onRemove={clearRelayValue}
             title={relayUrl}
-            style={{
-              flexShrink: 0,
-              background: 'var(--mantine-color-default-hover)',
-              border: '1px solid var(--mantine-color-default-border)',
-              color: 'var(--mantine-color-relaykit-3)',
-            }}
+            style={{ flexShrink: 0 }}
           >
             {protocolPrefix}
             {formatPillValue(relayUrl.replace(/^wss?:\/\//, ''), 38)}
@@ -535,10 +550,6 @@ const Index = () => {
             paddingTop: 0,
             paddingBottom: 0,
             alignSelf: 'center',
-            fontFamily:
-              '"SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-            fontSize: rem(14),
-            color: 'var(--mantine-color-text)',
             opacity: relayUrl ? 0.9 : 1,
           }}
         />
@@ -568,10 +579,6 @@ const Index = () => {
                   paddingTop: 0,
                   paddingBottom: 0,
                   alignSelf: 'center',
-                  fontFamily:
-                    '"SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                  fontSize: rem(14),
-                  color: 'var(--mantine-color-text)',
                 }}
               />
             </Pill.Group>
@@ -609,10 +616,6 @@ const Index = () => {
                   paddingTop: 0,
                   paddingBottom: 0,
                   alignSelf: 'center',
-                  fontFamily:
-                    '"SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                  fontSize: rem(14),
-                  color: 'var(--mantine-color-text)',
                 }}
               />
             </Pill.Group>
@@ -662,10 +665,6 @@ const Index = () => {
                     paddingTop: 0,
                     paddingBottom: 0,
                     alignSelf: 'center',
-                    fontFamily:
-                      '"SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                    fontSize: rem(14),
-                    color: 'var(--mantine-color-text)',
                   }}
                 />
               </Pill.Group>
@@ -1005,7 +1004,6 @@ const Index = () => {
                           onClick={() => setShowInspectorTable((prev) => !prev)}
                           disabled={!isConnected}
                           ff="monospace"
-                          styles={{ root: { textTransform: 'lowercase' } }}
                         >
                           table
                         </Button>
@@ -1018,7 +1016,6 @@ const Index = () => {
                           onClick={() => setShowInspectorJson((prev) => !prev)}
                           disabled={!isConnected}
                           ff="monospace"
-                          styles={{ root: { textTransform: 'lowercase' } }}
                         >
                           json
                         </Button>
@@ -1029,12 +1026,7 @@ const Index = () => {
                     {selectedEvent ? (
                       <Stack gap="sm">
                         {showInspectorTable && (
-                          <Box
-                            style={{
-                              border: '1px solid var(--mantine-color-default-border)',
-                              background: 'var(--mantine-color-default)',
-                            }}
-                          >
+                          <Paper withBorder radius={0}>
                             <Table withTableBorder={false} highlightOnHover stickyHeader stickyHeaderOffset={0}>
                               <Table.Thead>
                                 <Table.Tr>
@@ -1075,20 +1067,7 @@ const Index = () => {
                                       </Text>
                                     </Table.Td>
                                     <Table.Td>
-                                      <CopyButton value={field.value} timeout={1200}>
-                                        {({ copied, copy }) => (
-                                          <ActionIcon
-                                            variant="subtle"
-                                            color={copied ? 'green' : 'gray'}
-                                            size="sm"
-                                            radius={0}
-                                            onClick={copy}
-                                            aria-label={`copy ${field.label}`}
-                                          >
-                                            {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
-                                          </ActionIcon>
-                                        )}
-                                      </CopyButton>
+                                      {renderCopyAction(field.value, `copy ${field.label}`)}
                                     </Table.Td>
                                   </Table.Tr>
                                 ))}
@@ -1127,64 +1106,44 @@ const Index = () => {
                                           </Text>
                                         </Table.Td>
                                         <Table.Td>
-                                          <Box
-                                            style={{
-                                              display: 'grid',
-                                              gridTemplateColumns: `${rem(56)} minmax(0, 1fr)`,
-                                              columnGap: rem(10),
-                                              rowGap: rem(6),
-                                              alignItems: 'start',
-                                            }}
-                                          >
-                                            <Text size="xs" ff="monospace" c="dimmed">
-                                              key
-                                            </Text>
-                                            <Text size="xs" ff="monospace" fw={700} c="teal.5">
-                                              {tagName}
-                                            </Text>
-
-                                            <Text size="xs" ff="monospace" c="dimmed">
-                                              values
-                                            </Text>
-                                            <Group gap={6} wrap="wrap" style={{ minWidth: 0 }}>
-                                              {tagValues.length > 0 ? (
-                                                tagValues.map((value, valueIndex) => (
-                                                  <Text
-                                                    key={`${tagName}-${index}-${valueIndex}`}
-                                                    size="xs"
-                                                    ff="monospace"
-                                                    style={{
-                                                      padding: '2px 6px',
-                                                      border: '1px solid var(--mantine-color-default-border)',
-                                                      background: 'var(--mantine-color-default-hover)',
-                                                    }}
-                                                  >
-                                                    {value}
-                                                  </Text>
-                                                ))
-                                              ) : (
-                                                <Text size="xs" ff="monospace" c="dimmed" fs="italic">
-                                                  (empty)
-                                                </Text>
-                                              )}
+                                          <Stack gap={6}>
+                                            <Group gap={8} wrap="nowrap" align="flex-start">
+                                              <Text size="xs" ff="monospace" c="dimmed" w={rem(56)}>
+                                                key
+                                              </Text>
+                                              <Text size="xs" ff="monospace" fw={700} c="teal.5">
+                                                {tagName}
+                                              </Text>
                                             </Group>
-                                          </Box>
+                                            <Group gap={8} wrap="nowrap" align="flex-start">
+                                              <Text size="xs" ff="monospace" c="dimmed" w={rem(56)}>
+                                                values
+                                              </Text>
+                                              <Group gap={6} wrap="wrap" style={{ minWidth: 0 }}>
+                                                {tagValues.length > 0 ? (
+                                                  tagValues.map((value, valueIndex) => (
+                                                    <Badge
+                                                      key={`${tagName}-${index}-${valueIndex}`}
+                                                      size="sm"
+                                                      radius={0}
+                                                      variant="light"
+                                                      color="gray"
+                                                      tt="none"
+                                                    >
+                                                      {value}
+                                                    </Badge>
+                                                  ))
+                                                ) : (
+                                                  <Text size="xs" ff="monospace" c="dimmed" fs="italic">
+                                                    (empty)
+                                                  </Text>
+                                                )}
+                                              </Group>
+                                            </Group>
+                                          </Stack>
                                         </Table.Td>
                                         <Table.Td style={{ verticalAlign: 'top' }}>
-                                          <CopyButton value={tagCopyValue} timeout={1200}>
-                                            {({ copied, copy }) => (
-                                              <ActionIcon
-                                                variant="subtle"
-                                                color={copied ? 'green' : 'gray'}
-                                                size="sm"
-                                                radius={0}
-                                                onClick={copy}
-                                                aria-label={`copy tag ${index + 1}`}
-                                              >
-                                                {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
-                                              </ActionIcon>
-                                            )}
-                                          </CopyButton>
+                                          {renderCopyAction(tagCopyValue, `copy tag ${index + 1}`)}
                                         </Table.Td>
                                       </Table.Tr>
                                     );
@@ -1192,20 +1151,14 @@ const Index = () => {
                                 )}
                               </Table.Tbody>
                             </Table>
-                          </Box>
+                          </Paper>
                         )}
                         {showInspectorJson && (
                           <Stack gap={6}>
                             <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
                               raw event
                             </Text>
-                            <Box
-                              p="md"
-                              style={{
-                                border: '1px solid var(--mantine-color-default-border)',
-                                background: 'var(--mantine-color-default)',
-                              }}
-                            >
+                            <Paper withBorder radius={0} p="md">
                               <CodeHighlight
                                 code={JSON.stringify(selectedEvent, null, 2)}
                                 language="json"
@@ -1223,7 +1176,7 @@ const Index = () => {
                                   },
                                 }}
                               />
-                            </Box>
+                            </Paper>
                           </Stack>
                         )}
                         {!showInspectorTable && !showInspectorJson && (
