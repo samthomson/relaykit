@@ -57,7 +57,8 @@ export const AppsPage = () => {
 
                 <Group justify="flex-start">
                   <Button
-                    variant="default"
+                    variant="light"
+                    color="relaykit"
                     onClick={() => setActiveLaunch({ appId: app.id, session: String(Date.now()) })}
                   >
                     open
