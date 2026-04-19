@@ -560,7 +560,7 @@ const Index = () => {
           second: '2-digit',
         }),
         ageLabel: formatDistanceToNow(new Date(event.created_at * 1000), { addSuffix: true }),
-        idPreview: `${event.id.substring(0, 32)}...`,
+        idPreview: event.id,
         contentPreview: event.content ? `${event.content.substring(0, 60)}${event.content.length > 60 ? '...' : ''}` : '',
       })),
     [events],
@@ -843,7 +843,6 @@ const Index = () => {
                       <Badge
                         size="xs"
                         variant="filled"
-                        radius="sm"
                         tt="unset"
                         ff="monospace"
                         styles={{
@@ -1007,7 +1006,13 @@ const Index = () => {
             direction={{ base: 'column', md: 'row' }}
             style={iframeMode ? { flex: 1, minHeight: 0 } : undefined}
           >
-            <Box style={iframeMode ? { flex: '5 1 0%', minWidth: 0, display: 'flex', minHeight: 0 } : { flex: '5 1 0%', minWidth: 0 }}>
+            <Box
+              style={
+                iframeMode
+                  ? { flex: '0 1 280px', maxWidth: rem(320), minWidth: 0, display: 'flex', minHeight: 0 }
+                  : { flex: '0 1 280px', maxWidth: rem(320), minWidth: 0 }
+              }
+            >
               <Paper
                 withBorder
                 radius={0}
@@ -1017,8 +1022,8 @@ const Index = () => {
               >
                 <Stack gap={0} h="100%">
                   <Box
-                    px="md"
-                    py="xs"
+                    px="sm"
+                    py={6}
                     pos="relative"
                     style={{
                       borderBottom: '1px solid var(--mantine-color-default-border)',
@@ -1060,9 +1065,11 @@ const Index = () => {
                             <UnstyledButton
                               onClick={() => setSelectedEvent(row.event)}
                               w="100%"
-                              p="md"
+                              px="sm"
+                              py="xs"
                               styles={{
                                 root: {
+                                  minWidth: 0,
                                   textAlign: 'left',
                                   background:
                                     selectedEvent?.id === row.event.id
@@ -1082,11 +1089,10 @@ const Index = () => {
                                 },
                               }}
                             >
-                              <Group justify="space-between" align="flex-start" wrap="nowrap" mb={8}>
+                              <Group justify="space-between" align="flex-start" wrap="nowrap" gap="xs" mb={4}>
                                 <Badge
                                   size="xs"
                                   variant="filled"
-                                  radius="sm"
                                   tt="unset"
                                   ff="monospace"
                                   aria-label={`kind ${row.event.kind}`}
@@ -1100,20 +1106,20 @@ const Index = () => {
                                 >
                                   {row.event.kind}
                                 </Badge>
-                                <Box ta="right">
-                                  <Text size="xs" ff="monospace" c="dimmed">
+                                <Box ta="right" style={{ flexShrink: 0 }}>
+                                  <Text size="xs" ff="monospace" c="dimmed" lh={1.2}>
                                     {row.timeLabel}
                                   </Text>
-                                  <Text fz={10} ff="monospace" c="dimmed">
+                                  <Text fz={10} ff="monospace" c="dimmed" lh={1.2}>
                                     ({row.ageLabel})
                                   </Text>
                                 </Box>
                               </Group>
-                              <Text size="xs" ff="monospace" c="dimmed" truncate mb={4}>
+                              <Text size="xs" ff="monospace" c="dimmed" truncate mb={2} style={{ minWidth: 0 }}>
                                 {row.idPreview}
                               </Text>
                               {row.event.content && (
-                                <Text size="xs" truncate pr={32}>
+                                <Text size="xs" truncate pr={28} style={{ minWidth: 0 }}>
                                   {row.contentPreview}
                                 </Text>
                               )}
@@ -1148,7 +1154,13 @@ const Index = () => {
               </Paper>
             </Box>
 
-            <Box style={iframeMode ? { flex: '8 1 0%', minWidth: 0, display: 'flex', minHeight: 0 } : { flex: '8 1 0%', minWidth: 0 }}>
+            <Box
+              style={
+                iframeMode
+                  ? { flex: '1 1 0%', minWidth: 0, display: 'flex', minHeight: 0 }
+                  : { flex: '1 1 0%', minWidth: 0 }
+              }
+            >
               <Paper
                 withBorder
                 radius={0}
@@ -1306,7 +1318,6 @@ const Index = () => {
                                                     <Badge
                                                       key={`${tagName}-${index}-${valueIndex}`}
                                                       size="sm"
-                                                      radius={0}
                                                       variant="light"
                                                       color="gray"
                                                       tt="none"
