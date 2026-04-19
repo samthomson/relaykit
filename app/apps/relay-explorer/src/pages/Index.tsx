@@ -30,6 +30,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { CopyControl } from '@/components/CopyControl';
+import { getKindPillColors } from '@/lib/utils';
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected';
 
@@ -771,7 +772,19 @@ const Index = () => {
                   .slice()
                   .sort((a, b) => a - b)
                   .map((kind) => (
-                    <Pill key={kind} withRemoveButton onRemove={() => handleRemoveKind(kind)}>
+                    <Pill
+                      key={kind}
+                      size="xs"
+                      withRemoveButton
+                      onRemove={() => handleRemoveKind(kind)}
+                      style={{ flexShrink: 0 }}
+                      styles={{
+                        root: {
+                          ...getKindPillColors(kind),
+                          border: 'none',
+                        },
+                      }}
+                    >
                       {kind}
                     </Pill>
                   ))}
@@ -827,9 +840,22 @@ const Index = () => {
                       <Text size="xs" ff="monospace">
                         {kind.label}
                       </Text>
-                      <Text size="xs" ff="monospace" c="dimmed">
+                      <Badge
+                        size="xs"
+                        variant="filled"
+                        radius="sm"
+                        tt="unset"
+                        ff="monospace"
+                        styles={{
+                          root: {
+                            ...getKindPillColors(kind.value),
+                            fontWeight: 600,
+                            border: 'none',
+                          },
+                        }}
+                      >
                         {kind.value}
-                      </Text>
+                      </Badge>
                     </Group>
                   </UnstyledButton>
                 ))}
@@ -1057,14 +1083,23 @@ const Index = () => {
                               }}
                             >
                               <Group justify="space-between" align="flex-start" wrap="nowrap" mb={8}>
-                                <Group gap={6} wrap="nowrap">
-                                  <Text size="xs" ff="monospace" c="dimmed">
-                                    kind
-                                  </Text>
-                                  <Text size="xs" ff="monospace">
-                                    {row.event.kind}
-                                  </Text>
-                                </Group>
+                                <Badge
+                                  size="xs"
+                                  variant="filled"
+                                  radius="sm"
+                                  tt="unset"
+                                  ff="monospace"
+                                  aria-label={`kind ${row.event.kind}`}
+                                  styles={{
+                                    root: {
+                                      ...getKindPillColors(row.event.kind),
+                                      fontWeight: 600,
+                                      border: 'none',
+                                    },
+                                  }}
+                                >
+                                  {row.event.kind}
+                                </Badge>
                                 <Box ta="right">
                                   <Text size="xs" ff="monospace" c="dimmed">
                                     {row.timeLabel}

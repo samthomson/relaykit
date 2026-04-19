@@ -18,8 +18,6 @@ export const EmbeddedAppModal = ({ appId, context, serviceType, presetId, onClos
   const src = buildEmbeddedAppSrc(appId, context)
   const [loaded, setLoaded] = useState(false)
   const color = useMemo(() => serviceTypeToRubixLoaderColor(serviceType, presetId), [serviceType, presetId])
-  const appName = app.id.replace(/-/g, ' ')
-
   useEffect(() => {
     setLoaded(false)
   }, [src])
@@ -65,8 +63,8 @@ export const EmbeddedAppModal = ({ appId, context, serviceType, presetId, onClos
                 minWidth: 0,
               }}
             >
-              <Text size="sm" ff="monospace" fw={700} c="text" truncate style={{ textTransform: 'lowercase' }}>
-                {appName}
+              <Text size="sm" ff="monospace" fw={700} c="text" truncate>
+                {app.label}
               </Text>
             </Box>
           </Group>
