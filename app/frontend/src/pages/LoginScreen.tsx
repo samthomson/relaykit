@@ -30,15 +30,16 @@ export const LoginScreen = () => {
 
   return (
     <Stack align="center" justify="center" h="100vh" bg="dark.8">
-      <Paper withBorder p="xl" maw={400} w="100%" bg="dark.7">
-        <Stack align="center" gap="md" mb="xl">
-          <Box style={{ lineHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Paper withBorder p="xl" pt="md" maw={400} w="100%" bg="dark.7">
+        <Stack align="center" gap={0} mb="xl">
+          <Box style={{ lineHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} mb="md">
             <RubixLoader size={216} colors={[RubixLoaderColor.RelayKit]} />
           </Box>
           <Title
             order={1}
             c="relaykit"
             className="brand-title"
+            mb={4}
             style={{
               fontSize: rem(42),
               lineHeight: 1,
