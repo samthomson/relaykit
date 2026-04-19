@@ -1,12 +1,10 @@
 import { useSeoMeta } from '@unhead/react';
 import { useState, useEffect } from 'react';
 import {
-  ActionIcon,
   Anchor,
   Badge,
   Box,
   Button,
-  CopyButton,
   Flex,
   Group,
   Menu,
@@ -22,13 +20,14 @@ import {
 } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { Trash2 } from 'lucide-react';
-import { IconBraces, IconCheck, IconChevronDown, IconCopy, IconTable } from '@tabler/icons-react';
+import { IconBraces, IconChevronDown, IconTable } from '@tabler/icons-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { formatDistanceToNow } from 'date-fns';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
 import LoginDialog from '@/components/auth/LoginDialog';
+import { CopyControl } from '@/components/CopyControl';
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected';
 
@@ -478,23 +477,6 @@ const Index = () => {
   };
 
   const pillInputStyles = { input: { minHeight: rem(44), fontSize: rem(14), alignItems: 'center' } };
-
-  const renderCopyAction = (value: string, label: string) => (
-    <CopyButton value={value} timeout={1200}>
-      {({ copied, copy }) => (
-        <ActionIcon
-          variant="subtle"
-          color={copied ? 'green' : 'gray'}
-          size="sm"
-          radius={0}
-          onClick={copy}
-          aria-label={label}
-        >
-          {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
-        </ActionIcon>
-      )}
-    </CopyButton>
-  );
 
   const renderRelayPillInput = (id: string) => (
     <PillsInput
@@ -1067,7 +1049,7 @@ const Index = () => {
                                       </Text>
                                     </Table.Td>
                                     <Table.Td>
-                                      {renderCopyAction(field.value, `copy ${field.label}`)}
+                                      <CopyControl value={field.value} label={`copy ${field.label}`} />
                                     </Table.Td>
                                   </Table.Tr>
                                 ))}
@@ -1143,7 +1125,7 @@ const Index = () => {
                                           </Stack>
                                         </Table.Td>
                                         <Table.Td style={{ verticalAlign: 'top' }}>
-                                          {renderCopyAction(tagCopyValue, `copy tag ${index + 1}`)}
+                                          <CopyControl value={tagCopyValue} label={`copy tag ${index + 1}`} />
                                         </Table.Td>
                                       </Table.Tr>
                                     );
