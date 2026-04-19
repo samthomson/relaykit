@@ -593,8 +593,6 @@ const Index = () => {
     return `${value.slice(0, 8)}...${value.slice(-4)}`;
   };
 
-  const pillInputStyles = { input: { minHeight: rem(44), fontSize: rem(14), alignItems: 'center' } };
-
   const renderRelayPillInput = (id: string) => (
     <Combobox
       store={relayCombobox}
@@ -603,9 +601,9 @@ const Index = () => {
     >
       <Combobox.Target>
         <PillsInput
+          size="xs"
           style={{ flex: 1 }}
           radius={0}
-          styles={pillInputStyles}
           onClick={() => {
             relayCombobox.openDropdown();
             relayCombobox.resetSelectedOption();
@@ -620,6 +618,7 @@ const Index = () => {
           <Pill.Group>
             {relayUrl && (
               <Pill
+                size="xs"
                 color="relaykit"
                 variant="light"
                 withRemoveButton
@@ -661,11 +660,6 @@ const Index = () => {
               style={{
                 flex: 1,
                 minWidth: rem(140),
-                height: rem(30),
-                lineHeight: 1.2,
-                paddingTop: 0,
-                paddingBottom: 0,
-                alignSelf: 'center',
                 opacity: relayUrl ? 0.9 : 1,
               }}
             />
@@ -719,7 +713,7 @@ const Index = () => {
           <Text component="label" htmlFor={ids.event} size="xs" ff="monospace" tt="uppercase" c="dimmed">
             Event ID
           </Text>
-          <PillsInput radius={0} styles={pillInputStyles}>
+          <PillsInput size="xs" radius={0}>
             <Pill.Group>
               <PillsInput.Field
                 id={ids.event}
@@ -729,11 +723,6 @@ const Index = () => {
                 onChange={(e) => setEventId(e.target.value)}
                 style={{
                   minWidth: rem(140),
-                  height: rem(30),
-                  lineHeight: 1.2,
-                  paddingTop: 0,
-                  paddingBottom: 0,
-                  alignSelf: 'center',
                 }}
               />
             </Pill.Group>
@@ -743,7 +732,7 @@ const Index = () => {
           <Text component="label" htmlFor={ids.author} size="xs" ff="monospace" tt="uppercase" c="dimmed">
             Authors
           </Text>
-          <PillsInput radius={0} styles={pillInputStyles}>
+          <PillsInput size="xs" radius={0}>
             <Pill.Group>
               {authorNpub && (
                 <Pill withRemoveButton onRemove={clearAuthor} title={authorNpub} style={{ flexShrink: 0 }}>
@@ -766,11 +755,6 @@ const Index = () => {
                 style={{
                   flex: 1,
                   minWidth: rem(120),
-                  height: rem(30),
-                  lineHeight: 1.2,
-                  paddingTop: 0,
-                  paddingBottom: 0,
-                  alignSelf: 'center',
                 }}
               />
             </Pill.Group>
@@ -781,7 +765,7 @@ const Index = () => {
             Kinds
           </Text>
           <Box pos="relative" style={{ flex: 1, minWidth: rem(160) }}>
-            <PillsInput radius={0} styles={pillInputStyles}>
+            <PillsInput size="xs" radius={0}>
               <Pill.Group>
                 {selectedKinds
                   .slice()
@@ -815,11 +799,6 @@ const Index = () => {
                   style={{
                     flex: 1,
                     minWidth: rem(120),
-                    height: rem(30),
-                    lineHeight: 1.2,
-                    paddingTop: 0,
-                    paddingBottom: 0,
-                    alignSelf: 'center',
                   }}
                 />
               </Pill.Group>
@@ -866,18 +845,18 @@ const Index = () => {
     <Menu shadow="md" position="bottom-end">
       <Menu.Target>
         <Button
-          size="md"
+          size="xs"
           variant="light"
           color="relaykit"
-          rightSection={<IconChevronDown size={14} />}
-          style={{ maxWidth: '100%', height: rem(44), justifyContent: 'space-between' }}
+          rightSection={<IconChevronDown size={10} />}
+          style={{ maxWidth: '100%', justifyContent: 'space-between' }}
         >
           <Box ta="left" style={{ minWidth: 0 }}>
-            <Text size="sm" ff="monospace">
+            <Text ff="monospace" fz={rem(12)}>
               {currentUser ? 'authed' : 'authenticate'}
             </Text>
             {currentUser && (
-              <Text size="xs" c="dimmed" ff="monospace" style={{ maxWidth: rem(300) }}>
+              <Text c="dimmed" ff="monospace" fz={rem(10)} style={{ maxWidth: rem(300) }}>
                 {formatNpubMiddle(currentNpub)}
               </Text>
             )}
@@ -922,8 +901,8 @@ const Index = () => {
         )}
 
         {!iframeMode && (
-          <Paper withBorder p="md" mb="lg" radius={0}>
-            <Group gap="sm" align="flex-start" wrap="wrap" mb="sm">
+          <Paper withBorder p="sm" mb="lg" radius={0}>
+            <Group gap="xs" align="flex-start" wrap="wrap" mb="xs">
               {renderRelayPillInput('relay-url')}
               {renderAuthControl()}
               <Button
@@ -932,7 +911,8 @@ const Index = () => {
                 variant="light"
                 color={isConnected ? 'red' : 'relaykit'}
                 loading={isConnecting}
-                size="md"
+                size="xs"
+                fz={rem(12)}
                 ff="monospace"
               >
                 {isConnecting ? 'connecting...' : isConnected ? 'disconnect' : 'connect'}
@@ -948,7 +928,7 @@ const Index = () => {
             )}
 
             {hasActiveConnection && (
-              <Box pt="sm">
+              <Box pt="xs">
                 {renderFiltersGrid({ event: 'event-id', author: 'author-npub' })}
               </Box>
             )}
@@ -972,7 +952,8 @@ const Index = () => {
                   variant="light"
                   color={isConnected ? 'red' : 'relaykit'}
                   loading={isConnecting}
-                  size="md"
+                  size="xs"
+                  fz={rem(12)}
                   ff="monospace"
                 >
                   {isConnecting ? 'connecting...' : isConnected ? 'disconnect' : 'connect'}
@@ -981,7 +962,7 @@ const Index = () => {
             </Group>
 
             {hasActiveConnection && (
-              <Box pt="sm" mt="sm">
+              <Box pt="xs" mt="xs">
                 {renderFiltersGrid({ event: 'event-id-iframe', author: 'author-npub-iframe' })}
               </Box>
             )}
