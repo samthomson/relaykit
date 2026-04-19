@@ -1242,6 +1242,9 @@ const Index = () => {
                                   {
                                     label: 'created_at',
                                     value: `${selectedEvent.created_at} (${new Date(selectedEvent.created_at * 1000).toISOString()})`,
+                                    relativeLabel: formatDistanceToNow(new Date(selectedEvent.created_at * 1000), {
+                                      addSuffix: true,
+                                    }),
                                     color: 'blue' as const,
                                     empty: false,
                                   },
@@ -1257,15 +1260,30 @@ const Index = () => {
                                       </Text>
                                     </Table.Td>
                                     <Table.Td>
-                                      <Text
-                                        size="xs"
-                                        ff="monospace"
-                                        c={field.empty ? 'dimmed' : undefined}
-                                        fs={field.empty ? 'italic' : undefined}
-                                        style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}
-                                      >
-                                        {field.value}
-                                      </Text>
+                                      {'relativeLabel' in field && field.relativeLabel ? (
+                                        <Stack gap={2}>
+                                          <Text
+                                            size="xs"
+                                            ff="monospace"
+                                            style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}
+                                          >
+                                            {field.value}
+                                          </Text>
+                                          <Text size="xs" ff="monospace" c="dimmed" fs="italic" fz={10}>
+                                            {field.relativeLabel}
+                                          </Text>
+                                        </Stack>
+                                      ) : (
+                                        <Text
+                                          size="xs"
+                                          ff="monospace"
+                                          c={field.empty ? 'dimmed' : undefined}
+                                          fs={field.empty ? 'italic' : undefined}
+                                          style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}
+                                        >
+                                          {field.value}
+                                        </Text>
+                                      )}
                                     </Table.Td>
                                     <Table.Td>
                                       <CopyControl value={field.value} label={`copy ${field.label}`} />
@@ -1365,6 +1383,10 @@ const Index = () => {
                                 withCopyButton={false}
                                 className="relay-json-highlight"
                                 styles={{
+                                  code: {
+                                    fontSize: rem(11),
+                                    lineHeight: 1.45,
+                                  },
                                   pre: {
                                     margin: 0,
                                     background: 'transparent',
@@ -1372,7 +1394,6 @@ const Index = () => {
                                     padding: 0,
                                     whiteSpace: 'pre-wrap',
                                     wordBreak: 'break-word',
-                                    fontSize: rem(12),
                                   },
                                 }}
                               />
