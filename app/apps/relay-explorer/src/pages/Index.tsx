@@ -902,49 +902,9 @@ const Index = () => {
 
         {!iframeMode && (
           <Paper withBorder p="sm" mb="lg" radius={0}>
-            <Group gap="xs" align="flex-start" wrap="wrap" mb="xs">
-              {renderRelayPillInput('relay-url')}
-              {renderAuthControl()}
-              <Button
-                onClick={handleConnect}
-                disabled={!isValidUrl && !isConnected && !isConnecting}
-                variant="light"
-                color={isConnected ? 'red' : 'relaykit'}
-                loading={isConnecting}
-                size="xs"
-                fz={rem(12)}
-                ff="monospace"
-              >
-                {isConnecting ? 'connecting...' : isConnected ? 'disconnect' : 'connect'}
-              </Button>
-            </Group>
-
-            {connectionError && (
-              <Paper p="sm" mb="sm" radius={0} bg="var(--mantine-color-red-light)" c="var(--mantine-color-red-filled)">
-                <Text size="xs" ff="monospace">
-                  ⚠ {connectionError}
-                </Text>
-              </Paper>
-            )}
-
-            {hasActiveConnection && (
-              <Box pt="xs">
-                {renderFiltersGrid({ event: 'event-id', author: 'author-npub' })}
-              </Box>
-            )}
-          </Paper>
-        )}
-
-        {iframeMode && (
-          <Box mb="xs" pb="xs" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
-            <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-              <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                <Text size="xs" ff="monospace" tt="uppercase" c="dimmed" style={{ flexShrink: 0 }}>
-                  Connected to
-                </Text>
-                {renderRelayPillInput('relay-url-iframe')}
-              </Group>
-              <Group gap="xs" wrap="nowrap">
+            <Stack gap="xs">
+              <Group gap="xs" align="flex-start" wrap="wrap">
+                {renderRelayPillInput('relay-url')}
                 {renderAuthControl()}
                 <Button
                   onClick={handleConnect}
@@ -959,13 +919,57 @@ const Index = () => {
                   {isConnecting ? 'connecting...' : isConnected ? 'disconnect' : 'connect'}
                 </Button>
               </Group>
-            </Group>
 
-            {hasActiveConnection && (
-              <Box pt="xs" mt="xs">
-                {renderFiltersGrid({ event: 'event-id-iframe', author: 'author-npub-iframe' })}
-              </Box>
-            )}
+              {connectionError && (
+                <Paper p="sm" radius={0} bg="var(--mantine-color-red-light)" c="var(--mantine-color-red-filled)">
+                  <Text size="xs" ff="monospace">
+                    ⚠ {connectionError}
+                  </Text>
+                </Paper>
+              )}
+
+              {hasActiveConnection && (
+                <Box>
+                  {renderFiltersGrid({ event: 'event-id', author: 'author-npub' })}
+                </Box>
+              )}
+            </Stack>
+          </Paper>
+        )}
+
+        {iframeMode && (
+          <Box mb="xs">
+            <Stack gap="xs">
+              <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+                <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                  <Text size="xs" ff="monospace" tt="uppercase" c="dimmed" style={{ flexShrink: 0 }}>
+                    Connected to
+                  </Text>
+                  {renderRelayPillInput('relay-url-iframe')}
+                </Group>
+                <Group gap="xs" wrap="nowrap">
+                  {renderAuthControl()}
+                  <Button
+                    onClick={handleConnect}
+                    disabled={!isValidUrl && !isConnected && !isConnecting}
+                    variant="light"
+                    color={isConnected ? 'red' : 'relaykit'}
+                    loading={isConnecting}
+                    size="xs"
+                    fz={rem(12)}
+                    ff="monospace"
+                  >
+                    {isConnecting ? 'connecting...' : isConnected ? 'disconnect' : 'connect'}
+                  </Button>
+                </Group>
+              </Group>
+
+              {hasActiveConnection && (
+                <Box>
+                  {renderFiltersGrid({ event: 'event-id-iframe', author: 'author-npub-iframe' })}
+                </Box>
+              )}
+            </Stack>
           </Box>
         )}
 
