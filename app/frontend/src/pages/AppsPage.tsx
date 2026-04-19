@@ -44,10 +44,6 @@ export const AppsPage = () => {
         />
       )}
 
-      <Stack gap={4}>
-        <Text fw={600}>apps</Text>
-      </Stack>
-
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md" verticalSpacing="md">
         {APP_IDS.map((appId) => {
           const app = EMBEDDABLE_APPS[appId];
