@@ -337,7 +337,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                     onClick={onOpenNsiteExplorer}
                     rightSection={<IconExternalLink size={12} />}
                   >
-                    nsite explorer
+                    nPanel
                   </Button>
                 )}
               </Group>
