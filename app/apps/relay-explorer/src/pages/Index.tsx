@@ -65,6 +65,7 @@ const isStandaloneEmbeddedMode = (): boolean => {
   const params = new URLSearchParams(window.location.search);
   return params.get('standalone') === '1';
 };
+const INSPECTOR_HEADER_HEIGHT = rem(38);
 
 const Index = () => {
   useSeoMeta({
@@ -829,15 +830,17 @@ const Index = () => {
                 <Stack gap={0} h="100%">
                   <Box
                     px="md"
-                    py="sm"
+                    h={INSPECTOR_HEADER_HEIGHT}
                     style={{
                       borderBottom: '1px solid var(--mantine-color-default-border)',
                       background: 'var(--mantine-color-default-hover)',
+                      display: 'flex',
+                      alignItems: 'center',
                     }}
                   >
-                    <Group justify="space-between">
+                    <Group justify="space-between" align="center" w="100%">
                       <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
-                        Events
+                        events
                       </Text>
                       <Text size="xs" ff="monospace" c="dimmed">
                         {events.length}
@@ -966,19 +969,21 @@ const Index = () => {
                 <Stack gap={0} h="100%">
                   <Box
                     px="md"
-                    py="sm"
+                    h={INSPECTOR_HEADER_HEIGHT}
                     style={{
                       borderBottom: '1px solid var(--mantine-color-default-border)',
                       background: 'var(--mantine-color-default-hover)',
+                      display: 'flex',
+                      alignItems: 'center',
                     }}
                   >
-                    <Group justify="space-between" align="center" wrap="nowrap">
+                    <Group justify="space-between" align="center" wrap="nowrap" w="100%">
                       <Text size="xs" ff="monospace" tt="uppercase" c="dimmed">
-                        Event Inspector
+                        inspect
                       </Text>
                       <Group gap="xs" wrap="nowrap">
                         <Button
-                          size="xs"
+                          size="compact-xs"
                           radius={0}
                           variant={showInspectorTable ? 'light' : 'subtle'}
                           color={showInspectorTable ? 'relaykit' : 'gray'}
@@ -990,7 +995,7 @@ const Index = () => {
                           table
                         </Button>
                         <Button
-                          size="xs"
+                          size="compact-xs"
                           radius={0}
                           variant={showInspectorJson ? 'light' : 'subtle'}
                           color={showInspectorJson ? 'relaykit' : 'gray'}
