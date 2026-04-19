@@ -1,4 +1,3 @@
-import { useSeoMeta } from '@unhead/react';
 import { useState, useEffect } from 'react';
 import { nip19 } from 'nostr-tools';
 import { useQuery } from '@tanstack/react-query';
@@ -64,11 +63,6 @@ const DEFAULT_RELAYS = [
 const isEmbedded = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embedded') === '1';
 
 const Index = () => {
-  useSeoMeta({
-    title: 'nsite Debugger - Test Your Nostr Static Sites',
-    description: 'Debug and investigate nsite deployments. Check manifests, verify files on Blossom servers, and troubleshoot your Nostr static websites.',
-  });
-
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config } = useAppContext();

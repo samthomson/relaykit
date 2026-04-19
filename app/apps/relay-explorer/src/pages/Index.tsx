@@ -1,4 +1,3 @@
-import { useSeoMeta } from '@unhead/react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ActionIcon,
@@ -74,11 +73,6 @@ const isStandaloneEmbeddedMode = (): boolean => {
 };
 
 const Index = () => {
-  useSeoMeta({
-    title: 'Relay Note Explorer',
-    description: 'Simple Nostr relay explorer to view events from any relay',
-  });
-
   const { user } = useCurrentUser();
   const standaloneEmbeddedMode = isStandaloneEmbeddedMode();
 

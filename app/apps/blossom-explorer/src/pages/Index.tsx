@@ -1,4 +1,3 @@
-import { useSeoMeta } from '@unhead/react';
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
@@ -23,11 +22,6 @@ import { formatBytes } from '@/lib/formatBytes';
 import { formatDistance } from 'date-fns';
 
 const Index = () => {
-  useSeoMeta({
-    title: 'Blossom Explorer',
-    description: 'Browse files on Blossom servers.',
-  });
-
   const [searchParams, setSearchParams] = useSearchParams();
   const [serverUrl, setServerUrl] = useState(searchParams.get('server') || 'https://bs.samt.st');
   const [pubkey, setPubkey] = useState(searchParams.get('pubkey') || '2093baa8621c5b255e8f4fc2c6fdfc10d8a5598a25517664efaba860735f1030');

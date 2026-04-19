@@ -2,8 +2,6 @@
 // To add new routes, edit the AppRouter.tsx file.
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createHead, UnheadProvider } from '@unhead/react/client';
-import { InferSeoMetaPlugin } from '@unhead/addons';
 import { Suspense } from 'react';
 import NostrProvider from '@/components/NostrProvider';
 import { NostrSync } from '@/components/NostrSync';
@@ -14,12 +12,6 @@ import { AppProvider } from '@/components/AppProvider';
 import { NWCProvider } from '@/contexts/NWCContext';
 import { AppConfig } from '@/contexts/AppContext';
 import AppRouter from './AppRouter';
-
-const head = createHead({
-  plugins: [
-    InferSeoMetaPlugin(),
-  ],
-});
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,25 +37,23 @@ const defaultConfig: AppConfig = {
 
 export function App() {
   return (
-    <UnheadProvider head={head}>
-      <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
-        <QueryClientProvider client={queryClient}>
-          <NostrLoginProvider storageKey='nostr:login'>
-            <NostrProvider>
-              <NostrSync />
-              <NWCProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Suspense>
-                    <AppRouter />
-                  </Suspense>
-                </TooltipProvider>
-              </NWCProvider>
-            </NostrProvider>
-          </NostrLoginProvider>
-        </QueryClientProvider>
-      </AppProvider>
-    </UnheadProvider>
+    <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
+      <QueryClientProvider client={queryClient}>
+        <NostrLoginProvider storageKey='nostr:login'>
+          <NostrProvider>
+            <NostrSync />
+            <NWCProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Suspense>
+                  <AppRouter />
+                </Suspense>
+              </TooltipProvider>
+            </NWCProvider>
+          </NostrProvider>
+        </NostrLoginProvider>
+      </QueryClientProvider>
+    </AppProvider>
   );
 }
 
