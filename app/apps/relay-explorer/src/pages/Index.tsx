@@ -45,6 +45,7 @@ interface NostrFilter {
 
 const PREVIOUS_RELAYS_STORAGE_KEY = 'relay-explorer:previous-relays';
 const MAX_PREVIOUS_RELAYS = 20;
+const DEFAULT_EVENT_LIMIT = 250;
 const LIMIT_OPTIONS = [50, 250, 500, 750, 1000, 'infinity'] as const;
 type EventLimitOption = (typeof LIMIT_OPTIONS)[number];
 
@@ -129,13 +130,13 @@ const Index = () => {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<NostrEvent | null>(null);
   const seenEventIdsRef = useRef<Set<string>>(new Set());
-  const activeFilterRef = useRef<NostrFilter>({ limit: 250 });
+  const activeFilterRef = useRef<NostrFilter>({ limit: DEFAULT_EVENT_LIMIT });
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   const [eventIdTags, setEventIdTags] = useState<string[]>([]);
   const [authorTags, setAuthorTags] = useState<string[]>([]);
   const [kindTags, setKindTags] = useState<string[]>([]);
-  const [eventLimit, setEventLimit] = useState<EventLimitOption>(250);
+  const [eventLimit, setEventLimit] = useState<EventLimitOption>(DEFAULT_EVENT_LIMIT);
   const [showInspectorTable, setShowInspectorTable] = useState(true);
   const [showInspectorJson, setShowInspectorJson] = useState(true);
   const [queryModalOpen, setQueryModalOpen] = useState(false);
