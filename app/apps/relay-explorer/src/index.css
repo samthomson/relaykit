@@ -62,3 +62,29 @@ body {
 [data-mantine-color-scheme="light"] .relay-json-highlight .hljs-punctuation {
   color: var(--mantine-color-gray-6);
 }
+
+.relay-option {
+  border-left: 0;
+}
+
+.relay-option + .relay-option {
+  margin-top: 1px;
+}
+
+.relay-option-service {
+  background: var(--mantine-primary-color-light);
+}
+
+.relay-option-previous {
+  background: var(--mantine-color-default-hover);
+}
+
+.relay-option:hover,
+.relay-option[data-combobox-selected] {
+  background: var(--mantine-primary-color-light-hover);
+}
+
+.relay-option[data-combobox-selected] {
+  outline: 1px solid var(--mantine-primary-color-filled);
+  outline-offset: -1px;
+}

@@ -1,6 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
+  ActionIcon,
   Anchor,
   Badge,
   Box,
@@ -22,7 +23,7 @@ import {
 } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { Trash2 } from 'lucide-react';
-import { IconBraces, IconChevronDown, IconTable } from '@tabler/icons-react';
+import { IconBraces, IconChevronDown, IconTable, IconX } from '@tabler/icons-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { formatDistanceToNow } from 'date-fns';
@@ -39,6 +40,10 @@ interface NostrFilter {
   authors?: string[];
   limit?: number;
 }
+
+const PREVIOUS_RELAYS_STORAGE_KEY = 'relay-explorer:previous-relays';
+const MAX_PREVIOUS_RELAYS = 20;
+const MAX_EVENT_COUNT = 500;
 
 const COMMON_KINDS = [
   { value: 0, label: 'Metadata' },
@@ -92,6 +97,19 @@ const Index = () => {
     return localStorage.getItem('relay-explorer:url') || '';
   });
   const [relayDraft, setRelayDraft] = useState('');
+  const [previousRelays, setPreviousRelays] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(PREVIOUS_RELAYS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((relay) => normalizeRelayUrl(String(relay ?? '').trim()))
+        .filter(Boolean);
+    } catch {
+      return [];
+    }
+  });
 
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [connectionError, setConnectionError] = useState<string>('');
@@ -99,6 +117,7 @@ const Index = () => {
   const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<NostrEvent | null>(null);
+  const seenEventIdsRef = useRef<Set<string>>(new Set());
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   const [authorNpub, setAuthorNpub] = useState('');
@@ -159,6 +178,7 @@ const Index = () => {
     if (ws && isConnected) {
       const timer = setTimeout(() => {
         ws.send(JSON.stringify(['CLOSE', 'all-events']));
+        seenEventIdsRef.current.clear();
         setEvents([]);
         setSelectedEvent(null);
         const filter = buildFilter();
@@ -225,6 +245,7 @@ const Index = () => {
     setWs(null);
     setConnectionState('disconnected');
     setConnectionError('');
+    seenEventIdsRef.current.clear();
     setEvents([]);
     setSelectedEvent(null);
   };
@@ -264,7 +285,6 @@ const Index = () => {
     websocket.onmessage = async (msg) => {
       try {
         const data = JSON.parse(msg.data);
-        console.log('📨 Received message:', data);
 
         if (data[0] === 'AUTH' && data[1]) {
           const challenge = data[1];
@@ -295,12 +315,24 @@ const Index = () => {
         }
 
         if (data[0] === 'EVENT' && data[2]) {
-          console.log('📄 Event received:', data[2].kind, data[2].id.substring(0, 8));
+          const incomingEvent = data[2] as NostrEvent;
           setEvents((prev) => {
-            if (prev.some((e) => e.id === data[2].id)) {
+            if (seenEventIdsRef.current.has(incomingEvent.id)) {
               return prev;
             }
-            return [...prev, data[2]].sort((a, b) => b.created_at - a.created_at);
+            seenEventIdsRef.current.add(incomingEvent.id);
+            const next = [...prev];
+            const insertAt = next.findIndex((existingEvent) => existingEvent.created_at < incomingEvent.created_at);
+            if (insertAt === -1) {
+              next.push(incomingEvent);
+            } else {
+              next.splice(insertAt, 0, incomingEvent);
+            }
+            if (next.length > MAX_EVENT_COUNT) {
+              const removedEvents = next.splice(MAX_EVENT_COUNT);
+              removedEvents.forEach((event) => seenEventIdsRef.current.delete(event.id));
+            }
+            return next;
           });
         }
 
@@ -359,7 +391,27 @@ const Index = () => {
   const handleRelayUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRelayDraft(e.target.value);
     relayCombobox.openDropdown();
-    relayCombobox.updateSelectedOptionIndex();
+    relayCombobox.resetSelectedOption();
+  };
+
+  const persistPreviousRelays = (nextRelays: string[]) => {
+    setPreviousRelays(nextRelays);
+    try {
+      localStorage.setItem(PREVIOUS_RELAYS_STORAGE_KEY, JSON.stringify(nextRelays));
+    } catch {
+      // ignore storage failures
+    }
+  };
+
+  const addPreviousRelay = (relay: string, serviceRelayOptions: string[]) => {
+    if (serviceRelayOptions.includes(relay)) return;
+    const nextRelays = [relay, ...previousRelays.filter((entry) => entry !== relay)].slice(0, MAX_PREVIOUS_RELAYS);
+    persistPreviousRelays(nextRelays);
+  };
+
+  const removePreviousRelay = (relay: string) => {
+    const nextRelays = previousRelays.filter((entry) => entry !== relay);
+    persistPreviousRelays(nextRelays);
   };
 
   const handleAddKind = (kind: number) => {
@@ -374,10 +426,13 @@ const Index = () => {
     setSelectedKinds(selectedKinds.filter((k) => k !== kind));
   };
 
-  const commitRelayDraft = () => {
+  const commitRelayDraft = ({ persistPrevious = false }: { persistPrevious?: boolean } = {}) => {
     const nextRelay = relayDraft.trim();
     if (!nextRelay) return;
     const normalizedRelay = normalizeRelayUrl(nextRelay);
+    if (persistPrevious) {
+      addPreviousRelay(normalizedRelay, serviceRelayOptions);
+    }
     const hasChanged = normalizedRelay !== relayUrl;
     setRelayUrl(normalizedRelay);
     setRelayDraft('');
@@ -443,6 +498,7 @@ const Index = () => {
       setTimeout(() => {
         if (ws && isConnected) {
           ws.send(JSON.stringify(['CLOSE', 'all-events']));
+          seenEventIdsRef.current.clear();
           setEvents([]);
           setSelectedEvent(null);
           const filter = buildFilter();
@@ -460,7 +516,7 @@ const Index = () => {
       k.value.toString().includes(kindSearchQuery),
   );
 
-  const relayOptions = useMemo(() => {
+  const serviceRelayOptions = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
     const relaysParam = params.get('relays');
     if (!relaysParam) return [];
@@ -476,9 +532,15 @@ const Index = () => {
 
   const filteredRelayOptions = useMemo(() => {
     const query = relayDraft.trim().toLowerCase();
-    if (!query) return relayOptions;
-    return relayOptions.filter((relay) => relay.toLowerCase().includes(query));
-  }, [relayOptions, relayDraft]);
+    const serviceOptions = serviceRelayOptions
+      .filter((relay) => !query || relay.toLowerCase().includes(query))
+      .map((relay) => ({ value: relay, source: 'service' as const }));
+    const previousOptions = previousRelays
+      .filter((relay) => !serviceRelayOptions.includes(relay))
+      .filter((relay) => !query || relay.toLowerCase().includes(query))
+      .map((relay) => ({ value: relay, source: 'previous' as const }));
+    return [...serviceOptions, ...previousOptions];
+  }, [serviceRelayOptions, previousRelays, relayDraft]);
 
   const protocolPrefix = relayUrl.startsWith('ws://') ? 'ws://' : 'wss://';
   const currentNpub = (() => {
@@ -491,6 +553,28 @@ const Index = () => {
   })();
 
   const listHeight = iframeMode ? undefined : 'calc(100vh - 340px)';
+
+  const eventListRows = useMemo(
+    () =>
+      events.map((event) => ({
+        event,
+        timeLabel: new Date(event.created_at * 1000).toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        }),
+        ageLabel: formatDistanceToNow(new Date(event.created_at * 1000), { addSuffix: true }),
+        idPreview: `${event.id.substring(0, 32)}...`,
+        contentPreview: event.content ? `${event.content.substring(0, 60)}${event.content.length > 60 ? '...' : ''}` : '',
+      })),
+    [events],
+  );
+
+  const selectedEventJson = useMemo(
+    () => (selectedEvent ? JSON.stringify(selectedEvent, null, 2) : ''),
+    [selectedEvent],
+  );
 
   const handleKindQuerySubmit = () => {
     const query = kindSearchQuery.trim();
@@ -528,7 +612,10 @@ const Index = () => {
           style={{ flex: 1 }}
           radius={0}
           styles={pillInputStyles}
-          onClick={() => relayCombobox.openDropdown()}
+          onClick={() => {
+            relayCombobox.openDropdown();
+            relayCombobox.resetSelectedOption();
+          }}
           onKeyDownCapture={(e) => {
             if ((e.key === 'Backspace' || e.key === 'Delete') && relayDraft.trim().length === 0 && relayUrl) {
               e.preventDefault();
@@ -555,14 +642,17 @@ const Index = () => {
               aria-label="relay url"
               value={relayDraft}
               onChange={handleRelayUrlChange}
-              onFocus={() => relayCombobox.openDropdown()}
+              onFocus={() => {
+                relayCombobox.openDropdown();
+                relayCombobox.resetSelectedOption();
+              }}
               onBlur={() => {
                 commitRelayDraft();
                 relayCombobox.closeDropdown();
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !relayCombobox.dropdownOpened) {
-                  commitRelayDraft();
+                if (e.key === 'Enter' && (!relayCombobox.dropdownOpened || filteredRelayOptions.length === 0)) {
+                  commitRelayDraft({ persistPrevious: true });
                   if (isValidUrl && !isConnected && !isConnecting) {
                     handleConnect();
                   }
@@ -592,11 +682,32 @@ const Index = () => {
       <Combobox.Dropdown>
         <Combobox.Options mah={192} style={{ overflowY: 'auto' }}>
           {filteredRelayOptions.length > 0 ? (
-            filteredRelayOptions.map((relay) => (
-              <Combobox.Option key={relay} value={relay}>
-                <Text size="xs" ff="monospace" truncate>
-                  {relay}
-                </Text>
+            filteredRelayOptions.map((relayOption) => (
+              <Combobox.Option
+                key={`${relayOption.source}-${relayOption.value}`}
+                value={relayOption.value}
+                className={relayOption.source === 'service' ? 'relay-option relay-option-service' : 'relay-option relay-option-previous'}
+              >
+                <Group justify="space-between" gap="xs" wrap="nowrap">
+                  <Text size="xs" ff="monospace" c={relayOption.source === 'service' ? 'relaykit' : 'dimmed'} truncate>
+                    {relayOption.value}
+                  </Text>
+                  {relayOption.source === 'previous' && (
+                    <ActionIcon
+                      size="xs"
+                      variant="subtle"
+                      color="gray"
+                      aria-label="forget relay"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        removePreviousRelay(relayOption.value);
+                      }}
+                    >
+                      <IconX size={12} />
+                    </ActionIcon>
+                  )}
+                </Group>
               </Combobox.Option>
             ))
           ) : (
@@ -930,9 +1041,9 @@ const Index = () => {
                       </Box>
                     ) : (
                       <Stack gap={0}>
-                        {events.map((event) => (
+                        {eventListRows.map((row) => (
                           <Box
-                            key={event.id}
+                            key={row.event.id}
                             pos="relative"
                             style={{
                               borderBottom: '1px solid var(--mantine-color-default-border)',
@@ -941,22 +1052,22 @@ const Index = () => {
                             className="relay-explorer-event-row"
                           >
                             <UnstyledButton
-                              onClick={() => setSelectedEvent(event)}
+                              onClick={() => setSelectedEvent(row.event)}
                               w="100%"
                               p="md"
                               styles={{
                                 root: {
                                   textAlign: 'left',
                                   background:
-                                    selectedEvent?.id === event.id
+                                    selectedEvent?.id === row.event.id
                                       ? 'color-mix(in srgb, var(--mantine-primary-color-filled) 22%, transparent)'
                                       : undefined,
                                   borderLeft:
-                                    selectedEvent?.id === event.id
+                                    selectedEvent?.id === row.event.id
                                       ? '3px solid var(--mantine-primary-color-filled)'
                                       : undefined,
                                   boxShadow:
-                                    selectedEvent?.id === event.id
+                                    selectedEvent?.id === row.event.id
                                       ? 'inset 0 0 0 1px color-mix(in srgb, var(--mantine-primary-color-filled) 45%, transparent)'
                                       : undefined,
                                   '&:hover': {
@@ -971,34 +1082,28 @@ const Index = () => {
                                     kind
                                   </Text>
                                   <Text size="xs" ff="monospace">
-                                    {event.kind}
+                                    {row.event.kind}
                                   </Text>
                                 </Group>
                                 <Box ta="right">
                                   <Text size="xs" ff="monospace" c="dimmed">
-                                    {new Date(event.created_at * 1000).toLocaleTimeString('en-US', {
-                                      hour12: false,
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                      second: '2-digit',
-                                    })}
+                                    {row.timeLabel}
                                   </Text>
                                   <Text fz={10} ff="monospace" c="dimmed">
-                                    ({formatDistanceToNow(new Date(event.created_at * 1000), { addSuffix: true })})
+                                    ({row.ageLabel})
                                   </Text>
                                 </Box>
                               </Group>
                               <Text size="xs" ff="monospace" c="dimmed" truncate mb={4}>
-                                {event.id.substring(0, 32)}...
+                                {row.idPreview}
                               </Text>
-                              {event.content && (
+                              {row.event.content && (
                                 <Text size="xs" truncate pr={32}>
-                                  {event.content.substring(0, 60)}
-                                  {event.content.length > 60 ? '...' : ''}
+                                  {row.contentPreview}
                                 </Text>
                               )}
                             </UnstyledButton>
-                            {user && event.pubkey === user.pubkey && (
+                            {user && row.event.pubkey === user.pubkey && (
                               <UnstyledButton
                                 pos="absolute"
                                 right={8}
@@ -1006,7 +1111,7 @@ const Index = () => {
                                 p={4}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDeleteEvent(event.id);
+                                  handleDeleteEvent(row.event.id);
                                 }}
                                 title="Delete your event (kind 5)"
                                 style={{
@@ -1221,7 +1326,7 @@ const Index = () => {
                             </Text>
                             <Paper withBorder radius={0} p="md">
                               <CodeHighlight
-                                code={JSON.stringify(selectedEvent, null, 2)}
+                                code={selectedEventJson}
                                 language="json"
                                 withCopyButton={false}
                                 className="relay-json-highlight"
