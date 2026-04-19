@@ -13,6 +13,7 @@
 - Do not make changes unrelated to the user’s request: no “fixing” style, capitalization, naming, or structure unless the user asked for it. Only edit what is exactly needed for the task.
 - Stack: Vite/React frontend, Node + tRPC backend, Dokploy. Presets under `app/presets/`.
 - **Package manager: Yarn.** Use `yarn` / `yarn add` in repo roots (e.g. `app/frontend`); do not use `npm install` or create `package-lock.json`.
+- Do not run lint/typecheck after every small edit. Run validation only when requested, before commit, or when needed to verify a risky/substantial change.
 - Edit existing code over adding files. One shared reverse proxy for the stack, not per-container.
 - Style: define functions as const arrow, e.g. `const fn = async (x: T) => { ... }` not `async function fn(x: T) { ... }`.
 - Use maintainable UI styling: use Mantine variants/theme overrides/component props first, and avoid repeated inline style objects unless truly one-off.
