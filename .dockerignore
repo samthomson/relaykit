@@ -16,4 +16,3 @@ node_modules
 dev-certs
 app/shared/node_modules
 app/shared/package-lock.json
-app/shared/package.json
