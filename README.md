@@ -191,6 +191,7 @@ next:
 - [ ] improve blossom app
 - [ ] improve/make nPanel app
 - [ ] negentropy app
+- [ ] uptime/service monitoring app
 
 maybe later:
 - [ ] expose volumes to user so they can manage (view/delete/optional: create service from volume)
