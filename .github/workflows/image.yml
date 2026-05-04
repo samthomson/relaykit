@@ -13,7 +13,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/relaykit-proto/relaykit
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 jobs:
   build:
