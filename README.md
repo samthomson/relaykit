@@ -1,4 +1,4 @@
-# relaykit-proto
+# relaykit
 
 ## What It Is
 
@@ -47,7 +47,7 @@ Browser → RelayKit App → Dokploy API
 ## Project Structure
 
 ```
-relaykit-proto/
+relaykit/
 ├── docker-compose.yml
 ├── Dockerfile.dev
 ├── start-dev.sh
@@ -130,12 +130,12 @@ Set `DEPLOY_HOST` (e.g. `root@1.2.3.4` or an SSH alias) and `DEPLOY_PATH` (repo 
 - Image-based deploy (recommended): `./scripts/deploy-image.sh`
 
 Image-based flow:
-1. GitHub Actions builds and pushes `ghcr.io/<owner>/relaykit-proto/relaykit` on pushes to `master`.
+1. GitHub Actions builds and pushes `ghcr.io/<owner>/relaykit` on pushes to `master`.
 2. Server pulls the image and recreates only `relaykit-prod`.
 
 Optional overrides for image deploy:
 - `IMAGE_TAG=<sha-or-tag> ./scripts/deploy-image.sh`
-- `IMAGE_NAME=ghcr.io/<owner>/relaykit-proto/relaykit ./scripts/deploy-image.sh`
+- `IMAGE_NAME=ghcr.io/<owner>/relaykit ./scripts/deploy-image.sh`
 
 If GHCR package is private, run `docker login ghcr.io` on the server first (PAT with `read:packages`).
 
