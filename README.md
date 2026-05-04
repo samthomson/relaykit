@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/relaykit-logo.png" alt="relaykit logo" width="240" />
+  <img src="assets/relaykit-logo.png" alt="relaykit logo" width="168" />
 </p>
 
 # relaykit
