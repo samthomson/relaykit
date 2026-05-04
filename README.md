@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/relaykit-logo.png" alt="relaykit logo" width="240" />
+</p>
+
 # relaykit
 
 ## What It Is
