@@ -196,6 +196,7 @@ next:
 - [ ] improve/make nPanel app
 - [ ] negentropy app
 - [ ] uptime/service monitoring app
+- [ ] convey service count in header or sidebar thing
 
 maybe later:
 - [ ] expose volumes to user so they can manage (view/delete/optional: create service from volume)
