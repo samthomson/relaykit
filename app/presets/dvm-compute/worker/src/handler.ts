@@ -9,7 +9,7 @@ const tag = (ev: Event, name: string): string[] | undefined => ev.tags.find((t) 
 const tagsAll = (ev: Event, name: string): string[][] => ev.tags.filter((t) => t[0] === name)
 
 const log = (req: Event, msg: string) => {
-  if (config.logJobs) console.log(`[job ${req.id.slice(0, 8)}] ${msg}`)
+  if (config.logJobs) console.log(`[job ${req.id}] ${msg}`)
 }
 
 const clampTtl = (raw: number): number =>
@@ -250,7 +250,7 @@ export const handleJob = async (req: Event): Promise<void> => {
     await feedback(req, 'success')
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    console.error(`[job ${req.id.slice(0, 8)}] failed: ${message}`)
+    console.error(`[job ${req.id}] failed: ${message}`)
     await feedback(req, 'error', message)
   }
 }
