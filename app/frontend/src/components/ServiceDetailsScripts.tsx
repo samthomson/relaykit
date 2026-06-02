@@ -36,11 +36,11 @@ import { RelayInput, toWs } from './RelayInput';
 // kinds the compute DVM speaks (mirror of dvm-compute/src/kinds.ts)
 const KIND = {
   codeSnippet: 1337,
-  dataFunction: 31338,
+  dataFunction: 31337,
   jobRequest: 5910,
   jobResult: 6910,
   jobFeedback: 7000,
-  cachedResult: 31337,
+  cachedResult: 31338,
 } as const;
 
 const BLANK = `async function main(inputs, nostr) {
@@ -182,9 +182,10 @@ type Result = { label: string; content: string; ts?: number } | null;
 export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
   const [relayUrl, setRelayUrl] = useState('');
   const [defaultSourceRelays, setDefaultSourceRelays] = useState<string[]>([]);
-  // operator ceilings from the service config — seed per-function limits and cap them.
-  const [defaultRuntimeMs, setDefaultRuntimeMs] = useState('5000');
-  const [defaultMemoryMb, setDefaultMemoryMb] = useState('128');
+  // operator ceilings from the service config (authoritative default lives in the preset config,
+  // not hardcoded here) — seed per-data-function limits and cap them.
+  const [defaultRuntimeMs, setDefaultRuntimeMs] = useState('');
+  const [defaultMemoryMb, setDefaultMemoryMb] = useState('');
   const [loadingConfig, setLoadingConfig] = useState(true);
 
   const fnCacheKey = `relaykit:dvm-fns:${composeId}`;
@@ -207,8 +208,8 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
   const [sourceRelays, setSourceRelays] = useState<string[]>([]);
   const [outputRelay, setOutputRelay] = useState('');
   const [ttl, setTtl] = useState('3600');
-  const [runtimeMs, setRuntimeMs] = useState('5000');
-  const [memoryMb, setMemoryMb] = useState('128');
+  const [runtimeMs, setRuntimeMs] = useState('');
+  const [memoryMb, setMemoryMb] = useState('');
   const [subjectValue, setSubjectValue] = useState('');
   const [subjectType, setSubjectType] = useState('text');
   const [params, setParams] = useState<Param[]>([]);
@@ -302,7 +303,7 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
     setView('editor');
   };
 
-  // open a kind:31338 definition: restore its config, then fetch the referenced kind:1337 code.
+  // open a kind:31337 definition: restore its config, then fetch the referenced kind:1337 code.
   const openExisting = async (def: Event) => {
     resetEditor();
     setView('editor');
@@ -395,7 +396,7 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
     }
   };
 
-  // 2) get cached — read the kind:31337 the worker stored for this exact (function, inputs, relays).
+  // 2) get cached — read the kind:31338 the worker stored for this exact (function, inputs, relays).
   const getCached = async () => {
     setError(null);
     setResult(null);
@@ -404,7 +405,7 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
     const relay = toWs(relayUrl);
     const pool = new SimplePool();
     try {
-      if (!author || !dTag.trim()) throw new Error('save the function first so it has an address');
+      if (!author || !dTag.trim()) throw new Error('save the data function first so it has an address');
       const address = `${KIND.dataFunction}:${author}:${dTag.trim()}`;
       const key = await computeCacheKey(address, inputs);
       const events = await pool.querySync([relay], { kinds: [KIND.cachedResult], '#d': [key] });
@@ -433,7 +434,7 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
     const relay = toWs(relayUrl);
     const pool = new SimplePool();
     try {
-      if (!author || !dTag.trim()) throw new Error('save the function first so it has an address');
+      if (!author || !dTag.trim()) throw new Error('save the data function first so it has an address');
       if (!relay) throw new Error('set the dvm relay url');
       const address = `${KIND.dataFunction}:${author}:${dTag.trim()}`;
       const extra = [['cache', mode === 'clear' ? 'clear' : 'no']];
@@ -480,7 +481,7 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
   };
 
   // save = publish two events: the reusable code (kind:1337) and the data function definition
-  // (kind:31338) that references it and bundles relays / output / params / subject / ttl.
+  // (kind:31337) that references it and bundles relays / output / params / subject / ttl.
   const save = async () => {
     setError(null);
     setBusy('save');
@@ -488,7 +489,7 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
     const pool = new SimplePool();
     try {
       const id = dTag.trim();
-      if (!id) throw new Error('function id (d tag) is required');
+      if (!id) throw new Error('data function id (d tag) is required');
       if (!relay) throw new Error('set the dvm relay url');
       const now = Math.floor(Date.now() / 1000);
 
@@ -552,7 +553,7 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
       <Stack gap="md">
         <Group justify="space-between" align="center">
           <Text size="sm" c="dimmed">
-            a data function (kind:31338) bundles reusable code (kind:1337) with its relays, params & ttl.
+            a data function (kind:31337) bundles reusable code (kind:1337) with its relays, params & ttl.
             pick one to edit & test, or create a new one.
           </Text>
           <Group gap="xs">
@@ -607,7 +608,7 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
                       </Group>
                       <TimeAgo sec={ev.created_at} prefix="updated" />
                     </Stack>
-                    <Badge variant="light" color="gray">kind:31338</Badge>
+                    <Badge variant="light" color="gray">kind:31337</Badge>
                   </Group>
                 </Card>
               );
@@ -636,8 +637,8 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
         <Divider label="code  ·  kind:1337" labelPosition="left" />
 
         <TextInput
-          label="function id (d tag)"
-          description="addressable name shared by the code (1337) + definition (31338) — saving supersedes the old one"
+          label="data function id (d tag)"
+          description="addressable name shared by the code (1337) + definition (31337) — saving supersedes the old one"
           value={dTag}
           onChange={(e) => {
             setDTag(e.currentTarget.value);
@@ -659,11 +660,11 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
           styles={{ input: { fontFamily: 'monospace', fontSize: '0.8125rem' } }}
         />
 
-        <Divider label="definition  ·  kind:31338" labelPosition="left" />
+        <Divider label="definition  ·  kind:31337" labelPosition="left" />
 
         <RelayInput
           label={relayLabel(RELAY_COLOR.home, 'home relay (dvm)')}
-          description="where the function + cached results live and the worker listens for jobs"
+          description="where the data function + cached results live and the worker listens for jobs"
           value={relayUrl ? [relayUrl] : []}
           onChange={(v) => setRelayUrl(v[0] ?? '')}
           multiple={false}
@@ -672,7 +673,7 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
 
         <RelayInput
           label={relayLabel(RELAY_COLOR.source, 'source relays')}
-          description="relays the function reads from. the function can override per query."
+          description="relays the data function reads from. the code can override per query."
           placeholder="wss://relay.relaying.earth"
           value={sourceRelays}
           onChange={setSourceRelays}
@@ -699,13 +700,15 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
         <Group align="flex-end" gap="sm" grow>
           <TextInput
             label="max runtime (ms)"
-            description={`per-run limit · capped at ${defaultRuntimeMs}`}
+            description={defaultRuntimeMs ? `per-run limit · capped at ${defaultRuntimeMs}` : 'per-run limit'}
+            placeholder={defaultRuntimeMs ? `${defaultRuntimeMs} (service default)` : 'service default'}
             value={runtimeMs}
             onChange={(e) => setRuntimeMs(e.currentTarget.value)}
           />
           <TextInput
             label="max memory (mb)"
-            description={`per-run limit · capped at ${defaultMemoryMb}`}
+            description={defaultMemoryMb ? `per-run limit · capped at ${defaultMemoryMb}` : 'per-run limit'}
+            placeholder={defaultMemoryMb ? `${defaultMemoryMb} (service default)` : 'service default'}
             value={memoryMb}
             onChange={(e) => setMemoryMb(e.currentTarget.value)}
           />
@@ -747,7 +750,7 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
         </Stack>
 
         <Group justify="flex-end">
-          <Tooltip label="set the home relay and function id" disabled={!!relayUrl && !!dTag.trim()} withArrow>
+          <Tooltip label="set the home relay and data function id" disabled={!!relayUrl && !!dTag.trim()} withArrow>
             <Button
               leftSection={<IconUpload size={16} />}
               loading={busy === 'save'}
@@ -773,17 +776,17 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
               test run
             </Button>
           </Tooltip>
-          <Tooltip label={canCache ? 'read the cached result for these inputs' : 'save the function first'} withArrow>
+          <Tooltip label={canCache ? 'read the cached result for these inputs' : 'save the data function first'} withArrow>
             <Button variant="light" leftSection={<IconDatabase size={16} />} loading={busy === 'get'} onClick={getCached} disabled={busy !== null || !canCache}>
               get cached
             </Button>
           </Tooltip>
-          <Tooltip label={canCache ? 'force the worker to recompute & cache' : 'save the function first'} withArrow>
+          <Tooltip label={canCache ? 'force the worker to recompute & cache' : 'save the data function first'} withArrow>
             <Button variant="light" leftSection={<IconRefresh size={16} />} loading={busy === 'recache'} onClick={() => submitJob('recache')} disabled={busy !== null || !canCache}>
               recache
             </Button>
           </Tooltip>
-          <Tooltip label={canCache ? 'delete the cached result for these inputs' : 'save the function first'} withArrow>
+          <Tooltip label={canCache ? 'delete the cached result for these inputs' : 'save the data function first'} withArrow>
             <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} loading={busy === 'clear'} onClick={() => submitJob('clear')} disabled={busy !== null || !canCache}>
               clear cached
             </Button>

@@ -8,13 +8,14 @@ It's a NIP-90 DVM, but generic (the job picks which script to run) and cache-fir
 
 | kind | name | who publishes | role |
 |------|------|---------------|------|
-| `1337` | code snippet (NIP-C0) | script author | the script to run; referenced by jobs |
-| `5910` | job request (NIP-90) | client | "run script S with these inputs" |
+| `1337` | code snippet (NIP-C0) | script author | the reusable code to run; referenced by definitions |
+| `31337` | data function definition (custom, addressable) | author/user | references a `1337` + bundles relays / params / ttl / output |
+| `5910` | job request (NIP-90) | client | thin pointer at a `31337` definition (+ optional overrides) |
 | `7000` | job feedback (NIP-90) | worker | status: processing / success / error |
 | `6910` | job result (NIP-90) | worker | notifies requester; points at the cached event |
-| `31337` | cached result (custom, addressable) | worker | the actual payload; `d = sha256(script + inputs + relays)` |
+| `31338` | cached result (custom, addressable) | worker | the actual payload; `d = sha256(definition + inputs + relays)` |
 
-Read path = `31337` (or `6910`). Compute trigger = `5910`. Code = `1337`.
+Read path = `31338` (or `6910`). Compute trigger = `5910`. Definition = `31337`. Code = `1337`.
 
 ## Writing a script
 

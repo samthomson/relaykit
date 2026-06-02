@@ -12,10 +12,10 @@ const code = finalizeEvent(
   { kind: 1337, created_at: now, tags: [['d', id]], content: 'async function main(inputs){ return { hello: inputs.params.name || "world" } }' },
   sk,
 )
-// 2) definition (kind:31338) referencing the code
+// 2) definition (kind:31337) referencing the code
 const def = finalizeEvent(
   {
-    kind: 31338,
+    kind: 31337,
     created_at: now,
     tags: [
       ['d', id],
@@ -29,7 +29,7 @@ const def = finalizeEvent(
 )
 // 3) job (kind:5910) pointing at the definition
 const job = finalizeEvent(
-  { kind: 5910, created_at: now + 1, tags: [['a', `31338:${pk}:${id}`, RELAY]], content: '' },
+  { kind: 5910, created_at: now + 1, tags: [['a', `31337:${pk}:${id}`, RELAY]], content: '' },
   sk,
 )
 

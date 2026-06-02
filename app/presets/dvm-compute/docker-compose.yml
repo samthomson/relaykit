@@ -14,6 +14,7 @@ services:
       MAX_RUNTIME_MS: ${MAX_RUNTIME_MS:-5000}
       MAX_MEMORY_MB: ${MAX_MEMORY_MB:-128}
       MAX_CONCURRENT: ${MAX_CONCURRENT:-4}
+      LOG_JOBS: ${LOG_JOBS:-false}
     networks:
       - dokploy-network
 

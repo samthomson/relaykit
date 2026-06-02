@@ -8,6 +8,10 @@ import { computeCacheKey, findCached, buildCachedEvent, type ScriptRef } from '.
 const tag = (ev: Event, name: string): string[] | undefined => ev.tags.find((t) => t[0] === name)
 const tagsAll = (ev: Event, name: string): string[][] => ev.tags.filter((t) => t[0] === name)
 
+const log = (req: Event, msg: string) => {
+  if (config.logJobs) console.log(`[job ${req.id.slice(0, 8)}] ${msg}`)
+}
+
 const clampTtl = (raw: number): number =>
   Math.min(Number.isFinite(raw) ? raw : config.cache.defaultTtlSec, config.cache.maxTtlSec)
 
@@ -26,7 +30,7 @@ type Overrides = {
 }
 
 type ParsedJob = {
-  // Inline code (for pre-publish testing), or a reference: `a` (a dataFunction:31338 or a
+  // Inline code (for pre-publish testing), or a reference: `a` (a dataFunction:31337 or a
   // codeSnippet:1337 address) or `e` (a code event id). Inline skips cache + author whitelist.
   inlineCode?: string
   aRef?: string
@@ -84,7 +88,7 @@ const queryByAddress = async (address: string, kind: number): Promise<Event | nu
   )
 }
 
-// Reads a dataFunction:31338 definition into its effective config (before 5910 overrides).
+// Reads a dataFunction:31337 definition into its effective config (before 5910 overrides).
 const parseDefinition = (def: Event, defAddress: string): Resolved => {
   const codeTag = tag(def, 'code')?.[1]
   if (!codeTag) throw new Error('data function has no `code` reference')
@@ -194,6 +198,7 @@ export const handleJob = async (req: Event): Promise<void> => {
     if (job.inlineCode !== undefined) {
       const sourceRelays = job.overrides.sourceRelays ?? config.sourceRelays
       const inputs: SandboxInputs = { subject: job.overrides.subject, params: job.overrides.params }
+      log(req, 'inline run')
       const result = await runScript(job.inlineCode, inputs, sourceRelays)
       await publishResult(req, JSON.stringify(result ?? null))
       await feedback(req, 'success', 'inline')
@@ -202,6 +207,7 @@ export const handleJob = async (req: Event): Promise<void> => {
 
     const r = await resolveJob(job)
     const cacheKey = computeCacheKey(r.functionRef, r.inputs, r.sourceRelays)
+    log(req, `${r.functionRef.address ?? r.functionRef.id} (${job.clearCache ? 'clear' : job.noCache ? 'recompute' : 'cached'})`)
 
     // clear: delete our cached result (NIP-09) for this key and stop.
     if (job.clearCache) {
@@ -213,6 +219,7 @@ export const handleJob = async (req: Event): Promise<void> => {
         content: 'cache cleared',
       })
       await publish([...new Set([config.dvmRelay, r.outputRelay])], del)
+      log(req, 'cache cleared')
       await feedback(req, 'success', 'cache cleared')
       return
     }
@@ -220,6 +227,7 @@ export const handleJob = async (req: Event): Promise<void> => {
     const cached = job.noCache ? null : await findCached(cacheKey, r.ttlSec)
     if (cached) {
       await publishResult(req, cached.content, cached)
+      log(req, 'cache hit')
       await feedback(req, 'success', 'cache hit')
       return
     }
@@ -238,6 +246,7 @@ export const handleJob = async (req: Event): Promise<void> => {
     const cacheEvent = sign(buildCachedEvent(cacheKey, r.functionRef, r.inputs, result, r.ttlSec))
     await publish([...new Set([config.dvmRelay, r.outputRelay])], cacheEvent)
     await publishResult(req, cacheEvent.content, cacheEvent)
+    log(req, 'computed & cached')
     await feedback(req, 'success')
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

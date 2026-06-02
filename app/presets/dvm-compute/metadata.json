@@ -70,6 +70,14 @@
       "required": false,
       "default": "4",
       "description": "how many scripts may run at once; the rest queue"
+    },
+    {
+      "id": "LOG_JOBS",
+      "name": "verbose job logging",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "log a line per job (received, cache hit/miss, outcome) to the logs tab"
     }
   ]
 }

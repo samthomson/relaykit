@@ -34,6 +34,7 @@ const main = () => {
   console.log(`  source relays: ${config.sourceRelays.join(', ')}`)
   console.log(`  authors:       ${config.authorWhitelist.length ? config.authorWhitelist.join(', ') : 'ANY (open)'}`)
   console.log(`  max concurrent: ${config.limits.maxConcurrent}, runtime ${config.limits.maxRuntimeMs}ms, mem ${config.limits.maxMemoryMb}MB`)
+  console.log(`  job logging:   ${config.logJobs ? 'on' : 'off'}`)
 
   const since = Math.floor(Date.now() / 1000)
   subscribe([config.dvmRelay], { kinds: [KIND.jobRequest], since }, (ev: Event) => {

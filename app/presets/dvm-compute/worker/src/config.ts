@@ -21,6 +21,12 @@ const csv = (key: string): string[] =>
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean)
 
+const bool = (key: string, fallback: boolean): boolean => {
+  const raw = process.env[key]
+  if (raw === undefined || raw === '') return fallback
+  return ['1', 'true', 'yes', 'on'].includes(raw.trim().toLowerCase())
+}
+
 const required = (key: string): string => {
   const v = process.env[key]
   if (!v) throw new Error(`Missing required env var ${key}`)
@@ -65,6 +71,8 @@ export const config = {
     defaultTtlSec: num('DEFAULT_TTL_SEC', 3600),
     maxTtlSec: num('MAX_TTL_SEC', 86400),
   },
+  // When on, log a line per job (received / cache hit-miss / outcome) to stdout (the logs tab).
+  logJobs: bool('LOG_JOBS', false),
 } as const
 
 export type Config = typeof config
