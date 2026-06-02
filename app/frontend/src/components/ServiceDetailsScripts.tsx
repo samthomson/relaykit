@@ -672,7 +672,7 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
 
         <RelayInput
           label={relayLabel(RELAY_COLOR.source, 'source relays')}
-          description="relays the function reads from. scripts can override per query."
+          description="relays the function reads from. the function can override per query."
           placeholder="wss://relay.relaying.earth"
           value={sourceRelays}
           onChange={setSourceRelays}
