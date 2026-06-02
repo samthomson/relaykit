@@ -190,6 +190,7 @@ next:
    - [ ] info to help query the new data
    - [ ] human readable ttls
    - [ ] runtime logs per run?
+   - [ ] fork a 1337/31337
 - [ ] convey real deployment status in UI (not assumed success) - especially as it starts up, to know when it's "ready"
    - [ ] inc adding a new service, doesn't appear immediately in the ui
    - [ ] restart ui option. 
