@@ -1,0 +1,75 @@
+{
+  "id": "dvm-compute",
+  "name": "Compute DVM",
+  "label": "Compute DVM",
+  "repo": "https://github.com/samthomson/relaykit/tree/master/app/presets/dvm-compute/worker",
+  "icon": "⚡",
+  "description": "A programmable, caching DVM (NIP-90) that runs whitelisted Nostr code snippets (NIP-C0) in a sandbox and publishes cached results.",
+  "version": "1.0.0",
+  "type": "dvm",
+  "serviceName": "dvm-compute",
+  "internalPort": 0,
+  "requiredConfig": [
+    {
+      "id": "RELAY_URL",
+      "name": "DVM relay url",
+      "type": "string",
+      "required": true,
+      "description": "relay the worker listens on for jobs and publishes results/caches to (e.g. wss://relay.example.com)",
+      "placeholder": "wss://relay.example.com"
+    },
+    {
+      "id": "DVM_SECRET_KEY",
+      "name": "signing key (nsec or hex)",
+      "type": "string",
+      "required": true,
+      "description": "the worker's nostr secret key used to sign results",
+      "placeholder": "nsec1..."
+    },
+    {
+      "id": "SOURCE_RELAYS",
+      "name": "source relays",
+      "type": "string",
+      "required": false,
+      "description": "comma-separated relays scripts pull data from (defaults to the dvm relay)"
+    },
+    {
+      "id": "AUTHOR_WHITELIST",
+      "name": "allowed script authors (hex)",
+      "type": "string",
+      "required": false,
+      "description": "comma-separated hex pubkeys whose code snippets may run. empty = any (not recommended)"
+    },
+    {
+      "id": "REQUESTER_WHITELIST",
+      "name": "allowed requesters (hex)",
+      "type": "string",
+      "required": false,
+      "description": "comma-separated hex pubkeys allowed to submit jobs. empty = anyone"
+    },
+    {
+      "id": "MAX_RUNTIME_MS",
+      "name": "max runtime per script (ms)",
+      "type": "string",
+      "required": false,
+      "default": "5000",
+      "description": "wall-clock budget for a single script run"
+    },
+    {
+      "id": "MAX_MEMORY_MB",
+      "name": "max memory per script (mb)",
+      "type": "string",
+      "required": false,
+      "default": "128",
+      "description": "memory cap for a single script run"
+    },
+    {
+      "id": "MAX_CONCURRENT",
+      "name": "max concurrent scripts",
+      "type": "string",
+      "required": false,
+      "default": "4",
+      "description": "how many scripts may run at once; the rest queue"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+# Outbound-only worker: dials relays, runs sandboxed scripts, publishes results. No inbound domain.
+# Built from the worker/ source co-located in this preset. Must be on dokploy-network (Dokploy requirement).
+services:
+  dvm-compute:
+    build: ./worker
+    restart: unless-stopped
+    mem_limit: ${CONTAINER_MEM_LIMIT:-512m}
+    environment:
+      RELAY_URL: ${RELAY_URL}
+      DVM_SECRET_KEY: ${DVM_SECRET_KEY}
+      SOURCE_RELAYS: ${SOURCE_RELAYS:-}
+      AUTHOR_WHITELIST: ${AUTHOR_WHITELIST:-}
+      REQUESTER_WHITELIST: ${REQUESTER_WHITELIST:-}
+      MAX_RUNTIME_MS: ${MAX_RUNTIME_MS:-5000}
+      MAX_MEMORY_MB: ${MAX_MEMORY_MB:-128}
+      MAX_CONCURRENT: ${MAX_CONCURRENT:-4}
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true

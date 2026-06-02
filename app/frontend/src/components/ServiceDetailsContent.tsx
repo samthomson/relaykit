@@ -10,6 +10,8 @@ import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, B
 import { IconExternalLink, IconCheck, IconX, IconAlertOctagon, IconAlertTriangle, IconCircleCheck, IconRefresh, IconPencil } from '@tabler/icons-react';
 import { InlineTextEditRow } from './InlineTextEditRow';
 import { CopyControl } from './CopyControl';
+import { ServiceDetailsScripts } from './ServiceDetailsScripts';
+import { ServiceConfigPanel } from './ServiceConfigPanel';
 import { trpc } from '../trpc';
 import { serviceTypeToRubixLoaderColor } from '../lib/serviceTypeColor';
 import { formatBytes, formatBytesPerSecond, formatPercent, formatWindow, getInsightSeverity, getOverallSeverity, getSeverityColor } from '../../../shared/insights';
@@ -921,6 +923,8 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
   const hasDNS = domain && serverIp;
   const hasInsights = !!service.composeId;
   const hasLogs = !!service.composeId;
+  const hasScripts = !!service.composeId && service.presetId === 'dvm-compute';
+  const hasConfig = !!service.composeId;
   const activePanelBg = colorScheme === 'dark' ? theme.colors.dark[8] : theme.colors.gray[0];
   const panelShadow = colorScheme === 'dark'
     ? '0 4px 12px rgba(0,0,0,0.18)'
@@ -1017,9 +1021,13 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
           >
             <Tabs.List aria-label="Details sections" miw={rem(132)} style={{ flexShrink: 0 }}>
               <Tabs.Tab value="info" style={getTabStyle(section === 'info')}>info</Tabs.Tab>
-              <Tabs.Tab value="dns" style={getTabStyle(section === 'dns')}>dns</Tabs.Tab>
-              <Tabs.Tab value="insights" style={getTabStyle(section === 'insights')}>insights</Tabs.Tab>
+              {!hasScripts && <Tabs.Tab value="dns" style={getTabStyle(section === 'dns')}>dns</Tabs.Tab>}
+              {!hasScripts && <Tabs.Tab value="insights" style={getTabStyle(section === 'insights')}>insights</Tabs.Tab>}
               <Tabs.Tab value="logs" style={getTabStyle(section === 'logs')}>logs</Tabs.Tab>
+              {hasScripts && (
+                <Tabs.Tab value="scripts" style={getTabStyle(section === 'scripts')}>data functions</Tabs.Tab>
+              )}
+              {hasConfig && <Tabs.Tab value="config" style={getTabStyle(section === 'config')}>config</Tabs.Tab>}
             </Tabs.List>
             <Box
               style={{
@@ -1077,6 +1085,24 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
                   </Box>
                 )}
               </Transition>
+              {hasScripts && (
+                <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'scripts'}>
+                  {(tStyle) => (
+                    <Box style={{ ...panelContentStyle, ...tStyle }}>
+                      <ServiceDetailsScripts composeId={service.composeId} />
+                    </Box>
+                  )}
+                </Transition>
+              )}
+              {hasConfig && (
+                <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'config'}>
+                  {(tStyle) => (
+                    <Box style={{ ...panelContentStyle, ...tStyle }}>
+                      <ServiceConfigPanel service={service} />
+                    </Box>
+                  )}
+                </Transition>
+              )}
             </Box>
           </Group>
         </Tabs>

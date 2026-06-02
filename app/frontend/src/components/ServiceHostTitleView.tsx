@@ -14,11 +14,8 @@ export type ServiceHostTitleViewProps = {
   title: string;
   density: 'compact' | 'comfortable';
   domain: any | null | undefined;
-  canEditConfig: boolean;
   composeId: string;
-  service: any;
   onEditDomain: (composeId: string, domain: any) => void;
-  onEditConfig: (service: any) => void;
   rowStyle?: CSSProperties;
   trailing?: ReactNode;
 };
@@ -27,11 +24,8 @@ export const ServiceHostTitleView = ({
   title,
   density,
   domain,
-  canEditConfig,
   composeId,
-  service,
   onEditDomain,
-  onEditConfig,
   rowStyle,
   trailing,
 }: ServiceHostTitleViewProps) => {
@@ -99,13 +93,6 @@ export const ServiceHostTitleView = ({
       {domain && (
         <Tooltip label="Edit domain">
           <ActionIcon variant="subtle" size={actionSize} style={{ flexShrink: 0 }} onClick={() => onEditDomain(composeId, domain)} aria-label="Edit domain">
-            <IconPencil size={iconPx} />
-          </ActionIcon>
-        </Tooltip>
-      )}
-      {!domain && canEditConfig && (
-        <Tooltip label="Edit config">
-          <ActionIcon variant="subtle" size={actionSize} style={{ flexShrink: 0 }} onClick={() => onEditConfig(service)} aria-label="Edit config">
             <IconPencil size={iconPx} />
           </ActionIcon>
         </Tooltip>
