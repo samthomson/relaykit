@@ -2,7 +2,7 @@
 
 A programmable, caching DVM worker. Clients ask it to run a whitelisted **code snippet** (NIP-C0, `kind:1337`) against Nostr data; it runs the script in a sandboxed JS VM and publishes a **cached result** that clients read instead of crawling raw events.
 
-It's a NIP-90 DVM, but generic (the job picks which script to run) and cache-first (results are content-addressed and reused until they expire).
+It's a NIP-90 DVM, but generic (the job picks which script to run) and cache-first (results are content-addressed and reused until they expire). Scripts run in a [quickjs-emscripten](https://github.com/justjake/quickjs-emscripten) WASM sandbox.
 
 ## Event kinds
 
