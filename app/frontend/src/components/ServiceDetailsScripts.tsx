@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, getPublicKey, nip19 } from 'nostr-tools';
 import type { Event, Filter } from 'nostr-tools';
 import {
   ActionIcon,
@@ -82,6 +82,25 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const sha256Hex = async (s: string): Promise<string> => {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+};
+
+const hexToBytes = (hex: string): Uint8Array => {
+  const clean = hex.trim().toLowerCase();
+  const out = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+  return out;
+};
+
+// derive the dvm's public key from its secret (nsec or hex). the pubkey is public; safe to show.
+const pubkeyFromSecret = (secret: string): string => {
+  try {
+    const s = (secret ?? '').trim();
+    if (!s) return '';
+    const sk = s.startsWith('nsec') ? (nip19.decode(s).data as Uint8Array) : hexToBytes(s);
+    return getPublicKey(sk);
+  } catch {
+    return '';
+  }
 };
 
 const fmtTime = (sec: number): string => new Date(sec * 1000).toLocaleString();
@@ -181,6 +200,7 @@ type Result = { label: string; content: string; ts?: number } | null;
 
 export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
   const [relayUrl, setRelayUrl] = useState('');
+  const [dvmPubkey, setDvmPubkey] = useState('');
   const [defaultSourceRelays, setDefaultSourceRelays] = useState<string[]>([]);
   // operator ceilings from the service config (authoritative default lives in the preset config,
   // not hardcoded here) — seed per-data-function limits and cap them.
@@ -216,6 +236,7 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
   const [author, setAuthor] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  const [cacheKeyHex, setCacheKeyHex] = useState('');
 
   const [busy, setBusy] = useState<null | 'test' | 'get' | 'recache' | 'clear' | 'save'>(null);
   const [error, setError] = useState<string | null>(null);
@@ -229,6 +250,7 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
       .then((res) => {
         if (cancelled) return;
         setRelayUrl(toWs(res.config?.RELAY_URL ?? ''));
+        setDvmPubkey(pubkeyFromSecret(res.config?.DVM_SECRET_KEY ?? ''));
         const configured = (res.config?.SOURCE_RELAYS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
         setDefaultSourceRelays(configured.map(toWs));
         if (res.config?.MAX_RUNTIME_MS) setDefaultRuntimeMs(String(res.config.MAX_RUNTIME_MS));
@@ -247,6 +269,21 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
   };
 
   const inputs: Inputs = { subjectValue, subjectType, params, sourceRelays };
+
+  // the content-addressed `d` of the cached result for the current inputs (shown in the consume box).
+  useEffect(() => {
+    if (!author || !dTag.trim()) {
+      setCacheKeyHex('');
+      return;
+    }
+    let cancelled = false;
+    const address = `${KIND.dataFunction}:${author}:${dTag.trim()}`;
+    computeCacheKey(address, { subjectValue, subjectType, params, sourceRelays }).then((k) => !cancelled && setCacheKeyHex(k));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [author, dTag, subjectValue, subjectType, params, sourceRelays]);
 
   const loadFunctions = async (quiet = false) => {
     if (!quiet) setError(null);
@@ -367,7 +404,8 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
           const list = Array.isArray(filters) ? filters : [filters];
           const byId = new Map<string, Event>();
           for (const f of list) {
-            const evs = await pool.querySync(target, f);
+            // bounded wait (slow relays can take ~10s to EOSE); collect whatever arrives.
+            const evs = await queryBounded(pool, target, f, 15000);
             for (const e of evs) byId.set(e.id, e);
           }
           return [...byId.values()];
@@ -761,6 +799,29 @@ export const ServiceDetailsScripts = ({ composeId }: { composeId: string }) => {
             </Button>
           </Tooltip>
         </Group>
+
+        {published && author && dTag.trim() && (
+          <>
+            <Divider label="consume" labelPosition="left" />
+            <Stack gap={6}>
+              <Text size="sm" c="dimmed">cache-first: read the result; if it's missing or stale, trigger a recompute.</Text>
+              <Text size="xs" fw={500}>1. read the cached result on <Code>{relayUrl}</Code>:</Text>
+              <Code block style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{`{
+  "kinds": [${KIND.cachedResult}],
+  "authors": ["${dvmPubkey || '<dvm pubkey>'}"],
+  "#d": ["${cacheKeyHex || '…'}"]
+}`}</Code>
+              <Text size="xs" c="dimmed">use <Code>content</Code> (json) if found and <Code>created_at + {ttl || '<ttl>'}s</Code> is still in the future.</Text>
+              <Text size="xs" fw={500}>2. on miss/stale, publish a job (kind {KIND.jobRequest}) to recompute, then re-read step 1:</Text>
+              <Code block style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{`{
+  "kind": ${KIND.jobRequest},
+  "tags": [["a", "${KIND.dataFunction}:${author}:${dTag.trim()}", "${relayUrl}"]],
+  "content": ""
+}`}</Code>
+              <Text size="xs" c="dimmed">the dvm publishes the <Code>{KIND.cachedResult}</Code> result (and a kind {KIND.jobResult} pointer).</Text>
+            </Stack>
+          </>
+        )}
 
         <Divider label="run" labelPosition="left" />
 

@@ -1,4 +1,4 @@
-import { getQuickJS, shouldInterruptAfterDeadline } from 'quickjs-emscripten'
+import { getQuickJS } from 'quickjs-emscripten'
 import type { Event, Filter } from 'nostr-tools'
 import { collect } from './nostr.js'
 import { config } from './config.js'
@@ -15,7 +15,9 @@ const makeQueryFn = (defaultRelays: string[]) => {
     const filters = JSON.parse(filtersJson) as Filter[]
     const provided = relaysJson ? (JSON.parse(relaysJson) as string[] | null) : null
     const relays = Array.isArray(provided) && provided.length ? provided : defaultRelays
-    const remaining = config.limits.maxEventsPerJob - fetched
+    // maxEventsPerJob <= 0 means unlimited; otherwise cap the total fetched across all queries.
+    const cap = config.limits.maxEventsPerJob
+    const remaining = cap > 0 ? cap - fetched : Infinity
     if (remaining <= 0) return JSON.stringify([])
     const events: Event[] = await collect(relays, filters, {
       timeoutMs: config.limits.sourceQueryTimeoutMs,
@@ -41,7 +43,10 @@ export const runScript = async (
   const runtime = QuickJS.newRuntime()
   runtime.setMemoryLimit(maxMemoryMb * 1024 * 1024)
   runtime.setMaxStackSize(1024 * 512)
-  runtime.setInterruptHandler(shouldInterruptAfterDeadline(Date.now() + maxRuntimeMs))
+  // Budget counts script CPU only: time spent awaiting nostr.query (host network I/O) is
+  // credited back to the deadline, so a slow source relay doesn't trip the interrupt.
+  let deadline = Date.now() + maxRuntimeMs
+  runtime.setInterruptHandler(() => Date.now() > deadline)
 
   const ctx = runtime.newContext()
   try {
@@ -53,13 +58,16 @@ export const runScript = async (
       const filtersJson = ctx.getString(filtersHandle)
       const relaysJson = relaysHandle ? ctx.getString(relaysHandle) : ''
       const deferred = ctx.newPromise()
+      const t0 = Date.now()
       query(filtersJson, relaysJson).then(
         (json) => {
+          deadline += Date.now() - t0
           const h = ctx.newString(json)
           deferred.resolve(h)
           h.dispose()
         },
         (err: unknown) => {
+          deadline += Date.now() - t0
           const h = ctx.newString(err instanceof Error ? err.message : String(err))
           deferred.reject(h)
           h.dispose()

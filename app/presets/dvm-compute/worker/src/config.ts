@@ -63,7 +63,7 @@ export const config = {
     maxRuntimeMs: num('MAX_RUNTIME_MS', 5000),
     maxMemoryMb: num('MAX_MEMORY_MB', 128),
     maxConcurrent: num('MAX_CONCURRENT', 4),
-    maxEventsPerJob: num('MAX_EVENTS_PER_JOB', 5000),
+    maxEventsPerJob: num('MAX_EVENTS_PER_JOB', 0), // 0 = unlimited
     maxOutputBytes: num('MAX_OUTPUT_BYTES', 524288),
     sourceQueryTimeoutMs: num('SOURCE_QUERY_TIMEOUT_MS', 8000),
   },
