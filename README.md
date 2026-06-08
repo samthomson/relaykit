@@ -47,6 +47,7 @@ Browser → RelayKit App → Dokploy API
 | Strfry          | [hoytech/strfry](https://github.com/hoytech/strfry) | |
 | Blossom         | [hzrd149/blossom](https://github.com/hzrd149/blossom) | |
 | nPanel          | [hzrd149/nsite-gateway](https://github.com/hzrd149/nsite-gateway) | Static sites on Nostr (NIP-5A) plus same-domain NIP-05 responses. Deploys nsite-gateway, a NIP-05 JSON sidecar, and a Caddy sidecar that serves `/.well-known/nostr.json` while rewriting `Host` for gateway traffic. |
+| Compute DVM     | [`app/presets/dvm-compute/worker/`](app/presets/dvm-compute/worker/) | Programmable, caching DVM (NIP-90): runs whitelisted Nostr code snippets (NIP-C0) in a quickjs sandbox and publishes cached results (`kind:31338`) clients read instead of crawling raw events. |
 
 ## Project Structure
 
@@ -184,6 +185,12 @@ issues:
 - [ ] dns check in prod not working right
 
 next:
+- [ ] data functions
+   - [ ] code ui rendering
+   - [ ] info to help query the new data
+   - [ ] human readable ttls
+   - [ ] runtime logs per run?
+   - [ ] fork a 1337/31337
 - [ ] convey real deployment status in UI (not assumed success) - especially as it starts up, to know when it's "ready"
    - [ ] inc adding a new service, doesn't appear immediately in the ui
    - [ ] restart ui option. 

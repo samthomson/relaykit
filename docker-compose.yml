@@ -118,9 +118,14 @@ services:
       - NODE_ENV=development
       - PORT=4000
       - JWT_SECRET=${JWT_SECRET}
+      - YARN_CACHE_FOLDER=/yarn-cache
     volumes:
       - ./app:/app
       - relaykit_data:/app/.relaykit
+      # Persist installed deps (and yarn cache) so cold starts don't re-fetch everything.
+      # The named volume at /app/node_modules also shadows the host bind mount for that path.
+      - relaykit_node_modules:/app/node_modules
+      - relaykit_yarn_cache:/yarn-cache
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       dokploy:
@@ -157,6 +162,8 @@ volumes:
   redis_data:
   dokploy_data:
   relaykit_data:
+  relaykit_node_modules:
+  relaykit_yarn_cache:
 
 networks:
   relaykit-network:

@@ -1,0 +1,25 @@
+# Outbound-only worker: dials relays, runs sandboxed scripts, publishes results. No inbound domain.
+# Runs the prebuilt local image (build it with: docker build -t relaykit-dvm-compute:local ./worker).
+# Must be on dokploy-network (Dokploy requirement).
+services:
+  dvm-compute:
+    image: relaykit-dvm-compute:local
+    pull_policy: never
+    restart: unless-stopped
+    mem_limit: ${CONTAINER_MEM_LIMIT:-512m}
+    environment:
+      RELAY_URL: ${RELAY_URL}
+      DVM_SECRET_KEY: ${DVM_SECRET_KEY}
+      SOURCE_RELAYS: ${SOURCE_RELAYS:-}
+      AUTHOR_WHITELIST: ${AUTHOR_WHITELIST:-}
+      REQUESTER_WHITELIST: ${REQUESTER_WHITELIST:-}
+      MAX_RUNTIME_MS: ${MAX_RUNTIME_MS:-5000}
+      MAX_MEMORY_MB: ${MAX_MEMORY_MB:-128}
+      MAX_CONCURRENT: ${MAX_CONCURRENT:-4}
+      LOG_JOBS: ${LOG_JOBS:-false}
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true

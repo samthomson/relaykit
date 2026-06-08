@@ -445,7 +445,6 @@ const ServiceCard = ({
   onStart,
   onStop,
   onDelete,
-  onEditConfig,
   onMove,
   allEnvironments,
   availableRelays,
@@ -464,7 +463,6 @@ const ServiceCard = ({
   onStart: (composeId: string) => void;
   onStop: (composeId: string) => void;
   onDelete: (composeId: string, name: string) => void;
-  onEditConfig: (service: any) => void;
   onMove: (composeId: string, targetEnvironmentId: string) => void;
   allEnvironments: { environmentId: string; label: string }[];
   availableRelays: string[];
@@ -498,9 +496,6 @@ const ServiceCard = ({
   const manageItems: { label: string; onClick: () => void; danger?: boolean }[] = [];
   if (domain && !isEditing) {
     manageItems.push({ label: 'edit domain', onClick: () => onEditDomain(service.composeId, domain) });
-  }
-  if (service.canEditConfig) {
-    manageItems.push({ label: 'edit config', onClick: () => onEditConfig(service) });
   }
   if (statusNorm === 'running') {
     manageItems.push({ label: 'stop', onClick: () => onStop(service.composeId) });
@@ -656,11 +651,8 @@ const ServiceCard = ({
                   title={domain ? domain.host : service.name}
                   density="comfortable"
                   domain={null}
-                  canEditConfig={false}
                   composeId={service.composeId}
-                  service={service}
                   onEditDomain={onEditDomain}
-                  onEditConfig={onEditConfig}
                   rowStyle={{ flex: 1, minWidth: 0 }}
                   trailing={
                     <Group gap={6} wrap="nowrap">
@@ -700,11 +692,8 @@ const ServiceCard = ({
                         title={domain ? domain.host : service.name}
                         density="compact"
                         domain={domain}
-                        canEditConfig={service.canEditConfig}
                         composeId={service.composeId}
-                        service={service}
                         onEditDomain={onEditDomain}
-                        onEditConfig={onEditConfig}
                         rowStyle={{ minWidth: 0, flex: 1 }}
                       />
                     )}
@@ -856,11 +845,8 @@ const ServiceCard = ({
                     title={domain ? domain.host : service.name}
                     density="comfortable"
                     domain={null}
-                    canEditConfig={false}
                     composeId={service.composeId}
-                    service={service}
                     onEditDomain={onEditDomain}
-                    onEditConfig={onEditConfig}
                     rowStyle={{ flex: 1, minWidth: 0 }}
                     trailing={nip42Badge}
                   />
@@ -915,11 +901,6 @@ export const ServiceList = () => {
 
   const [editingDomain, setEditingDomain] = useState<{ composeId: string; domainId: string; currentHost: string } | null>(null);
   const [newDomainHost, setNewDomainHost] = useState('');
-  const [editingConfigService, setEditingConfigService] = useState<any | null>(null);
-  const [editingConfigFields, setEditingConfigFields] = useState<any[]>([]);
-  const [editingConfigValues, setEditingConfigValues] = useState<Record<string, string>>({});
-  const [loadingConfigModal, setLoadingConfigModal] = useState(false);
-  const [savingConfig, setSavingConfig] = useState(false);
 
   const [newProjectName, setNewProjectName] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
@@ -1118,44 +1099,6 @@ export const ServiceList = () => {
       toast.success('Domain updated successfully');
     } catch (error: any) {
       toast.error(`Failed to update domain: ${error.message}`);
-    }
-  };
-
-  const handleEditConfig = async (service: any) => {
-    setLoadingConfigModal(true);
-    try {
-      const result = await trpc.getServiceConfig.query({ composeId: service.composeId });
-      setEditingConfigService(service);
-      setEditingConfigFields(result.fields || []);
-      setEditingConfigValues(result.config || {});
-    } catch (error: any) {
-      toast.error(`Failed to load service config: ${error.message}`);
-    } finally {
-      setLoadingConfigModal(false);
-    }
-  };
-
-  const handleSaveConfig = async (nextValues: Record<string, string>) => {
-    if (!editingConfigService) return;
-    setSavingConfig(true);
-    try {
-      const configToSave =
-        isNpanelType(editingConfigService.type)
-          ? prepareNsiteConfigForSave(nextValues)
-          : nextValues;
-      await trpc.updateServiceConfig.mutate({
-        composeId: editingConfigService.composeId,
-        config: configToSave,
-      });
-      toast.success('Service config updated and redeploy started');
-      setEditingConfigService(null);
-      setEditingConfigFields([]);
-      setEditingConfigValues({});
-      await loadData();
-    } catch (error: any) {
-      toast.error(`Failed to update config: ${error.message}`);
-    } finally {
-      setSavingConfig(false);
     }
   };
 
@@ -1445,7 +1388,6 @@ export const ServiceList = () => {
                                   onStart={handleStartService}
                                   onStop={handleStopService}
                                   onDelete={openDeleteServiceConfirm}
-                                  onEditConfig={handleEditConfig}
                                   onMove={handleMoveService}
                                   allEnvironments={allEnvironments}
                                   availableRelays={availableRelays}
@@ -1526,7 +1468,6 @@ export const ServiceList = () => {
                                       onStart={handleStartService}
                                       onStop={handleStopService}
                                       onDelete={openDeleteServiceConfirm}
-                                      onEditConfig={handleEditConfig}
                                       onMove={handleMoveService}
                                       allEnvironments={allEnvironments}
                                       availableRelays={availableRelays}
@@ -1623,22 +1564,6 @@ export const ServiceList = () => {
           danger
           onConfirm={handleConfirmDelete}
           onCancel={() => setConfirmModal(null)}
-        />
-      )}
-      {(loadingConfigModal || editingConfigService) && (
-        <ConfigEditModal
-          loading={loadingConfigModal}
-          service={editingConfigService}
-          fields={editingConfigFields}
-          initialValues={editingConfigValues}
-          onSubmit={handleSaveConfig}
-          onClose={() => {
-            if (savingConfig) return;
-            setEditingConfigService(null);
-            setEditingConfigFields([]);
-            setEditingConfigValues({});
-          }}
-          saving={savingConfig}
         />
       )}
     </Stack>
@@ -1792,117 +1717,3 @@ const DeployModal = ({
   );
 };
 
-const ConfigEditModal = ({
-  loading,
-  service,
-  fields,
-  initialValues,
-  onSubmit,
-  onClose,
-  saving,
-}: {
-  loading: boolean;
-  service: any | null;
-  fields: any[];
-  initialValues: Record<string, string>;
-  onSubmit: (values: Record<string, string>) => void | Promise<void>;
-  onClose: () => void;
-  saving: boolean;
-}) => {
-  const isNsite = isNpanelType(service?.type);
-  const fakePreset = isNsite ? { id: SERVICE_TYPE.NPANEL, requiredConfig: fields } : null;
-  const form = useForm<Record<string, string>>({
-    initialValues,
-    validateInputOnChange: true,
-    validate: (vals: Record<string, string>) => {
-      const errors: Record<string, string> = {};
-      if (isNsite) return errors;
-      for (const field of fields) {
-        if (!field.required || field.type === 'boolean') continue;
-        if (!(vals[field.id] || '').trim()) {
-          errors[field.id] = `${field.name} is required`;
-        }
-      }
-      return errors;
-    },
-  });
-
-  useEffect(() => {
-    form.setValues(initialValues);
-    form.clearErrors();
-  }, [initialValues]);
-
-  const canSubmit = !saving && form.isValid();
-
-  const renderConfigField = (field: any) => {
-    if (field.type === 'boolean') {
-      const checked = (form.values[field.id] || String(field.default || 'false')).toLowerCase() === 'true';
-      return (
-        <Switch
-          key={field.id}
-          label={field.name}
-          description={field.description}
-          checked={checked}
-          onChange={(e) => form.setFieldValue(field.id, e.currentTarget.checked ? 'true' : 'false')}
-        />
-      );
-    }
-
-    return (
-      <TextInput
-        key={field.id}
-        label={field.name}
-        description={field.description}
-        required={field.required}
-        {...form.getInputProps(field.id)}
-        value={form.values[field.id] ?? String(field.default ?? '')}
-      />
-    );
-  };
-
-  return (
-    <Modal opened onClose={onClose} title="edit config" size="md" centered styles={{ body: { maxHeight: '85vh', overflow: 'auto' } }}>
-      <Stack gap="md">
-        <Text size="sm" c="dimmed">
-          {service ? `Update environment config for ${service.name}` : 'Loading service config...'}
-        </Text>
-        {loading ? (
-          <Text c="dimmed">Loading...</Text>
-        ) : fields.length === 0 ? (
-          <>
-            <Text c="dimmed">No editable config fields for this service.</Text>
-            <Button onClick={onClose} fullWidth>close</Button>
-          </>
-        ) : (
-          <form onSubmit={form.onSubmit((vals: Record<string, string>) => void onSubmit(vals))}>
-            <Stack gap="md">
-              {isNsite && fakePreset ? (
-                <NsiteDeployFields
-                  preset={fakePreset}
-                  config={form.values}
-                  setConfig={(next) => {
-                    const resolved = typeof next === 'function' ? next(form.values) : next;
-                    for (const [key, value] of Object.entries(resolved)) {
-                      form.setFieldValue(key, String(value ?? ''));
-                    }
-                  }}
-                  ownerPubkeyHex={null}
-                />
-              ) : (
-                fields.map(renderConfigField)
-              )}
-              <Group justify="space-between">
-                <Button variant="default" onClick={onClose} disabled={saving}>
-                  cancel
-                </Button>
-                <Button type="submit" color="green" loading={saving} disabled={!canSubmit}>
-                  {saving ? 'saving…' : 'save + redeploy'}
-                </Button>
-              </Group>
-            </Stack>
-          </form>
-        )}
-      </Stack>
-    </Modal>
-  );
-};
