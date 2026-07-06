@@ -202,3 +202,7 @@ next:
 maybe later:
 - [ ] expose volumes to user so they can manage (view/delete/optional: create service from volume)
 - [ ] publicly exposed relayexplorer?
+
+unsorted:
+- [ ] group login (ie diff npubs/teams)
+- [ ] super smooth setup/install
