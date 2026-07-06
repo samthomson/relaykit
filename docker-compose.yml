@@ -142,7 +142,18 @@ services:
       - relaykit-network
     labels:
       - "traefik.enable=true"
-      # Low priority so Dokploy's per-service routes (e.g. relay.brainrot.rehab) win; fallback for IP or unknown host
+      # Primary host router: real Let's Encrypt cert for the instance domain (set RELAYKIT_HOST in .env)
+      - "traefik.http.routers.relaykit-secure.rule=Host(`${RELAYKIT_HOST}`)"
+      - "traefik.http.routers.relaykit-secure.priority=100"
+      - "traefik.http.routers.relaykit-secure.entrypoints=websecure"
+      - "traefik.http.routers.relaykit-secure.tls.certresolver=letsencrypt"
+      # Redirect http→https for the instance domain
+      - "traefik.http.routers.relaykit-web.rule=Host(`${RELAYKIT_HOST}`)"
+      - "traefik.http.routers.relaykit-web.priority=100"
+      - "traefik.http.routers.relaykit-web.entrypoints=web"
+      - "traefik.http.routers.relaykit-web.middlewares=relaykit-redirect"
+      - "traefik.http.middlewares.relaykit-redirect.redirectscheme.scheme=https"
+      # Low priority so Dokploy's per-service routes win; fallback for IP or unknown host (self-signed on https)
       - "traefik.http.routers.relaykit.rule=PathPrefix(`/`)"
       - "traefik.http.routers.relaykit.priority=1"
       - "traefik.http.routers.relaykit.entrypoints=web,websecure"

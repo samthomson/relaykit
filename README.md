@@ -124,7 +124,19 @@ Run these commands from the project directory (the folder containing `docker-com
 
 Then https://your-domain works in the browser and routes to the relay.
 
-**Prod:** `docker compose --profile prod up -d`. No Caddy; Traefik on 80/443 with real certs. RelayKit: build frontend, backend serves static + tRPC, one port.
+**Prod install (on your own server):** point your domain's A record at the server, then from the repo root run:
+
+```bash
+./scripts/install.sh
+```
+
+It prompts for your owner npub and instance domain, auto-generates `JWT_SECRET` + admin password, writes `.env`, starts the prod stack, and provisions auth. Traefik issues a Let's Encrypt cert for `RELAYKIT_HOST` automatically (needs ports 80/443 open and the DNS record pointing at the server — not proxied through Cloudflare during first issuance).
+
+**Change the domain or owner npub later:** just re-run `./scripts/install.sh` (it offers current values as defaults) — it updates `.env`, redeploys so Traefik re-issues the cert for the new domain, and syncs the owner npub. Manual equivalents: edit `RELAYKIT_HOST` in `.env` then `docker compose --profile prod up -d`; and for the owner, `docker compose exec relaykit-prod sh -c 'printf npub1... > /app/.relaykit/owner-npub'`.
+
+Cert resolver is assumed to be `letsencrypt` (Dokploy's default in `/etc/dokploy/traefik/traefik.yml`); change the `certresolver` label in `docker-compose.yml` if yours differs.
+
+**Prod (manual):** `docker compose --profile prod up -d`. No Caddy; Traefik on 80/443 with real certs. RelayKit: build frontend, backend serves static + tRPC, one port.
 
 ## Deploy
 
