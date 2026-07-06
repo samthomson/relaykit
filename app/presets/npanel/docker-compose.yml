@@ -75,7 +75,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        printf ':8080 {\n  @nip05 path /.well-known/nostr.json\n  handle @nip05 {\n    reverse_proxy http://npanel-nip05:8090\n  }\n  handle {\n    reverse_proxy http://nsite-gateway:3000 {\n      header_up Host %s\n      header_down Cache-Control "no-cache"\n    }\n  }\n}\n' "$$CANONICAL_HOST" > /tmp/Caddyfile && exec caddy run --config /tmp/Caddyfile
+        printf ':8080 {\n  @nip05 path /.well-known/nostr.json\n  handle @nip05 {\n    reverse_proxy http://npanel-nip05:8090\n  }\n  @assets path *.js *.mjs *.css *.map *.woff *.woff2 *.ttf *.otf *.png *.jpg *.jpeg *.gif *.svg *.webp *.avif *.ico\n  handle @assets {\n    reverse_proxy http://nsite-gateway:3000 {\n      header_up Host %s\n      header_down Cache-Control "public, max-age=31536000, immutable"\n    }\n  }\n  handle {\n    reverse_proxy http://nsite-gateway:3000 {\n      header_up Host %s\n      header_down Cache-Control "no-cache"\n    }\n  }\n}\n' "$$CANONICAL_HOST" "$$CANONICAL_HOST" > /tmp/Caddyfile && exec caddy run --config /tmp/Caddyfile
     expose:
       - "8080"
     depends_on:

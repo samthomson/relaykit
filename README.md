@@ -46,7 +46,7 @@ Browser → RelayKit App → Dokploy API
 | nogringo/nostr-relay | [nogringo/nostr-relay](https://github.com/nogringo/nostr-relay) | NIP-17/59 relay with NIP-42 auth-gated gift-wrap reads (`kind:1059`). |
 | Strfry          | [hoytech/strfry](https://github.com/hoytech/strfry) | |
 | Blossom         | [hzrd149/blossom](https://github.com/hzrd149/blossom) | |
-| nPanel          | [hzrd149/nsite-gateway](https://github.com/hzrd149/nsite-gateway) | Static sites on Nostr (NIP-5A) plus same-domain NIP-05 responses. Deploys nsite-gateway, a NIP-05 JSON sidecar, and a Caddy sidecar that serves `/.well-known/nostr.json` while rewriting `Host` for gateway traffic. |
+| nPanel          | [hzrd149/nsite-gateway](https://github.com/hzrd149/nsite-gateway) | Static sites on Nostr (NIP-5A) plus same-domain NIP-05 responses. Deploys nsite-gateway, a NIP-05 JSON sidecar, and a Caddy sidecar that serves `/.well-known/nostr.json` while rewriting `Host` for gateway traffic. Republished sites are picked up automatically within ~10 min (gateway re-polls relays); use the service's "refresh nsite content" action to apply immediately. Caddy caches content-hashed assets immutably and serves HTML with `no-cache` so new versions appear without stale-cache issues. |
 
 ## Project Structure
 
