@@ -3,11 +3,13 @@ import { Button, Card, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { EmbeddedAppModal } from '../embedded/EmbeddedAppModal';
 import { EMBEDDABLE_APPS, EMBEDDABLE_APP_IDS, type EmbeddableAppId } from '../embedded/registry';
 import { useRefreshServices } from '../contexts/RefreshServicesContext';
+import { useAuth } from '../contexts/AuthContext';
 import { isRelayType } from '../../../shared/serviceType';
 
 export const AppsPage = () => {
   const [activeLaunch, setActiveLaunch] = useState<{ appId: EmbeddableAppId; session: string } | null>(null);
   const { services } = useRefreshServices();
+  const { npub } = useAuth();
 
   const knownRelays = useMemo(
     () =>
@@ -31,7 +33,11 @@ export const AppsPage = () => {
           context={{
             standalone: '1',
             session: activeLaunch.session,
-            relays: activeLaunch.appId === 'relay-explorer' ? relayOptionsParam : undefined,
+            relays:
+              activeLaunch.appId === 'relay-explorer' || activeLaunch.appId === 'nsite-explorer'
+                ? relayOptionsParam
+                : undefined,
+            owner: activeLaunch.appId === 'nsite-explorer' ? (npub ?? undefined) : undefined,
           }}
           onClose={() => setActiveLaunch(null)}
         />

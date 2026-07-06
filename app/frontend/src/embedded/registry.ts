@@ -41,7 +41,7 @@ export const EMBEDDABLE_APPS: Record<EmbeddableAppId, EmbeddableApp> = {
     description: 'inspect and debug nsite data',
     devPort: 5176,
     basePath: '/apps/nsite-explorer/',
-    buildContext: (ctx) => qs({ embedded: '1', gateway: ctx.gateway, pubkey: ctx.pubkey, standalone: ctx.standalone, session: ctx.session }),
+    buildContext: (ctx) => qs({ embedded: '1', gateway: ctx.gateway, pubkey: ctx.pubkey, siteD: ctx.siteD, relays: ctx.relays, owner: ctx.owner, standalone: ctx.standalone, session: ctx.session }),
   },
 }
 

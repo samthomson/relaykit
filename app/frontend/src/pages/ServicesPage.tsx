@@ -627,7 +627,12 @@ const ServiceCard = ({
       {showNsiteExplorer && domain && (
         <EmbeddedAppModal
           appId="nsite-explorer"
-          context={{ gateway: httpsUrl }}
+          context={{
+            gateway: httpsUrl,
+            pubkey: service.nsiteSiteNpub,
+            siteD: service.nsiteSiteD,
+            relays: service.nsiteRelays,
+          }}
           serviceType={service.type}
           presetId={service.presetId}
           onClose={() => setShowNsiteExplorer(false)}
