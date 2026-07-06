@@ -312,10 +312,36 @@ export const fetchNsiteRelayEnvFromProfile = async (pubkeyHex: string): Promise<
   }
 }
 
-// ── D-tag discovery (frontend) ──────────────────────────────────────
+// ── Publishing-key profile (kind 0) ─────────────────────────────────
 
 const wssFromCsv = (csv: string): string[] =>
   csv.split(',').map((s) => s.trim()).filter((s) => /^wss?:\/\//i.test(s))
+
+export type NpanelProfile = { name?: string; picture?: string }
+
+export const fetchNpanelProfile = async (pubkeyHex: string, extraRelaysCsv = ''): Promise<NpanelProfile> => {
+  const pool = new SimplePool()
+  // Query the site's own relays first (that's where the key's kind 0 most likely lives), then public discovery relays.
+  const relays = [...new Set([...wssFromCsv(extraRelaysCsv), ...PROFILE_DISCOVERY_RELAYS])]
+  try {
+    const evs = await pool.querySync(relays, { authors: [pubkeyHex], kinds: [0], limit: 5 })
+    let latest: NostrEvent | undefined
+    for (const e of evs) if (!latest || e.created_at > latest.created_at) latest = e
+    if (!latest) return {}
+    try {
+      const meta = JSON.parse(latest.content) as Record<string, unknown>
+      const name = (meta.display_name as string) || (meta.name as string) || undefined
+      const picture = (meta.picture as string) || undefined
+      return { name: name?.trim() || undefined, picture: picture?.trim() || undefined }
+    } catch {
+      return {}
+    }
+  } finally {
+    pool.close(relays)
+  }
+}
+
+// ── D-tag discovery (frontend) ──────────────────────────────────────
 
 export const fetchNsite35128Dtags = async (pubkeyHex: string, relayCsv: string): Promise<string[]> => {
   const relays = wssFromCsv(relayCsv)

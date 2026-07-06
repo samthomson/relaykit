@@ -14,7 +14,7 @@ import {
   SERVICE_INSIGHTS,
 } from './constants'
 import { isNpanelType } from '../../shared/serviceType'
-import { applyNsiteHostnameToEnv, finalizeNsiteRouterEnv, normalizeNpanelNip05UsersEnv, NPANEL_NIP05_USERS_ENV_KEY } from '../../shared/nsite'
+import { applyNsiteHostnameToEnv, finalizeNsiteRouterEnv, normalizeNpanelNip05UsersEnv, normalizeVisitorHost, NPANEL_NIP05_USERS_ENV_KEY } from '../../shared/nsite'
 import { createServerInsightsCollector, trimInsightPointsToWindow, type ServiceInsightsResponse } from '../../shared/insights'
 
 const t = initTRPC.context<{ auth: AuthContext | null; noBootstrapKey?: boolean; host?: string }>().create()
@@ -162,13 +162,16 @@ const registerDomain = async (composeId: string, host: string, presetData: { int
   }
 }
 
-/** Traefik needs a router (and cert) per Host; nsite may use a short public host plus the canonical NIP-5A host. */
+/**
+ * Traefik needs a router (and cert) only for the public host. In vanity mode that's the visitor host; in
+ * multi-site mode the router host already IS the canonical host. The canonical host is otherwise internal
+ * addressing (Caddy rewrites the Host container-to-container), so we don't register it as a public domain —
+ * and this reconciler removes any canonical domain left over from older vanity deployments.
+ */
 const syncNsiteDokployDomains = async (composeId: string, envVars: Record<string, string>, presetData: PresetMetadata) => {
   const router = (envVars.NSITE_ROUTER_HOST || envVars.NSITE_DOMAIN || '').trim()
-  const canon = (envVars.NSITE_DOMAIN || '').trim()
   const targets = new Set<string>()
   if (router) targets.add(router)
-  if (canon && canon !== router) targets.add(canon)
   if (targets.size === 0) return
 
   const compose = await dokployFetch(`/api/compose.one?composeId=${composeId}`)
@@ -480,6 +483,33 @@ const loadComposeAppName = async (composeId: string): Promise<string> => {
     })
   }
   return appName
+}
+
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * Re-render a preset's docker-compose.yml for an already-deployed service so redeploys pick up compose
+ * changes (image bumps, Caddy tweaks, etc.) without recreating the service. Preserves the existing
+ * {{DEPLOY_SUFFIX}} (so named volumes/data are kept). Returns null if the suffix can't be recovered and
+ * the compose uses volumes — in that case we skip the compose push to avoid orphaning data.
+ */
+const renderPresetComposeForUpdate = async (
+  presetId: string,
+  oldComposeFile: string | undefined,
+): Promise<string | null> => {
+  const template = await fs.readFile(path.join(PRESETS_DIR, presetId, 'docker-compose.yml'), 'utf-8')
+  const marker = '{{DEPLOY_SUFFIX}}'
+  if (!template.includes(marker)) return template
+
+  let suffix: string | null = null
+  const before = template.slice(0, template.indexOf(marker))
+  const prefixMatch = before.match(/([A-Za-z0-9_]+_)$/)
+  if (prefixMatch && oldComposeFile) {
+    const found = oldComposeFile.match(new RegExp(escapeRegExp(prefixMatch[1]) + '(\\d+)'))
+    if (found) suffix = found[1]
+  }
+  if (!suffix) return null
+  return template.replace(/\{\{DEPLOY_SUFFIX\}\}/g, suffix)
 }
 
 const getServiceInsightsFromDokploy = async (composeId: string): Promise<ServiceInsightsResponse> => {
@@ -977,6 +1007,7 @@ export const appRouter = router({
             blacklistedKinds: parseCsvList(envVars.BLACKLISTED_KINDS),
             requireNip42: (envVars.REQUIRE_NIP42 || '').toLowerCase() === 'true',
             nsiteSiteNpub: envVars.NSITE_SITE_NPUB || undefined,
+            nsiteRelays: envVars.NOSTR_RELAYS || undefined,
             nsiteParentDomain: envVars.NSITE_PARENT_DOMAIN || undefined,
             nsiteSiteD: envVars.NSITE_SITE_D || undefined,
             nsiteVisitorHost: envVars.NSITE_VISITOR_HOST || undefined,
@@ -1055,9 +1086,30 @@ export const appRouter = router({
       domainId: z.string(),
       newHost: z.string()
     }))
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       const compose = await dokployFetch(`/api/compose.one?composeId=${input.composeId}`)
       const presetData = await getPresetMetadata(compose.description)
+
+      // For npanel the editable domain IS the public visitor host. Persist it into env so
+      // a later config save doesn't recompute the router host back to the long NIP-5A host.
+      // Domain reconciliation (delete old / add canonical) is handled by syncNsiteDokployDomains.
+      if (isNpanelType(presetData.id)) {
+        let envVars = parseServiceEnvVarsString(compose.env)
+        envVars.NSITE_VISITOR_HOST = normalizeVisitorHost(input.newHost)
+        if ((envVars.NSITE_PARENT_DOMAIN ?? '').trim()) envVars = applyNsiteHostnameToEnv(envVars)
+        envVars = finalizeNsiteRouterEnv(envVars)
+        await dokployFetch('/api/compose.update', {
+          method: 'POST',
+          body: JSON.stringify({ composeId: input.composeId, env: stringifyEnvVars(envVars), sourceType: 'raw' }),
+        })
+        await syncNsiteDokployDomains(input.composeId, envVars, presetData)
+        await dokployFetch('/api/compose.redeploy', {
+          method: 'POST',
+          body: JSON.stringify({ composeId: input.composeId }),
+        })
+        return { success: true, message: 'Domain updated and service redeployed' }
+      }
+
       // Dokploy has no domain.update; change domain = delete old then create new
       await dokployFetch('/api/domain.delete', {
         method: 'POST',
@@ -1069,6 +1121,42 @@ export const appRouter = router({
         body: JSON.stringify({ composeId: input.composeId })
       })
       return { success: true, message: 'Domain updated and service redeployed' }
+    }),
+
+  // Refresh nsite content without touching env/domains. The gateway holds fetched Nostr events
+  // (incl. the site manifest) in an in-memory store for the process lifetime, so republished
+  // content only appears after the gateway process restarts. Restart just that container.
+  refreshNpanelGateway: protectedProcedure
+    .input(z.object({ composeId: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      try {
+        await fs.access(DOCKER_SOCKET_PATH)
+      } catch {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'Container runtime is unavailable: Docker socket access is not configured.',
+        })
+      }
+
+      const appName = await loadComposeAppName(input.composeId)
+      const filters = encodeURIComponent(
+        JSON.stringify({
+          label: [`com.docker.compose.project=${appName}`, 'com.docker.compose.service=nsite-gateway'],
+        }),
+      )
+      const containers = await dockerSocketGetJson(`/containers/json?all=1&size=0&filters=${filters}`)
+      const normalized = Array.isArray(containers) ? containers : []
+      let restarted = 0
+      for (const container of normalized) {
+        const id = String(container?.Id || '').trim()
+        if (!id) continue
+        await dockerSocketMutate(`/containers/${id}/restart`, 'POST')
+        restarted++
+      }
+      if (restarted === 0) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'No running nsite-gateway container found for this service.' })
+      }
+      return { success: true, restarted }
     }),
 
   getServiceConfig: protectedProcedure
@@ -1122,9 +1210,17 @@ export const appRouter = router({
       }
 
       const env = stringifyEnvVars(envVars)
+      // Re-push the current preset compose so redeploys pick up compose fixes (image/caddy changes) without
+      // recreating the service. Skips if the deploy suffix can't be recovered (avoids orphaning data volumes).
+      const composeFile = await renderPresetComposeForUpdate(preset.id, compose.composeFile)
       await dokployFetch('/api/compose.update', {
         method: 'POST',
-        body: JSON.stringify({ composeId: input.composeId, env, sourceType: 'raw' }),
+        body: JSON.stringify({
+          composeId: input.composeId,
+          env,
+          sourceType: 'raw',
+          ...(composeFile ? { composeFile } : {}),
+        }),
       })
       await dokployFetch('/api/compose.redeploy', {
         method: 'POST',
@@ -1362,13 +1458,12 @@ export const appRouter = router({
 
         const presetData = await getPresetMetadata(input.presetId)
         const domainKey = presetData.domainConfigKey ?? 'RELAY_HOST'
+        // Only the router host needs a public domain. In vanity mode that's the visitor host; in multi-site mode
+        // the router host already IS the canonical host. The canonical host is internal addressing otherwise
+        // (Caddy rewrites the Host container-to-container), so we don't register it separately.
         const hostname = configForDeploy[domainKey] || configForDeploy.NSITE_DOMAIN
-        const nsiteCanon = (configForDeploy.NSITE_DOMAIN || '').trim()
         if (hostname && presetData.serviceName) {
           await registerDomain(createCompose.composeId, hostname, presetData)
-          if (isNpanelType(input.presetId) && nsiteCanon && nsiteCanon !== hostname) {
-            await registerDomain(createCompose.composeId, nsiteCanon, presetData)
-          }
         }
 
         await dokployFetch('/api/compose.deploy', {

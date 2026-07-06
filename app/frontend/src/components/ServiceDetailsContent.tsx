@@ -8,8 +8,11 @@ import { SERVICE_TYPE, isNpanelType, isRelayType } from '../../../shared/service
 import { parsePubkeyHex } from '../../../shared/nsite';
 import { Text, Group, Anchor, Tooltip, ActionIcon, Button, Stack, Badge, Tabs, Box, Transition, Table, rem, Paper, SimpleGrid, useComputedColorScheme, useMantineTheme } from '@mantine/core';
 import { IconExternalLink, IconCheck, IconX, IconAlertOctagon, IconAlertTriangle, IconCircleCheck, IconRefresh, IconPencil } from '@tabler/icons-react';
+import { toast } from 'sonner';
 import { InlineTextEditRow } from './InlineTextEditRow';
 import { CopyControl } from './CopyControl';
+import { ServiceConfigEditor } from './ServiceConfigEditor';
+import { prepareNsiteConfigForSave } from './NsiteDeployFields';
 import { trpc } from '../trpc';
 import { serviceTypeToRubixLoaderColor } from '../lib/serviceTypeColor';
 import { formatBytes, formatBytesPerSecond, formatPercent, formatWindow, getInsightSeverity, getOverallSeverity, getSeverityColor } from '../../../shared/insights';
@@ -49,6 +52,8 @@ const ServiceDetailsDns = ({
 }) => {
   const dnsCel = 'service-details-dns-cel';
   const dnsCopy = 'service-details-dns-copy';
+  const publicHost =
+    (isNpanelType(service.type) ? service.nsiteVisitorHost || service.nsiteCanonicalHost : null) || domain.host;
   const [testState, setTestState] = useState<Record<string, 'idle' | 'loading' | 'ok' | 'fail'>>({});
 
   const testDns = async (name: string) => {
@@ -149,14 +154,16 @@ const ServiceDetailsDns = ({
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {dnsRow(domain.host)}
-            {isNpanelType(service.type) &&
-              service.nsiteCanonicalHost &&
-              service.nsiteCanonicalHost !== domain.host &&
-              dnsRow(service.nsiteCanonicalHost)}
+            {dnsRow(publicHost)}
           </Table.Tbody>
         </Table>
       </Table.ScrollContainer>
+      {isNpanelType(service.type) && service.nsiteCanonicalHost && service.nsiteCanonicalHost !== publicHost && (
+        <Text size="xs" c="dimmed" mt="xs">
+          point this one A record at the server. the long nip-5a host is internal — relaykit doesn&apos;t route it
+          publicly, so it needs no dns.
+        </Text>
+      )}
     </>
   );
 };
@@ -176,6 +183,10 @@ export type ServiceDetailsContentProps = {
   onOpenNsiteExplorer: () => void;
   /** When host is edited in the service card header / modal title instead. */
   omitHostEditor?: boolean;
+  /** Tab to open on first render (e.g. 'config'). */
+  initialSection?: string;
+  /** Called after the config tab successfully saves, so the parent can refresh. */
+  onConfigSaved?: () => void;
 };
 
 const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
@@ -203,10 +214,12 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
   const createdAt = new Date(service.createdAt);
   const createdStr = format(createdAt, 'd MMM yyyy, h:mm a');
   const createdAgo = formatDistanceToNow(createdAt, { addSuffix: true });
-  const httpsUrl = domain ? `https://${domain.host}` : '';
-  const wssUrl = domain ? `wss://${domain.host}` : '';
+  const npanel = isNpanelType(service.type);
+  const publicHost = (npanel ? service.nsiteVisitorHost || service.nsiteCanonicalHost : null) || domain?.host;
+  const httpsUrl = publicHost ? `https://${publicHost}` : '';
+  const wssUrl = publicHost ? `wss://${publicHost}` : '';
   const hasConfig = whitelistedKinds.length > 0 || blacklistedKinds.length > 0 || whitelistedPubkeys.length > 0 || requireNip42;
-  const domainBaseChars = Math.max(12, Math.min(42, (domain?.host || '').trim().length || 12));
+  const domainBaseChars = Math.max(12, Math.min(42, (publicHost || '').trim().length || 12));
   const domainDisplayWidthCh = domainBaseChars;
   const domainEditWidthCh = Math.min(56, Math.max(domainBaseChars + 8, 28));
   const domainFieldWidthCh = `${isEditing ? domainEditWidthCh : domainDisplayWidthCh}ch`;
@@ -259,11 +272,11 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                     whiteSpace: 'nowrap',
                     transition: 'width 180ms ease',
                   }}
-                  title={domain.host}
+                  title={publicHost}
                 >
-                  {domain.host}
+                  {publicHost}
                 </Text>
-                <CopyControl text={domain.host} onCopy={onCopy} tooltip="copy domain" />
+                <CopyControl text={publicHost} onCopy={onCopy} tooltip="copy domain" />
                 <Tooltip label="edit domain">
                   <ActionIcon
                     variant="subtle"
@@ -289,8 +302,8 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
             </Group>
             {isNpanelType(service.type) && (
               <Text size="xs" c="dimmed">
-                Republished the site? Use <Text component="span" fw={500}>Stop</Text> then <Text component="span" fw={500}>Start</Text> so
-                the gateway pulls fresh manifests (otherwise it may take ~10 minutes).
+                Republished the site? Use <Text component="span" fw={500}>refresh nsite content</Text> (in the manage menu) so
+                the gateway pulls the fresh manifest.
               </Text>
             )}
           </DetailBlock>
@@ -343,22 +356,21 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
               </Group>
             </DetailBlock>
           )}
-          {isNpanelType(service.type) &&
-            service.nsiteVisitorHost &&
+          {npanel &&
             service.nsiteCanonicalHost &&
-            service.nsiteCanonicalHost !== domain?.host && (() => {
+            service.nsiteCanonicalHost !== publicHost && (() => {
               const h = service.nsiteCanonicalHost;
-              const nip5aHttps = `https://${h}`;
               return (
-                <DetailBlock label="NIP-5A URL">
+                <DetailBlock label="internal host">
                   <Group gap="xs" wrap="wrap" align="flex-start">
-                    <Anchor href={nip5aHttps} target="_blank" size="xs" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={h}>
-                      {nip5aHttps} ↗
-                    </Anchor>
-                    <CopyControl text={nip5aHttps} onCopy={onCopy} tooltip="copy nip-5a url" />
+                    <Text size="xs" ff="monospace" c="dimmed" style={{ flex: '1 1 12rem', minWidth: 0, ...monoBreakable }} title={h}>
+                      {h}
+                    </Text>
+                    <CopyControl text={h} onCopy={onCopy} tooltip="copy internal host" />
                   </Group>
                   <Text size="xs" c="dimmed">
-                    NIP-5A builds this hostname from your pubkey and site id (compact encoding), so it will not look like your hex or npub.
+                    nip-5a encodes your pubkey + site id into this hostname. caddy rewrites the request to it inside the
+                    server so the gateway knows which site to serve — it&apos;s not a public url you need to visit.
                   </Text>
                 </DetailBlock>
               );
@@ -912,6 +924,55 @@ const ServiceDetailsLogs = ({ composeId, serviceType, presetId }: { composeId: s
   );
 };
 
+const ServiceDetailsConfig = ({ service, onSaved }: { service: any; onSaved?: () => void }) => {
+  const [loading, setLoading] = useState(true);
+  const [fields, setFields] = useState<any[]>([]);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    trpc.getServiceConfig
+      .query({ composeId: service.composeId })
+      .then((r) => {
+        if (cancelled) return;
+        setFields(r.fields || []);
+        setValues(r.config || {});
+      })
+      .catch((e: any) => {
+        if (!cancelled) toast.error(`failed to load config: ${e.message}`);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [service.composeId]);
+
+  const submit = async (next: Record<string, string>) => {
+    setSaving(true);
+    try {
+      const toSave = isNpanelType(service.type) ? prepareNsiteConfigForSave(next) : next;
+      await trpc.updateServiceConfig.mutate({ composeId: service.composeId, config: toSave });
+      toast.success('config updated and redeployed');
+      onSaved?.();
+    } catch (e: any) {
+      toast.error(`failed to update config: ${e.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <Text size="sm" c="dimmed">loading config…</Text>;
+  if (fields.length === 0) return <Text size="sm" c="dimmed">no editable config for this service.</Text>;
+
+  return (
+    <ServiceConfigEditor service={service} fields={fields} initialValues={values} saving={saving} onSubmit={submit} />
+  );
+};
+
 export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
   const { service, serverIp } = props;
   const inModal = useContext(ServiceDetailsModalContext);
@@ -921,6 +982,7 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
   const hasDNS = domain && serverIp;
   const hasInsights = !!service.composeId;
   const hasLogs = !!service.composeId;
+  const canEditConfig = !!service.canEditConfig;
   const activePanelBg = colorScheme === 'dark' ? theme.colors.dark[8] : theme.colors.gray[0];
   const panelShadow = colorScheme === 'dark'
     ? '0 4px 12px rgba(0,0,0,0.18)'
@@ -945,14 +1007,18 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
     boxShadow: active ? `inset 3px 0 0 ${activeTabAccent}` : 'none',
   });
 
-  const [section, setSection] = useState('info');
+  const [section, setSection] = useState(
+    props.initialSection && (props.initialSection !== 'config' || canEditConfig) ? props.initialSection : 'info',
+  );
   const innerRef = useRef<HTMLDivElement>(null);
   const [shellH, setShellH] = useState<number | null>(null);
   const [maxShellH, setMaxShellH] = useState<number>(0);
-  const logsFillLayout = inModal && section === 'logs'
+  // logs and config can be tall/dynamic — let them fill the modal and scroll internally instead of forcing
+  // the animated fixed-height shell (which would clip them with no scrollbar).
+  const fillLayout = inModal && (section === 'logs' || section === 'config')
 
   useLayoutEffect(() => {
-    if (logsFillLayout) return
+    if (fillLayout) return
     const el = innerRef.current;
     if (!el) return;
     const measure = () => {
@@ -964,9 +1030,9 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [logsFillLayout, section]);
+  }, [fillLayout, section]);
 
-  const stretch = logsFillLayout ? ({ flex: '1 1 0%', minHeight: 0, minWidth: 0 } as const) : null
+  const stretch = fillLayout ? ({ flex: '1 1 0%', minHeight: 0, minWidth: 0 } as const) : null
 
   const shellStyle = stretch
     ? { ...stretch, display: 'flex' as const, flexDirection: 'column' as const, overflow: 'hidden' as const }
@@ -1017,6 +1083,9 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
           >
             <Tabs.List aria-label="Details sections" miw={rem(132)} style={{ flexShrink: 0 }}>
               <Tabs.Tab value="info" style={getTabStyle(section === 'info')}>info</Tabs.Tab>
+              {canEditConfig && (
+                <Tabs.Tab value="config" style={getTabStyle(section === 'config')}>config</Tabs.Tab>
+              )}
               <Tabs.Tab value="dns" style={getTabStyle(section === 'dns')}>dns</Tabs.Tab>
               <Tabs.Tab value="insights" style={getTabStyle(section === 'insights')}>insights</Tabs.Tab>
               <Tabs.Tab value="logs" style={getTabStyle(section === 'logs')}>logs</Tabs.Tab>
@@ -1035,6 +1104,21 @@ export const ServiceDetailsContent = (props: ServiceDetailsContentProps) => {
                   </Box>
                 )}
               </Transition>
+              {canEditConfig && (
+                <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'config'}>
+                  {(tStyle) => (
+                    <Box
+                      style={{
+                        ...panelContentStyle,
+                        ...tStyle,
+                        ...(stretch ? { ...stretch, overflowY: 'auto' as const } : {}),
+                      }}
+                    >
+                      <ServiceDetailsConfig service={service} onSaved={props.onConfigSaved} />
+                    </Box>
+                  )}
+                </Transition>
+              )}
               <Transition transition="fade" duration={FADE_MS} exitDuration={0} mounted={section === 'dns'}>
                 {(tStyle) => (
                   <Box style={{ ...panelContentStyle, ...tStyle }}>

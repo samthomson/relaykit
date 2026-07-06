@@ -8,6 +8,7 @@ import { useRefreshServices } from '../contexts/RefreshServicesContext';
 import { SERVICE_TYPE, isNpanelType, isRelayType } from '../../../shared/serviceType';
 import { EmbeddedAppModal } from '../embedded/EmbeddedAppModal';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from '../components/NsiteDeployFields';
+import { NpanelSiteIdentity } from '../components/NpanelSiteIdentity';
 import { ServiceDetailsContent, ServiceDetailsModalContext } from '../components/ServiceDetailsContent';
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from '../components/InlineTextEditRow';
 import { ServiceHostTitleView } from '../components/ServiceHostTitleView';
@@ -445,7 +446,8 @@ const ServiceCard = ({
   onStart,
   onStop,
   onDelete,
-  onEditConfig,
+  onConfigSaved,
+  onRefreshNsite,
   onMove,
   allEnvironments,
   availableRelays,
@@ -464,7 +466,8 @@ const ServiceCard = ({
   onStart: (composeId: string) => void;
   onStop: (composeId: string) => void;
   onDelete: (composeId: string, name: string) => void;
-  onEditConfig: (service: any) => void;
+  onConfigSaved: () => void;
+  onRefreshNsite: (composeId: string) => void;
   onMove: (composeId: string, targetEnvironmentId: string) => void;
   allEnvironments: { environmentId: string; label: string }[];
   availableRelays: string[];
@@ -489,10 +492,27 @@ const ServiceCard = ({
   const [showNsiteExplorer, setShowNsiteExplorer] = useState(false);
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [detailsInitialSection, setDetailsInitialSection] = useState('info');
+  const openConfig = () => {
+    if (isEditing) onCancelEdit();
+    setDetailsInitialSection('config');
+    setDetailsModalOpen(true);
+  };
+  const openDetails = () => {
+    if (isEditing) onCancelEdit();
+    setDetailsInitialSection('info');
+    setDetailsModalOpen(true);
+  };
   const domain = service.domains?.[0];
   const isEditing = editingDomain?.domainId === domain?.domainId;
-  const httpsUrl = domain ? `https://${domain.host}` : '';
-  const wssUrl = domain ? `wss://${domain.host}` : '';
+  const npanel = isNpanelType(service.type);
+  // For npanel the public-facing host is the visitor host; the canonical NIP-5A host is internal addressing.
+  const publicHost = (npanel ? service.nsiteVisitorHost || service.nsiteCanonicalHost : null) || domain?.host;
+  const canonicalHost = npanel ? service.nsiteCanonicalHost : undefined;
+  const showCanonical = npanel && canonicalHost && canonicalHost !== publicHost;
+  const httpsUrl = publicHost ? `https://${publicHost}` : '';
+  const wssUrl = publicHost ? `wss://${publicHost}` : '';
+  const titleHost = domain ? publicHost ?? domain.host : service.name;
   const statusNorm = String(service.status ?? '').toLowerCase();
   const moveTargets = allEnvironments.filter((env) => env.environmentId !== service.environmentId);
   const manageItems: { label: string; onClick: () => void; danger?: boolean }[] = [];
@@ -500,7 +520,10 @@ const ServiceCard = ({
     manageItems.push({ label: 'edit domain', onClick: () => onEditDomain(service.composeId, domain) });
   }
   if (service.canEditConfig) {
-    manageItems.push({ label: 'edit config', onClick: () => onEditConfig(service) });
+    manageItems.push({ label: 'edit config', onClick: openConfig });
+  }
+  if (isNpanelType(service.type)) {
+    manageItems.push({ label: 'refresh nsite content', onClick: () => onRefreshNsite(service.composeId) });
   }
   if (statusNorm === 'running') {
     manageItems.push({ label: 'stop', onClick: () => onStop(service.composeId) });
@@ -578,6 +601,7 @@ const ServiceCard = ({
     onOpenRelayExplorer: () => setShowExplorer(true),
     onOpenBlossomExplorer: () => setShowBlossomExplorer(true),
     onOpenNsiteExplorer: () => setShowNsiteExplorer(true),
+    onConfigSaved,
   };
 
   return (
@@ -653,18 +677,19 @@ const ServiceCard = ({
               >
                 <ServiceTypeIcon service={service} size={20} marginRight={6} />
                 <ServiceHostTitleView
-                  title={domain ? domain.host : service.name}
+                  title={titleHost}
                   density="comfortable"
                   domain={null}
                   canEditConfig={false}
                   composeId={service.composeId}
                   service={service}
                   onEditDomain={onEditDomain}
-                  onEditConfig={onEditConfig}
+                  onEditConfig={openConfig}
                   rowStyle={{ flex: 1, minWidth: 0 }}
                   trailing={
                     <Group gap={6} wrap="nowrap">
                       <Badge variant="filled" color={statusColor} size="sm">{statusNorm}</Badge>
+                      {npanel && <Badge variant="light" color="relaykit" size="sm">site</Badge>}
                       {nip42Badge}
                     </Group>
                   }
@@ -684,7 +709,7 @@ const ServiceCard = ({
               <Group justify="space-between" align="flex-start" wrap="nowrap" gap="xs">
                 <Group align="flex-start" gap={6} style={{ minWidth: 0, flex: 1, ...brokenContentStyle }}>
                   <ServiceTypeIcon service={service} size={20} />
-                  <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
+                  <Stack gap={6} style={{ minWidth: 0, flex: 1 }}>
                     {isEditing && domain ? (
                       <InlineTextEditRow
                         value={newDomainHost}
@@ -697,21 +722,25 @@ const ServiceCard = ({
                       />
                     ) : (
                       <ServiceHostTitleView
-                        title={domain ? domain.host : service.name}
+                        title={titleHost}
                         density="compact"
                         domain={domain}
                         canEditConfig={service.canEditConfig}
                         composeId={service.composeId}
                         service={service}
                         onEditDomain={onEditDomain}
-                        onEditConfig={onEditConfig}
+                        onEditConfig={openConfig}
                         rowStyle={{ minWidth: 0, flex: 1 }}
                       />
                     )}
                     <Group gap={6} wrap="wrap">
                       <Badge variant="filled" color={statusColor} size="xs" w="fit-content">{statusNorm}</Badge>
+                      {npanel && <Badge variant="light" color="relaykit" size="xs" w="fit-content">site</Badge>}
                       {nip42Badge}
                     </Group>
+                    {npanel && (
+                      <NpanelSiteIdentity npubOrHex={service.nsiteSiteNpub} relaysCsv={service.nsiteRelays} />
+                    )}
                     {statusNorm === 'running' && (
                       <Stack gap={4}>
                         <Group gap={8} wrap="nowrap">
@@ -742,7 +771,7 @@ const ServiceCard = ({
                         </Group>
                       </Stack>
                     )}
-                    <Stack gap={6} mt={4} style={{ minWidth: 0, ...(brokenContentStyle ?? {}) }}>
+                    <Stack gap={6} style={{ minWidth: 0, ...(brokenContentStyle ?? {}) }}>
                       {domain ? (
                         <Stack gap={4} style={{ minWidth: 0 }}>
                           <Group gap={6} wrap="nowrap" align="center" style={{ minWidth: 0, width: '100%' }}>
@@ -786,6 +815,19 @@ const ServiceCard = ({
                               <CopyControl text={wssUrl} onCopy={onCopy} tooltip="copy wss url" style={{ flexShrink: 0 }} />
                             </Group>
                           )}
+                          {showCanonical && (
+                            <Tooltip label="internal nip-5a host — the gateway uses this to find your site; you don't set it" multiline w={240}>
+                              <Text
+                                size="xs"
+                                ff="monospace"
+                                c="dimmed"
+                                style={{ minWidth: 0, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.7 }}
+                                title={canonicalHost}
+                              >
+                                nip-5a: {canonicalHost}
+                              </Text>
+                            </Tooltip>
+                          )}
                         </Stack>
                       ) : (
                         <Text size="xs" c="dimmed" fs="italic">No domain configured</Text>
@@ -828,10 +870,7 @@ const ServiceCard = ({
                           size="xs"
                           variant="light"
                           color="gray"
-                          onClick={() => {
-                            if (isEditing) onCancelEdit();
-                            setDetailsModalOpen(true);
-                          }}
+                          onClick={openDetails}
                         >
                           details
                         </Button>
@@ -853,14 +892,14 @@ const ServiceCard = ({
               title={
                 <Group justify="space-between" align="center" gap="sm" wrap="nowrap" w="100%" maw="calc(100% - 2.5rem)" style={{ minHeight: INLINE_TITLE_ROW_H }}>
                   <ServiceHostTitleView
-                    title={domain ? domain.host : service.name}
+                    title={titleHost}
                     density="comfortable"
                     domain={null}
                     canEditConfig={false}
                     composeId={service.composeId}
                     service={service}
                     onEditDomain={onEditDomain}
-                    onEditConfig={onEditConfig}
+                    onEditConfig={openConfig}
                     rowStyle={{ flex: 1, minWidth: 0 }}
                     trailing={nip42Badge}
                   />
@@ -876,7 +915,14 @@ const ServiceCard = ({
               }}
             >
               <ServiceDetailsModalContext.Provider value={true}>
-                <ServiceDetailsContent {...detailsContentProps} />
+                <ServiceDetailsContent
+                  {...detailsContentProps}
+                  initialSection={detailsInitialSection}
+                  onConfigSaved={() => {
+                    setDetailsModalOpen(false);
+                    onConfigSaved();
+                  }}
+                />
               </ServiceDetailsModalContext.Provider>
             </Modal>
           </>
@@ -915,11 +961,6 @@ export const ServiceList = () => {
 
   const [editingDomain, setEditingDomain] = useState<{ composeId: string; domainId: string; currentHost: string } | null>(null);
   const [newDomainHost, setNewDomainHost] = useState('');
-  const [editingConfigService, setEditingConfigService] = useState<any | null>(null);
-  const [editingConfigFields, setEditingConfigFields] = useState<any[]>([]);
-  const [editingConfigValues, setEditingConfigValues] = useState<Record<string, string>>({});
-  const [loadingConfigModal, setLoadingConfigModal] = useState(false);
-  const [savingConfig, setSavingConfig] = useState(false);
 
   const [newProjectName, setNewProjectName] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
@@ -1090,6 +1131,15 @@ export const ServiceList = () => {
     }
   };
 
+  const handleRefreshNsite = async (composeId: string) => {
+    try {
+      await trpc.refreshNpanelGateway.mutate({ composeId });
+      toast.success('refreshing nsite content');
+    } catch (error: any) {
+      toast.error(`failed to refresh: ${error.message}`);
+    }
+  };
+
   const handleMoveService = async (composeId: string, targetEnvironmentId: string) => {
     try {
       await trpc.moveService.mutate({ composeId, targetEnvironmentId });
@@ -1118,44 +1168,6 @@ export const ServiceList = () => {
       toast.success('Domain updated successfully');
     } catch (error: any) {
       toast.error(`Failed to update domain: ${error.message}`);
-    }
-  };
-
-  const handleEditConfig = async (service: any) => {
-    setLoadingConfigModal(true);
-    try {
-      const result = await trpc.getServiceConfig.query({ composeId: service.composeId });
-      setEditingConfigService(service);
-      setEditingConfigFields(result.fields || []);
-      setEditingConfigValues(result.config || {});
-    } catch (error: any) {
-      toast.error(`Failed to load service config: ${error.message}`);
-    } finally {
-      setLoadingConfigModal(false);
-    }
-  };
-
-  const handleSaveConfig = async (nextValues: Record<string, string>) => {
-    if (!editingConfigService) return;
-    setSavingConfig(true);
-    try {
-      const configToSave =
-        isNpanelType(editingConfigService.type)
-          ? prepareNsiteConfigForSave(nextValues)
-          : nextValues;
-      await trpc.updateServiceConfig.mutate({
-        composeId: editingConfigService.composeId,
-        config: configToSave,
-      });
-      toast.success('Service config updated and redeploy started');
-      setEditingConfigService(null);
-      setEditingConfigFields([]);
-      setEditingConfigValues({});
-      await loadData();
-    } catch (error: any) {
-      toast.error(`Failed to update config: ${error.message}`);
-    } finally {
-      setSavingConfig(false);
     }
   };
 
@@ -1445,7 +1457,8 @@ export const ServiceList = () => {
                                   onStart={handleStartService}
                                   onStop={handleStopService}
                                   onDelete={openDeleteServiceConfirm}
-                                  onEditConfig={handleEditConfig}
+                                  onConfigSaved={loadData}
+                                  onRefreshNsite={handleRefreshNsite}
                                   onMove={handleMoveService}
                                   allEnvironments={allEnvironments}
                                   availableRelays={availableRelays}
@@ -1526,7 +1539,8 @@ export const ServiceList = () => {
                                       onStart={handleStartService}
                                       onStop={handleStopService}
                                       onDelete={openDeleteServiceConfirm}
-                                      onEditConfig={handleEditConfig}
+                                      onConfigSaved={loadData}
+                                      onRefreshNsite={handleRefreshNsite}
                                       onMove={handleMoveService}
                                       allEnvironments={allEnvironments}
                                       availableRelays={availableRelays}
@@ -1623,22 +1637,6 @@ export const ServiceList = () => {
           danger
           onConfirm={handleConfirmDelete}
           onCancel={() => setConfirmModal(null)}
-        />
-      )}
-      {(loadingConfigModal || editingConfigService) && (
-        <ConfigEditModal
-          loading={loadingConfigModal}
-          service={editingConfigService}
-          fields={editingConfigFields}
-          initialValues={editingConfigValues}
-          onSubmit={handleSaveConfig}
-          onClose={() => {
-            if (savingConfig) return;
-            setEditingConfigService(null);
-            setEditingConfigFields([]);
-            setEditingConfigValues({});
-          }}
-          saving={savingConfig}
         />
       )}
     </Stack>
@@ -1792,117 +1790,3 @@ const DeployModal = ({
   );
 };
 
-const ConfigEditModal = ({
-  loading,
-  service,
-  fields,
-  initialValues,
-  onSubmit,
-  onClose,
-  saving,
-}: {
-  loading: boolean;
-  service: any | null;
-  fields: any[];
-  initialValues: Record<string, string>;
-  onSubmit: (values: Record<string, string>) => void | Promise<void>;
-  onClose: () => void;
-  saving: boolean;
-}) => {
-  const isNsite = isNpanelType(service?.type);
-  const fakePreset = isNsite ? { id: SERVICE_TYPE.NPANEL, requiredConfig: fields } : null;
-  const form = useForm<Record<string, string>>({
-    initialValues,
-    validateInputOnChange: true,
-    validate: (vals: Record<string, string>) => {
-      const errors: Record<string, string> = {};
-      if (isNsite) return errors;
-      for (const field of fields) {
-        if (!field.required || field.type === 'boolean') continue;
-        if (!(vals[field.id] || '').trim()) {
-          errors[field.id] = `${field.name} is required`;
-        }
-      }
-      return errors;
-    },
-  });
-
-  useEffect(() => {
-    form.setValues(initialValues);
-    form.clearErrors();
-  }, [initialValues]);
-
-  const canSubmit = !saving && form.isValid();
-
-  const renderConfigField = (field: any) => {
-    if (field.type === 'boolean') {
-      const checked = (form.values[field.id] || String(field.default || 'false')).toLowerCase() === 'true';
-      return (
-        <Switch
-          key={field.id}
-          label={field.name}
-          description={field.description}
-          checked={checked}
-          onChange={(e) => form.setFieldValue(field.id, e.currentTarget.checked ? 'true' : 'false')}
-        />
-      );
-    }
-
-    return (
-      <TextInput
-        key={field.id}
-        label={field.name}
-        description={field.description}
-        required={field.required}
-        {...form.getInputProps(field.id)}
-        value={form.values[field.id] ?? String(field.default ?? '')}
-      />
-    );
-  };
-
-  return (
-    <Modal opened onClose={onClose} title="edit config" size="md" centered styles={{ body: { maxHeight: '85vh', overflow: 'auto' } }}>
-      <Stack gap="md">
-        <Text size="sm" c="dimmed">
-          {service ? `Update environment config for ${service.name}` : 'Loading service config...'}
-        </Text>
-        {loading ? (
-          <Text c="dimmed">Loading...</Text>
-        ) : fields.length === 0 ? (
-          <>
-            <Text c="dimmed">No editable config fields for this service.</Text>
-            <Button onClick={onClose} fullWidth>close</Button>
-          </>
-        ) : (
-          <form onSubmit={form.onSubmit((vals: Record<string, string>) => void onSubmit(vals))}>
-            <Stack gap="md">
-              {isNsite && fakePreset ? (
-                <NsiteDeployFields
-                  preset={fakePreset}
-                  config={form.values}
-                  setConfig={(next) => {
-                    const resolved = typeof next === 'function' ? next(form.values) : next;
-                    for (const [key, value] of Object.entries(resolved)) {
-                      form.setFieldValue(key, String(value ?? ''));
-                    }
-                  }}
-                  ownerPubkeyHex={null}
-                />
-              ) : (
-                fields.map(renderConfigField)
-              )}
-              <Group justify="space-between">
-                <Button variant="default" onClick={onClose} disabled={saving}>
-                  cancel
-                </Button>
-                <Button type="submit" color="green" loading={saving} disabled={!canSubmit}>
-                  {saving ? 'saving…' : 'save + redeploy'}
-                </Button>
-              </Group>
-            </Stack>
-          </form>
-        )}
-      </Stack>
-    </Modal>
-  );
-};

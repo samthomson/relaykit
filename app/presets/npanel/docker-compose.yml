@@ -15,7 +15,7 @@ services:
     expose:
       - "3000"
     networks:
-      - dokploy-network
+      - internal
 
   npanel-nip05:
     image: python:3.12-alpine
@@ -26,10 +26,12 @@ services:
     command:
       - |
         mkdir -p /srv/.well-known &&
-        python - <<'PY'
+        exec python - <<'PY'
         import json
         import os
         import re
+        import http.server
+        import socketserver
 
         raw = os.environ.get("NPANEL_NIP05_USERS", "")
         tokens = [part.strip() for part in raw.replace("\n", ",").split(",") if part.strip()]
@@ -47,29 +49,23 @@ services:
           names[name] = pubkey
         with open("/srv/.well-known/nostr.json", "w", encoding="utf-8") as f:
           json.dump({"names": names}, f, separators=(",", ":"))
-        
-        # CORS-enabled HTTP server for browser NIP-05 checkers
-        cat > /tmp/cors_server.py << 'SERVER_PY'
-        import http.server
-        import socketserver
-        import os
-        
-        class CORSHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
-            def end_headers(self):
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-                self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-                super().end_headers()
-        
-        os.chdir('/srv')
-        with socketserver.TCPServer(("", 8090), CORSHTTPRequestHandler) as httpd:
-            httpd.serve_forever()
-        SERVER_PY
-        exec python /tmp/cors_server.py
+
+        class Handler(http.server.SimpleHTTPRequestHandler):
+          def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory="/srv", **kwargs)
+          def end_headers(self):
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            super().end_headers()
+
+        with socketserver.TCPServer(("", 8090), Handler) as httpd:
+          httpd.serve_forever()
+        PY
     expose:
       - "8090"
     networks:
-      - dokploy-network
+      - internal
 
   npanel-caddy:
     image: caddy:alpine
@@ -79,7 +75,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        printf ':8080 {\n  @nip05 path /.well-known/nostr.json\n  handle @nip05 {\n    reverse_proxy http://npanel-nip05:8090\n  }\n  handle {\n    reverse_proxy http://nsite-gateway:3000 {\n      header_up Host %s\n    }\n  }\n}\n' "$$CANONICAL_HOST" > /tmp/Caddyfile && exec caddy run --config /tmp/Caddyfile
+        printf ':8080 {\n  @nip05 path /.well-known/nostr.json\n  handle @nip05 {\n    reverse_proxy http://npanel-nip05:8090\n  }\n  handle {\n    reverse_proxy http://nsite-gateway:3000 {\n      header_up Host %s\n      header_down Cache-Control "no-cache"\n    }\n  }\n}\n' "$$CANONICAL_HOST" > /tmp/Caddyfile && exec caddy run --config /tmp/Caddyfile
     expose:
       - "8080"
     depends_on:
@@ -87,10 +83,16 @@ services:
       - npanel-nip05
     networks:
       - dokploy-network
+      - internal
 
 volumes:
   nsite_gateway_cache_{{DEPLOY_SUFFIX}}:
 
+# nsite-gateway / npanel-nip05 live only on a private per-deployment network so their compose service-name
+# aliases (e.g. "nsite-gateway") can't collide with other nsite/npanel deployments on the shared dokploy-network
+# (which caused Caddy to round-robin to a stale gateway). Only caddy joins dokploy-network for Traefik.
 networks:
   dokploy-network:
     external: true
+  internal:
+    driver: bridge

@@ -7,15 +7,19 @@ import {
   NPANEL_NIP05_USERS_ENV_KEY,
   NSITE_RELAY_ENV_KEYS,
   tryBuildNsitePublicHostname,
-  previewNsiteRouterHost,
   parsePubkeyHex as toPubkeyHex,
   fetchNsiteRelayEnvFromProfile,
   fetchNsite35128Dtags,
 } from '../../../shared/nsite';
 import { UrlListCsvEditor } from './UrlListCsvEditor';
-import { Select, TextInput, Stack, Text, Paper, Group, Button } from '@mantine/core';
+import { FormSection } from './FormSection';
+import { TextInput, Stack, Text, Group, Button, Switch, Combobox, Pill, PillsInput, useCombobox } from '@mantine/core';
+import { IconRefresh } from '@tabler/icons-react';
 
 type ProfileStatus = 'idle' | 'loading' | 'ok' | 'error' | 'skipped';
+
+/** Sentinel option value for "serve the root site" (empty d-tag) in the site-id combobox. */
+const ROOT_SITE = '\u0000root-site';
 
 /** Initialise deploy config defaults for an nsite preset. */
 export const buildNsiteDeployDefaults = (preset: any, ownerPubkeyHex: string | null): Record<string, string> => {
@@ -57,12 +61,11 @@ export const NsiteDeployFields = ({
   autoFetchProfile?: boolean;
 }) => {
   const relayKeySet = new Set<string>(NSITE_RELAY_ENV_KEYS);
-  const primaryFields = preset.requiredConfig.filter(
-    (f: { id: string }) => !relayKeySet.has(f.id) && f.id !== NPANEL_NIP05_USERS_ENV_KEY,
-  );
   const advancedFields = preset.requiredConfig.filter((f: { id: string }) => relayKeySet.has(f.id));
-  const siteDField = preset.requiredConfig.find((f: { id: string }) => f.id === 'NSITE_SITE_D');
 
+  const [manualSiteId, setManualSiteId] = useState(false);
+  const [siteIdSearch, setSiteIdSearch] = useState('');
+  const siteIdCombobox = useCombobox({ onDropdownClose: () => siteIdCombobox.resetSelectedOption() });
   const [profileStatus, setProfileStatus] = useState<ProfileStatus>('idle');
   const [profileMeta, setProfileMeta] = useState<{
     foundKind10002: boolean;
@@ -72,12 +75,12 @@ export const NsiteDeployFields = ({
   } | null>(null);
   const [dDiscoverLoading, setDDiscoverLoading] = useState(false);
   const [dDiscovered, setDDiscovered] = useState<string[]>([]);
-  const [nip05Rows, setNip05Rows] = useState<Array<{ name: string; pubkey: string }>>([{ name: '', pubkey: '' }]);
+  const [nip05Rows, setNip05Rows] = useState<Array<{ name: string; pubkey: string }>>([]);
 
   useEffect(() => {
     const raw = (config[NPANEL_NIP05_USERS_ENV_KEY] ?? '').trim();
     if (!raw) {
-      setNip05Rows([{ name: '', pubkey: '' }]);
+      setNip05Rows([]);
       return;
     }
     const rows = raw
@@ -89,7 +92,7 @@ export const NsiteDeployFields = ({
         if (i <= 0) return { name: token, pubkey: '' };
         return { name: token.slice(0, i).trim(), pubkey: token.slice(i + 1).trim() };
       });
-    setNip05Rows(rows.length > 0 ? rows : [{ name: '', pubkey: '' }]);
+    setNip05Rows(rows);
   }, [config[NPANEL_NIP05_USERS_ENV_KEY]]);
 
   const syncNip05Rows = (rows: Array<{ name: string; pubkey: string }>) => {
@@ -154,10 +157,30 @@ export const NsiteDeployFields = ({
     [config.NSITE_PARENT_DOMAIN, config.NSITE_SITE_NPUB, config.NSITE_SITE_D],
   );
 
-  const runDiscover35128 = () => {
+  // One "domain" maps to the parent suffix. Vanity (default): the visitor host tracks the domain so the
+  // single site is served at the domain root. Multi-site: visitor host is empty and each key is served at
+  // <key>.domain. Default to vanity (don't infer from an empty visitor host, which a fresh deploy also has).
+  const domainValue = config.NSITE_PARENT_DOMAIN ?? '';
+  const [multiSite, setMultiSiteState] = useState<boolean>(() => {
+    const v = (config.NSITE_VISITOR_HOST ?? '').trim();
+    const d = (config.NSITE_PARENT_DOMAIN ?? '').trim();
+    return !!d && !v;
+  });
+  const canonicalHost = hostnamePreview.ok ? hostnamePreview.hostname : null;
+  const servedAtHost = multiSite ? canonicalHost : domainValue;
+
+  const setDomain = (value: string) =>
+    setConfig((prev) => ({ ...prev, NSITE_PARENT_DOMAIN: value, ...(multiSite ? {} : { NSITE_VISITOR_HOST: value }) }));
+
+  const setMultiSite = (on: boolean) => {
+    setMultiSiteState(on);
+    setConfig((prev) => ({ ...prev, NSITE_VISITOR_HOST: on ? '' : (prev.NSITE_PARENT_DOMAIN ?? '') }));
+  };
+
+  const runDiscover35128 = (opts?: { silent?: boolean }) => {
     const hex = toPubkeyHex((config.NSITE_SITE_NPUB ?? '').trim());
     if (!hex) {
-      toast.error('Enter a valid publishing key first.');
+      if (!opts?.silent) toast.error('Enter a valid publishing key first.');
       return;
     }
     const merged = mergeNsiteRelayDefaults(config);
@@ -166,24 +189,21 @@ export const NsiteDeployFields = ({
     fetchNsite35128Dtags(hex, relayCsv)
       .then((tags) => {
         setDDiscovered(tags);
+        if (opts?.silent) return;
         if (tags.length === 0) toast('No kind 35128 found for this pubkey on the queried relays.');
         else toast.success(`Found ${tags.length} site id(s).`);
       })
-      .catch(() => toast.error('Could not query relays for kind 35128.'))
+      .catch(() => {
+        if (!opts?.silent) toast.error('Could not query relays for kind 35128.');
+      })
       .finally(() => setDDiscoverLoading(false));
   };
 
-  const renderField = (field: any) => (
-    <div key={field.id} style={{ marginBottom: 'var(--mantine-spacing-md)' }}>
-      <TextInput
-        label={field.name}
-        description={field.description}
-        required={field.required}
-        value={config[field.id] ?? field.default ?? ''}
-        onChange={(e) => setConfig((c) => ({ ...c, [field.id]: (e.target as HTMLInputElement).value }))}
-      />
-    </div>
-  );
+  // Auto-discover available site ids whenever there's a valid publishing key, so the picker is populated.
+  useEffect(() => {
+    if (toPubkeyHex((config.NSITE_SITE_NPUB ?? '').trim())) runDiscover35128({ silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.NSITE_SITE_NPUB]);
 
   const renderUrlListField = (field: any) => (
     <UrlListCsvEditor
@@ -200,118 +220,195 @@ export const NsiteDeployFields = ({
     />
   );
 
+  const siteIdValue = (config.NSITE_SITE_D ?? '').trim();
+  const useSelectForSiteId = dDiscovered.length > 0 && !manualSiteId;
+  const siteIdOptions = (() => {
+    const set = new Set(dDiscovered);
+    if (siteIdValue) set.add(siteIdValue);
+    return [...set];
+  })();
+  const siteIdFiltered = siteIdOptions.filter((o) => o.toLowerCase().includes(siteIdSearch.trim().toLowerCase()));
+
   return (
-    <Stack gap="md">
-      {profileStatus !== 'idle' && (
-        <Paper withBorder p="md">
-          {profileStatus === 'loading' && (
-            <Text size="sm" c="dimmed">Loading this site pubkey&apos;s kind 10002 (relays) and 10063 (Blossom)…</Text>
-          )}
-          {profileStatus === 'ok' && (
-            <Stack gap="sm">
-              <Text size="sm" c="dimmed">
-                {profileMeta && !profileMeta.foundKind10002 && !profileMeta.foundKind10063 ? (
-                  <>
-                    No kind <Text component="span" fw={700}>10002</Text> or{' '}
-                    <Text component="span" fw={700}>10063</Text> found for your pubkey on the relays we
-                    queried. Advanced fields show <Text component="span" fw={700}>RelayKit defaults only</Text>.
-                    Publish NIP-65 / Blossom lists for that site pubkey, or tap refresh after they land on
-                    relays.
-                  </>
-                ) : profileMeta &&
-                  (profileMeta.foundKind10002 || profileMeta.foundKind10063) ? (
-                  <>
-                    {profileMeta.foundKind10002 && (
-                      <>Merged <Text component="span" fw={700}>{profileMeta.userRelayUrlCount}</Text> relay URL(s) from kind 10002.</>
-                    )}
-                    {profileMeta.foundKind10002 && profileMeta.foundKind10063 ? ' ' : ''}
-                    {profileMeta.foundKind10063 && (
-                      <>Merged <Text component="span" fw={700}>{profileMeta.userBlossomUrlCount}</Text> Blossom base URL(s) from kind 10063.</>
-                    )}{' '}
-                    Default relays stay appended for discovery.
-                  </>
-                ) : (
-                  <>Done loading profile hints.</>
-                )}
-              </Text>
-              <Button size="xs" variant="outline" onClick={() => fetchProfile({ configSnapshot: config })}>
-                Refresh from profile
-              </Button>
-            </Stack>
-          )}
-          {profileStatus === 'error' && (
-            <Stack gap="sm">
-              <Text size="sm" c="dimmed">Could not load profile events for this site pubkey from the network. Defaults remain in Advanced — you can edit there.</Text>
-              <Button size="xs" variant="outline" color="relaykit" onClick={() => fetchProfile({ configSnapshot: config })}>
-                Retry
-              </Button>
-            </Stack>
-          )}
-          {profileStatus === 'skipped' && (
-            <Text size="sm" c="dimmed">
-              Enter a valid <Text component="span" fw={700}>Publishing key</Text> (or sign in with a key we can fall
-              back to); then use Refresh, or set relay URLs manually in Advanced.
-            </Text>
-          )}
-        </Paper>
-      )}
+    <Stack gap="lg">
+      <FormSection title="site" description="what to serve and where">
+        <TextInput
+          label="domain"
+          description="the address people visit your site at, e.g. nsitetest.com"
+          required
+          placeholder="nsitetest.com"
+          value={domainValue}
+          onChange={(e) => setDomain(e.currentTarget.value)}
+        />
 
-      {primaryFields
-        .filter((f: { id: string }) => f.id !== 'NSITE_SITE_D')
-        .map(renderField)}
+        <TextInput
+          label="publishing key"
+          description="hex pubkey or npub of the account that signs your site in shakespeare"
+          required
+          placeholder="npub1… or hex"
+          value={config.NSITE_SITE_NPUB ?? ''}
+          onChange={(e) => setConfig((c) => ({ ...c, NSITE_SITE_NPUB: e.currentTarget.value }))}
+        />
 
-      {hostnamePreview && (
-        <Paper withBorder p="md">
-          {hostnamePreview.ok ? (
-            <Stack gap="xs">
-              <Group gap="xs">
-                <Text size="sm" fw={500}>NIP-5A (gateway)</Text>
-                <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>{hostnamePreview.hostname}</Text>
-              </Group>
-              <Group gap="xs">
-                <Text size="sm" fw={500}>DNS / TLS</Text>
-                <Text size="sm" ff="monospace" style={{ wordBreak: 'break-all' }}>
-                  {previewNsiteRouterHost(hostnamePreview.hostname, config.NSITE_VISITOR_HOST ?? '')}
-                </Text>
-              </Group>
-            </Stack>
+        <Stack gap={6}>
+          {useSelectForSiteId ? (
+            <Combobox
+              store={siteIdCombobox}
+              onOptionSubmit={(val) => {
+                setConfig((c) => ({ ...c, NSITE_SITE_D: val === ROOT_SITE ? '' : val }));
+                setSiteIdSearch('');
+                siteIdCombobox.closeDropdown();
+              }}
+            >
+              <Combobox.DropdownTarget>
+                <PillsInput
+                  label="site id"
+                  description="search and pick which site under this key to serve"
+                  onClick={() => siteIdCombobox.openDropdown()}
+                >
+                  <Pill.Group>
+                    <Pill
+                      withRemoveButton={siteIdValue !== ''}
+                      onRemove={() => setConfig((c) => ({ ...c, NSITE_SITE_D: '' }))}
+                    >
+                      {siteIdValue || 'root site'}
+                    </Pill>
+                    <Combobox.EventsTarget>
+                      <PillsInput.Field
+                        value={siteIdSearch}
+                        placeholder="change site…"
+                        onFocus={() => siteIdCombobox.openDropdown()}
+                        onChange={(e) => {
+                          siteIdCombobox.openDropdown();
+                          setSiteIdSearch(e.currentTarget.value);
+                        }}
+                      />
+                    </Combobox.EventsTarget>
+                  </Pill.Group>
+                </PillsInput>
+              </Combobox.DropdownTarget>
+              <Combobox.Dropdown>
+                <Combobox.Options>
+                  <Combobox.Option value={ROOT_SITE} active={siteIdValue === ''}>
+                    root site
+                  </Combobox.Option>
+                  {siteIdFiltered.map((id) => (
+                    <Combobox.Option value={id} key={id} active={siteIdValue === id}>
+                      {id}
+                    </Combobox.Option>
+                  ))}
+                  {siteIdFiltered.length === 0 && <Combobox.Empty>no match</Combobox.Empty>}
+                </Combobox.Options>
+              </Combobox.Dropdown>
+            </Combobox>
           ) : (
-            <Text c="red">{hostnamePreview.error}</Text>
+            <TextInput
+              label="site id"
+              description="which site under this key (kind 35128). leave empty for a root site."
+              placeholder={dDiscoverLoading ? 'discovering published sites…' : 'myblog — empty = root site'}
+              value={config.NSITE_SITE_D ?? ''}
+              onChange={(e) => setConfig((c) => ({ ...c, NSITE_SITE_D: e.currentTarget.value }))}
+            />
           )}
-        </Paper>
-      )}
-
-      {siteDField && (
-        <Stack gap="sm">
-          {renderField(siteDField)}
-          <Group gap="xs">
-            <Button size="xs" variant="outline" onClick={runDiscover35128} loading={dDiscoverLoading}>
-              Discover site ids (kind 35128)
+          <Group gap="md">
+            <Button
+              variant="subtle"
+              size="compact-xs"
+              px={0}
+              leftSection={<IconRefresh size={12} />}
+              onClick={() => runDiscover35128()}
+              loading={dDiscoverLoading}
+            >
+              re-scan sites
             </Button>
             {dDiscovered.length > 0 && (
-              <Select
-                size="xs"
-                placeholder="Apply discovered id…"
-                data={dDiscovered.map((d) => ({ value: d, label: d }))}
-                onChange={(v) => {
-                  if (v) setConfig((c) => ({ ...c, NSITE_SITE_D: v }));
-                }}
-              />
+              <Button variant="subtle" size="compact-xs" px={0} onClick={() => setManualSiteId((m) => !m)}>
+                {manualSiteId ? 'pick from discovered' : 'enter manually'}
+              </Button>
             )}
           </Group>
         </Stack>
-      )}
 
-      <Paper withBorder p="md">
-        <Stack gap="sm">
-          <Text fw={500} size="sm">NIP-05 users (optional)</Text>
-          <Text size="xs" c="dimmed">
-            Add username + npub (or hex). We publish these as name@your-domain in /.well-known/nostr.json.
+        {hostnamePreview.ok && servedAtHost && (
+          <Text size="sm">
+            <Text component="span" c="dimmed">serves at </Text>
+            <Text component="span" ff="monospace" style={{ wordBreak: 'break-all' }}>
+              https://{servedAtHost}
+            </Text>
           </Text>
-          {nip05Rows.map((row, index) => (
-            <Group key={`${index}-${row.name}-${row.pubkey}`} gap="xs" align="end" wrap="nowrap">
+        )}
+      </FormSection>
+
+      <FormSection title="serving" description="how the gateway maps keys to hostnames">
+        <Switch
+          label="multi-site gateway"
+          description="serve each key at its own subdomain (<key>.domain) instead of serving one site at the domain root"
+          checked={multiSite}
+          onChange={(e) => setMultiSite(e.currentTarget.checked)}
+        />
+      </FormSection>
+
+      <FormSection
+        title="relays & blossom"
+        description="optional overrides — defaults are fine for most setups"
+        action={
+          <Button
+            size="compact-xs"
+            variant="subtle"
+            leftSection={<IconRefresh size={12} />}
+            onClick={() => fetchProfile({ configSnapshot: config })}
+          >
+            refresh from profile
+          </Button>
+        }
+      >
+        {profileStatus === 'loading' && (
+          <Text size="sm" c="dimmed">loading this site pubkey&apos;s kind 10002 (relays) and 10063 (Blossom)…</Text>
+        )}
+        {profileStatus === 'ok' && profileMeta && (
+          <Text size="sm" c="dimmed">
+            {!profileMeta.foundKind10002 && !profileMeta.foundKind10063 ? (
+              <>
+                no kind <Text component="span" fw={700}>10002</Text> or{' '}
+                <Text component="span" fw={700}>10063</Text> found for this key on the relays we queried — showing
+                relaykit defaults only. publish nip-65 / blossom lists for that key, then refresh.
+              </>
+            ) : (
+              <>
+                {profileMeta.foundKind10002 && (
+                  <>merged <Text component="span" fw={700}>{profileMeta.userRelayUrlCount}</Text> relay url(s) from kind 10002. </>
+                )}
+                {profileMeta.foundKind10063 && (
+                  <>merged <Text component="span" fw={700}>{profileMeta.userBlossomUrlCount}</Text> blossom base url(s) from kind 10063. </>
+                )}
+                default relays stay appended for discovery.
+              </>
+            )}
+          </Text>
+        )}
+        {profileStatus === 'error' && (
+          <Text size="sm" c="dimmed">could not load profile events for this key from the network. defaults below still apply — edit as needed.</Text>
+        )}
+        {profileStatus === 'skipped' && (
+          <Text size="sm" c="dimmed">
+            enter a valid <Text component="span" fw={700}>publishing key</Text> above, then refresh — or set relay urls
+            manually below.
+          </Text>
+        )}
+        {advancedFields.map(renderUrlListField)}
+      </FormSection>
+
+      <FormSection
+        title="nip-05 names"
+        description="optionally publish name@your-domain identities in /.well-known/nostr.json"
+      >
+        {nip05Rows.length === 0 ? (
+          <Text size="sm" c="dimmed">no names yet.</Text>
+        ) : (
+          nip05Rows.map((row, index) => (
+            <Group key={index} gap="xs" align="end" wrap="nowrap">
               <TextInput
-                label="Username"
+                label="username"
                 placeholder="sam"
                 value={row.name}
                 onChange={(e) => {
@@ -336,39 +433,23 @@ export const NsiteDeployFields = ({
                 size="xs"
                 variant="light"
                 color="red"
-                onClick={() => {
-                  if (nip05Rows.length <= 1) {
-                    syncNip05Rows([{ name: '', pubkey: '' }]);
-                    return;
-                  }
-                  syncNip05Rows(nip05Rows.filter((_, i) => i !== index));
-                }}
+                onClick={() => syncNip05Rows(nip05Rows.filter((_, i) => i !== index))}
               >
-                Remove
+                remove
               </Button>
             </Group>
-          ))}
-          <Group>
-            <Button
-              size="xs"
-              variant="outline"
-              onClick={() => syncNip05Rows([...nip05Rows, { name: '', pubkey: '' }])}
-            >
-              Add user
-            </Button>
-          </Group>
-        </Stack>
-      </Paper>
-
-      {advancedFields.length > 0 && (
-        <Paper withBorder p="md">
-          <Text fw={500} size="sm" mb="sm">Advanced: relay &amp; Blossom URLs</Text>
-          <Text size="xs" c="dimmed" mb="md">
-            Optional overrides — sensible defaults are already applied if you leave these as-is.
-          </Text>
-          {advancedFields.map(renderUrlListField)}
-        </Paper>
-      )}
+          ))
+        )}
+        <Group>
+          <Button
+            size="xs"
+            variant="default"
+            onClick={() => syncNip05Rows([...nip05Rows, { name: '', pubkey: '' }])}
+          >
+            add user
+          </Button>
+        </Group>
+      </FormSection>
     </Stack>
   );
 };
