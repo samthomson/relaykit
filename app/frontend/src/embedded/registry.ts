@@ -1,9 +1,13 @@
+import { SERVICE_TYPE } from '../../../shared/serviceType'
+
 export type EmbeddableAppId = 'relay-explorer' | 'blossom-explorer' | 'nsite-explorer'
 
 export type EmbeddableApp = {
   id: EmbeddableAppId
   label: string
   description: string
+  /** Service type this app represents; drives the loader cube colour when launched without a service. */
+  serviceType: string
   /** Each embed runs its own Vite dev server; prod serves the same path on this origin. */
   devPort: number
   basePath: string
@@ -23,6 +27,7 @@ export const EMBEDDABLE_APPS: Record<EmbeddableAppId, EmbeddableApp> = {
     id: 'relay-explorer',
     label: 'relay explorer',
     description: 'inspect live nostr relay events',
+    serviceType: SERVICE_TYPE.RELAY,
     devPort: 5174,
     basePath: '/apps/relay-explorer/',
     buildContext: (ctx) => qs({ embedded: '1', relay: ctx.relay, relays: ctx.relays, standalone: ctx.standalone, session: ctx.session }),
@@ -31,6 +36,7 @@ export const EMBEDDABLE_APPS: Record<EmbeddableAppId, EmbeddableApp> = {
     id: 'blossom-explorer',
     label: 'blossom explorer',
     description: 'browse and verify blossom blobs',
+    serviceType: SERVICE_TYPE.BLOSSOM,
     devPort: 5175,
     basePath: '/apps/blossom-explorer/',
     buildContext: (ctx) => qs({ embedded: '1', server: ctx.server, standalone: ctx.standalone, session: ctx.session }),
@@ -39,6 +45,7 @@ export const EMBEDDABLE_APPS: Record<EmbeddableAppId, EmbeddableApp> = {
     id: 'nsite-explorer',
     label: 'nPanel',
     description: 'inspect and debug nsite data',
+    serviceType: SERVICE_TYPE.NPANEL,
     devPort: 5176,
     basePath: '/apps/nsite-explorer/',
     buildContext: (ctx) => qs({ embedded: '1', gateway: ctx.gateway, pubkey: ctx.pubkey, siteD: ctx.siteD, relays: ctx.relays, owner: ctx.owner, standalone: ctx.standalone, session: ctx.session }),

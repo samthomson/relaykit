@@ -10,7 +10,6 @@ import {
   Box,
   Combobox,
   Group,
-  Loader,
   Paper,
   Pill,
   ScrollArea,
@@ -26,6 +25,7 @@ import {
 } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { ExternalLink, Lock } from 'lucide-react';
+import { RubixLoader, RubixLoaderColor } from '@samthomson/rubix-loader';
 
 const DEFAULT_RELAYS = [
   'wss://relay.damus.io',
@@ -732,12 +732,7 @@ const Index = () => {
                 enable at least one relay to discover nsites.
               </Text>
             ) : discovering ? (
-              <Group gap="xs">
-                <Loader size="xs" color="nsiteExplorer" />
-                <Text size="sm" c="dimmed">
-                  discovering nsites…
-                </Text>
-              </Group>
+              <NpanelLoader label="discovering nsites…" />
             ) : (discovered?.length ?? 0) === 0 ? (
               <Text size="sm" c="dimmed">
                 no nsites (kind 15128/35128) found on the active relays.
@@ -772,14 +767,7 @@ const Index = () => {
           </>
         )}
 
-        {pubkey && isLoading && (
-          <Group gap="xs">
-            <Loader size="xs" color="nsiteExplorer" />
-            <Text size="sm" c="dimmed">
-              loading manifests…
-            </Text>
-          </Group>
-        )}
+        {pubkey && isLoading && <NpanelLoader label="loading manifests…" />}
 
         {error && (
           <Text size="sm" c="red">
@@ -973,6 +961,15 @@ const Stat = ({ label, value, sub }: { label: string; value: string; sub?: strin
       )}
     </Group>
   </div>
+);
+
+const NpanelLoader = ({ label }: { label: string }) => (
+  <Stack align="center" justify="center" gap="md" style={{ minHeight: '50vh' }}>
+    <RubixLoader size={128} colors={[RubixLoaderColor.Npanel]} speed={1.35} />
+    <Text size="sm" c="dimmed">
+      {label}
+    </Text>
+  </Stack>
 );
 
 const Info = ({ label, value, mono }: { label: string; value: string; mono?: boolean }) => (

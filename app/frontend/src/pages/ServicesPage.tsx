@@ -610,7 +610,6 @@ const ServiceCard = ({
         <EmbeddedAppModal
           appId="relay-explorer"
           context={{ relay: wssUrl, relays: availableRelays.join(',') }}
-          serviceType={service.type}
           presetId={service.presetId}
           onClose={() => setShowExplorer(false)}
         />
@@ -619,7 +618,6 @@ const ServiceCard = ({
         <EmbeddedAppModal
           appId="blossom-explorer"
           context={{ server: httpsUrl }}
-          serviceType={service.type}
           presetId={service.presetId}
           onClose={() => setShowBlossomExplorer(false)}
         />
@@ -633,7 +631,6 @@ const ServiceCard = ({
             siteD: service.nsiteSiteD,
             relays: service.nsiteRelays,
           }}
-          serviceType={service.type}
           presetId={service.presetId}
           onClose={() => setShowNsiteExplorer(false)}
         />

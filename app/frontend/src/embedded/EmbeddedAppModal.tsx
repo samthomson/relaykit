@@ -8,16 +8,19 @@ import { buildEmbeddedAppSrc, EMBEDDABLE_APPS, type EmbeddableAppId } from './re
 type Props = {
   appId: EmbeddableAppId
   context: Record<string, string | undefined>
-  serviceType?: string | null
+  /** Relay preset id (e.g. strfry/chapar) to refine the loader cube colour; app type comes from the registry. */
   presetId?: string | null
   onClose: () => void
 }
 
-export const EmbeddedAppModal = ({ appId, context, serviceType, presetId, onClose }: Props) => {
+export const EmbeddedAppModal = ({ appId, context, presetId, onClose }: Props) => {
   const app = EMBEDDABLE_APPS[appId]
   const src = buildEmbeddedAppSrc(appId, context)
   const [loaded, setLoaded] = useState(false)
-  const color = useMemo(() => serviceTypeToRubixLoaderColor(serviceType, presetId), [serviceType, presetId])
+  const color = useMemo(
+    () => serviceTypeToRubixLoaderColor(app.serviceType, presetId),
+    [app.serviceType, presetId],
+  )
   useEffect(() => {
     setLoaded(false)
   }, [src])
