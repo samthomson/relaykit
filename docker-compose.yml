@@ -128,7 +128,7 @@ services:
 
   relaykit-prod:
     profiles: ["prod"]
-    image: ${RELAYKIT_IMAGE:-ghcr.io/samthomson/relaykit-proto/relaykit:latest}
+    image: ${RELAYKIT_IMAGE:-ghcr.io/samthomson/relaykit:latest}
     restart: unless-stopped
     environment:
       - NODE_ENV=production

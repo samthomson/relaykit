@@ -14,7 +14,7 @@ fi
 DEPLOY_HOST="${DEPLOY_HOST:-}"
 DEPLOY_PATH="${DEPLOY_PATH:-}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
-IMAGE_NAME="${IMAGE_NAME:-ghcr.io/samthomson/relaykit-proto/relaykit}"
+IMAGE_NAME="${IMAGE_NAME:-ghcr.io/samthomson/relaykit}"
 FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
 
 if [[ -z "$DEPLOY_HOST" ]]; then
