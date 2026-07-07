@@ -1900,10 +1900,10 @@
   resolved "https://registry.yarnpkg.com/@rollup/rollup-win32-x64-msvc/-/rollup-win32-x64-msvc-4.60.1.tgz#23b860113e9f87eea015d1fa3a4240a52b42fcd4"
   integrity sha512-lWMnixq/QzxyhTV6NjQJ4SFo1J6PvOX8vUx5Wb4bBPsEb+8xZ89Bz6kOXpfXj9ak9AHTQVQzlgzBEc1SyM27xQ==
 
-"@samthomson/rubix-loader@0.5.0":
-  version "0.5.0"
-  resolved "https://registry.yarnpkg.com/@samthomson/rubix-loader/-/rubix-loader-0.5.0.tgz#254dc6ec36cb5cb4fa212e7df1bb667acd2bae0d"
-  integrity sha512-HP56PozQm4kh2ETmzW5fqU6dBdcUaTggFyskIGMq9fd4GvJDq/8y87rRpxDmZVkWYK1Vc0siivWmnj80I8Y3bg==
+"@samthomson/rubix-loader@0.5.1":
+  version "0.5.1"
+  resolved "https://registry.yarnpkg.com/@samthomson/rubix-loader/-/rubix-loader-0.5.1.tgz#27b7eaca1b8eb871445ddbb230c9c9bb69faedd8"
+  integrity sha512-cfUwalXd3xxVzC87S+vhMBk58XoiehXaRoyPHejsqsrpNUaCQ0vt9NjJJoY14jnRksYFYdpuVkv+c4BcsyBFuw==
 
 "@scure/base@1.1.1":
   version "1.1.1"
