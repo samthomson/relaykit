@@ -1286,7 +1286,10 @@ export const appRouter = router({
       if (!host) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Could not get server IP (no Host header).' })
       const isV4 = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)
       if (isV4) return { ip: host }
-      const addrs = await dns.resolve4(host)
+      // Quad9: non-profit, Swiss-based, no logging or data selling
+      const resolver = new dns.Resolver()
+      resolver.setServers(['9.9.9.9', '149.112.112.112'])
+      const addrs = await resolver.resolve4(host)
       const ip = addrs?.[0]
       if (!ip) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Could not resolve server IP.' })
       return { ip }
@@ -1401,8 +1404,10 @@ export const appRouter = router({
     .input(z.object({ host: z.string().min(1), expectedIp: z.string().min(1) }))
     .query(async ({ input }) => {
       try {
-        const addrs = await dns.lookup(input.host, { family: 4, all: true, verbatim: true })
-        const ips = addrs.map((a) => a.address)
+        // Quad9: non-profit, Swiss-based, no logging or data selling
+        const resolver = new dns.Resolver()
+        resolver.setServers(['9.9.9.9', '149.112.112.112'])
+        const ips = await resolver.resolve4(input.host)
         return { ok: ips.includes(input.expectedIp), ips }
       } catch (e: any) {
         return { ok: false, ips: [], error: e?.message || 'DNS lookup failed' }
