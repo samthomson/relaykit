@@ -834,7 +834,16 @@ const ServiceCard = ({
                       ) : (
                         <Text size="xs" c="dimmed" fs="italic">No domain configured</Text>
                       )}
-                      <Group gap="xs" wrap="nowrap">
+                      <Group gap="xs" wrap="wrap">
+                        <Button
+                          size="xs"
+                          variant="light"
+                          color="gray"
+                          onClick={openDetails}
+                          style={{ flexShrink: 0 }}
+                        >
+                          config
+                        </Button>
                         {domain && isRelayType(service.type) && (
                           <Button
                             size="xs"
@@ -842,8 +851,9 @@ const ServiceCard = ({
                             color="relaykit"
                             onClick={() => setShowExplorer(true)}
                             rightSection={<IconExternalLink size={12} />}
+                            style={{ flexShrink: 0 }}
                           >
-                            explorer
+                            data
                           </Button>
                         )}
                         {domain && service.type === SERVICE_TYPE.BLOSSOM && (
@@ -853,8 +863,9 @@ const ServiceCard = ({
                             color="relaykit"
                             onClick={() => setShowBlossomExplorer(true)}
                             rightSection={<IconExternalLink size={12} />}
+                            style={{ flexShrink: 0 }}
                           >
-                            explorer
+                            data
                           </Button>
                         )}
                         {domain && isNpanelType(service.type) && (
@@ -864,18 +875,11 @@ const ServiceCard = ({
                             color="relaykit"
                             onClick={() => setShowNsiteExplorer(true)}
                             rightSection={<IconExternalLink size={12} />}
+                            style={{ flexShrink: 0 }}
                           >
-                            explorer
+                            data
                           </Button>
                         )}
-                        <Button
-                          size="xs"
-                          variant="light"
-                          color="gray"
-                          onClick={openDetails}
-                        >
-                          details
-                        </Button>
                       </Group>
                     </Stack>
                   </Stack>

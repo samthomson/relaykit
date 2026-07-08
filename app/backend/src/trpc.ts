@@ -815,6 +815,21 @@ const getRuntimeContainersFromDocker = async () => {
   }
 }
 
+// Cloudflare publishes their IP ranges at cloudflare.com/ips-v4 — used to detect proxied domains
+const CF_RANGES_V4 = [
+  '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22',
+  '141.101.64.0/18', '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20',
+  '197.234.240.0/22', '198.41.128.0/17', '162.158.0.0/15',
+  '104.16.0.0/13', '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22',
+]
+const ipToInt = (ip: string) => ip.split('.').reduce((acc, oct) => (acc << 8) | parseInt(oct), 0) >>> 0
+const inCidr = (ip: string, cidr: string) => {
+  const [base, bits] = cidr.split('/')
+  const mask = ~((1 << (32 - parseInt(bits))) - 1) >>> 0
+  return (ipToInt(ip) & mask) === (ipToInt(base) & mask)
+}
+const isCloudflareIp = (ip: string) => CF_RANGES_V4.some((r) => inCidr(ip, r))
+
 export const appRouter = router({
   listPresets: publicProcedure
     .input(z.void())
@@ -1404,18 +1419,28 @@ export const appRouter = router({
     .input(z.object({ host: z.string().min(1), expectedIp: z.string().min(1) }))
     .query(async ({ input }) => {
       try {
-        // Quad9: non-profit, Swiss-based, no logging or data selling
-        const resolver = new dns.Resolver()
-        resolver.setServers(['9.9.9.9', '149.112.112.112'])
+        const resolve4 = async (host: string, servers: string[]) => {
+          const r = new dns.Resolver()
+          r.setServers(servers)
+          return r.resolve4(host)
+        }
         let ips: string[]
         try {
-          ips = await resolver.resolve4(input.host)
+          // Quad9: non-profit, Swiss-based, no logging or data selling
+          ips = await resolve4(input.host, ['9.9.9.9', '149.112.112.112'])
         } catch {
-          // Fall back to system resolver so /etc/hosts entries work in dev
-          const addrs = await dns.lookup(input.host, { family: 4, all: true })
-          ips = addrs.map((a) => a.address)
+          try {
+            // hdns.io: public Handshake (HNS) resolver — handles decentralized TLDs unknown to ICANN
+            ips = await resolve4(input.host, ['103.196.38.38'])
+          } catch {
+            // Fall back to system resolver so /etc/hosts entries work in dev
+            const addrs = await dns.lookup(input.host, { family: 4, all: true })
+            ips = addrs.map((a) => a.address)
+          }
         }
-        return { ok: ips.includes(input.expectedIp), ips }
+        if (ips.includes(input.expectedIp)) return { ok: true, ips }
+        if (ips.length > 0 && ips.every(isCloudflareIp)) return { ok: false, proxied: 'cloudflare' as const, ips }
+        return { ok: false, ips }
       } catch (e: any) {
         return { ok: false, ips: [], error: e?.message || 'DNS lookup failed' }
       }

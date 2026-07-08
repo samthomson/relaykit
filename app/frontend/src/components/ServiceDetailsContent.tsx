@@ -54,21 +54,35 @@ const ServiceDetailsDns = ({
   const dnsCopy = 'service-details-dns-copy';
   const publicHost =
     (isNpanelType(service.type) ? service.nsiteVisitorHost || service.nsiteCanonicalHost : null) || domain.host;
-  const [testState, setTestState] = useState<Record<string, 'idle' | 'loading' | 'ok' | 'fail'>>({});
+  type DnsStatus = 'idle' | 'loading' | 'ok' | 'proxied' | 'fail';
+  type DnsEntry = { status: DnsStatus; ips?: string[]; error?: string };
+  type DnsResult = { ok: boolean; proxied?: string; ips: string[]; error?: string };
+
+  const DNS_BUTTON: Record<DnsStatus, { variant: 'light' | 'filled'; color?: string; label: string; icon?: React.ReactNode; tooltip?: string }> = {
+    idle:    { variant: 'light',  label: 'test' },
+    loading: { variant: 'light',  label: 'test' },
+    ok:      { variant: 'filled', color: 'green',  label: 'ok',     icon: <IconCheck size={12} /> },
+    proxied: { variant: 'filled', color: 'orange', label: 'via CF', tooltip: 'domain resolves via cloudflare proxy — dns is pointed correctly, but the origin ip is hidden' },
+    fail:    { variant: 'filled', color: 'red',    label: 'fail',   icon: <IconX size={12} /> },
+  };
+
+  const [testState, setTestState] = useState<Record<string, DnsEntry>>({});
 
   const testDns = async (name: string) => {
-    setTestState((s) => ({ ...s, [name]: 'loading' }));
+    setTestState((s) => ({ ...s, [name]: { status: 'loading' } }));
     try {
-      const res = await trpc.testDnsRecord.query({ host: name, expectedIp: serverIp });
-      const ok = res.ok;
-      setTestState((s) => ({ ...s, [name]: ok ? 'ok' : 'fail' }));
+      const res = await trpc.testDnsRecord.query({ host: name, expectedIp: serverIp }) as DnsResult;
+      const status: DnsStatus = res.ok ? 'ok' : res.proxied === 'cloudflare' ? 'proxied' : 'fail';
+      setTestState((s) => ({ ...s, [name]: { status, ips: res.ips, error: res.error } }));
     } catch {
-      setTestState((s) => ({ ...s, [name]: 'fail' }));
+      setTestState((s) => ({ ...s, [name]: { status: 'fail', error: 'request failed' } }));
     }
   };
 
   const dnsRow = (name: string) => {
-    const state = testState[name] || 'idle';
+    const { status, ips, error }: DnsEntry = testState[name] ?? { status: 'idle' };
+    const btn = DNS_BUTTON[status];
+    const tooltip = btn.tooltip ?? (ips && ips.length > 0 ? `resolved: ${ips.join(', ')}` : error ?? 'no IPs resolved');
     return (
       <Table.Tr key={name}>
         <Table.Td>
@@ -108,16 +122,11 @@ const ServiceDetailsDns = ({
         </Table.Td>
         <Table.Td>
           <Group gap="xs" wrap="nowrap">
-            <Button
-              size="xs"
-              variant={state === 'ok' ? 'filled' : state === 'fail' ? 'filled' : 'light'}
-              color={state === 'ok' ? 'green' : state === 'fail' ? 'red' : undefined}
-              loading={state === 'loading'}
-              leftSection={state === 'ok' ? <IconCheck size={12} /> : state === 'fail' ? <IconX size={12} /> : undefined}
-              onClick={() => void testDns(name)}
-            >
-              {state === 'ok' ? 'ok' : state === 'fail' ? 'fail' : 'test'}
-            </Button>
+            <Tooltip disabled={status === 'idle' || status === 'loading' || status === 'ok'} label={tooltip} withArrow multiline maw={280}>
+              <Button size="xs" variant={btn.variant} color={btn.color} loading={status === 'loading'} leftSection={btn.icon} onClick={() => void testDns(name)}>
+                {btn.label}
+              </Button>
+            </Tooltip>
           </Group>
         </Table.Td>
       </Table.Tr>
