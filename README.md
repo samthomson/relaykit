@@ -213,3 +213,5 @@ maybe later:
 unsorted:
 - [ ] group login (ie diff npubs/teams)
 - [ ] super smooth setup/install
+- [ ] updates
+- [ ] backup/export data?
