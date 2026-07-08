@@ -609,7 +609,7 @@ const ServiceCard = ({
       {showExplorer && domain && (
         <EmbeddedAppModal
           appId="relay-explorer"
-          context={{ relay: wssUrl, relays: availableRelays.join(',') }}
+          context={{ relay: wssUrl, relays: availableRelays.join(','), npub: npub ?? undefined }}
           presetId={service.presetId}
           onClose={() => setShowExplorer(false)}
         />

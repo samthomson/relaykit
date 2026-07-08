@@ -30,7 +30,7 @@ export const EMBEDDABLE_APPS: Record<EmbeddableAppId, EmbeddableApp> = {
     serviceType: SERVICE_TYPE.RELAY,
     devPort: 5174,
     basePath: '/apps/relay-explorer/',
-    buildContext: (ctx) => qs({ embedded: '1', relay: ctx.relay, relays: ctx.relays, standalone: ctx.standalone, session: ctx.session }),
+    buildContext: (ctx) => qs({ embedded: '1', relay: ctx.relay, relays: ctx.relays, standalone: ctx.standalone, session: ctx.session, npub: ctx.npub }),
   },
   'blossom-explorer': {
     id: 'blossom-explorer',

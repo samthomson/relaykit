@@ -140,6 +140,8 @@ const Index = () => {
   const [showInspectorTable, setShowInspectorTable] = useState(true);
   const [showInspectorJson, setShowInspectorJson] = useState(true);
   const [queryModalOpen, setQueryModalOpen] = useState(false);
+  const [decryptedContent, setDecryptedContent] = useState<string | null>(null);
+  const [isDecrypting, setIsDecrypting] = useState(false);
   const relayCombobox = useCombobox();
 
   const { currentUser, removeLogin } = useLoggedInAccounts();
@@ -651,6 +653,24 @@ const Index = () => {
     }
   })();
 
+  // Hex pubkey injected by RelayKit via ?npub= URL param (the host app's logged-in identity).
+  // RelayKit stores the npub as a raw hex pubkey, so handle both formats.
+  const hostPubkey = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const npubParam = params.get('npub');
+    if (!npubParam) return null;
+    if (/^[a-fA-F0-9]{64}$/.test(npubParam)) return npubParam.toLowerCase();
+    try {
+      const decoded = nip19.decode(npubParam);
+      return decoded.type === 'npub' ? decoded.data : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Prefer the relay-auth'd user for "me"; fall back to the host identity passed via URL.
+  const mePubkey = currentUser?.pubkey ?? hostPubkey;
+
   const listHeight = iframeMode ? undefined : 'calc(100vh - 340px)';
 
   const eventListRows = useMemo(
@@ -670,10 +690,67 @@ const Index = () => {
     [events],
   );
 
+  useEffect(() => {
+    setDecryptedContent(null);
+    setIsDecrypting(false);
+  }, [selectedEvent?.id]);
+
   const selectedEventJson = useMemo(
     () => (selectedEvent ? JSON.stringify(selectedEvent, null, 2) : ''),
     [selectedEvent],
   );
+
+  // Kinds that carry encrypted content and the NIP to use for decryption.
+  // Works with relay-explorer login (user) OR just the host pubkey passed via ?npub= + browser extension.
+  const encryptedEventMeta = useMemo((): { nip: 'nip04' | 'nip44'; otherPubkey: string } | null => {
+    if (!selectedEvent) return null;
+    const myPubkey = user?.pubkey ?? hostPubkey;
+    if (!myPubkey) return null;
+    const isAuthor = myPubkey === selectedEvent.pubkey;
+    const recipientTag = selectedEvent.tags.find((t) => t[0] === 'p' && t[1]);
+    const isRecipient = !isAuthor && !!recipientTag && recipientTag[1] === myPubkey;
+    if (!isAuthor && !isRecipient) return null;
+    const otherPubkey = isAuthor ? (recipientTag?.[1] ?? '') : selectedEvent.pubkey;
+    if (!otherPubkey) return null;
+    if (selectedEvent.kind === 4) return { nip: 'nip04', otherPubkey };
+    if (selectedEvent.kind === 14 || selectedEvent.kind === 1059) return { nip: 'nip44', otherPubkey };
+    return null;
+  }, [selectedEvent, user, hostPubkey]);
+
+  const handleDecrypt = async () => {
+    if (!encryptedEventMeta || !selectedEvent) return;
+    setIsDecrypting(true);
+    try {
+      const { nip, otherPubkey } = encryptedEventMeta;
+      let plaintext: string;
+      if (user) {
+        // Relay-explorer authenticated: use the nostrify signer.
+        if (nip === 'nip04') {
+          if (!user.signer.nip04) throw new Error('signer does not support NIP-04');
+          plaintext = await user.signer.nip04.decrypt(otherPubkey, selectedEvent.content);
+        } else {
+          if (!user.signer.nip44) throw new Error('signer does not support NIP-44');
+          plaintext = await user.signer.nip44.decrypt(otherPubkey, selectedEvent.content);
+        }
+      } else {
+        // Fall back to the browser extension (NIP-07) which RelayKit already uses.
+        const nostr = (window as unknown as { nostr?: { nip04?: { decrypt: (pk: string, ct: string) => Promise<string> }; nip44?: { decrypt: (pk: string, ct: string) => Promise<string> } } }).nostr;
+        if (!nostr) throw new Error('no signer available — log in via authenticate or install a Nostr extension');
+        if (nip === 'nip04') {
+          if (!nostr.nip04) throw new Error('extension does not support NIP-04');
+          plaintext = await nostr.nip04.decrypt(otherPubkey, selectedEvent.content);
+        } else {
+          if (!nostr.nip44) throw new Error('extension does not support NIP-44');
+          plaintext = await nostr.nip44.decrypt(otherPubkey, selectedEvent.content);
+        }
+      }
+      setDecryptedContent(plaintext);
+    } catch (e) {
+      setDecryptedContent(`[decryption failed: ${e instanceof Error ? e.message : String(e)}]`);
+    } finally {
+      setIsDecrypting(false);
+    }
+  };
 
   const formatPillValue = (value: string, max = 28) =>
     value.length > max ? `${value.slice(0, max)}...` : value;
@@ -827,6 +904,18 @@ const Index = () => {
             maxTags={1}
             placeholder={authorTags.length > 0 ? '' : 'npub1... or nprofile1...'}
             value={authorTags}
+            rightSection={
+              mePubkey && authorTags[0] !== mePubkey ? (
+                <UnstyledButton
+                  onClick={() => setAuthorTags([mePubkey])}
+                  px={6}
+                  style={{ fontSize: rem(10), fontFamily: 'var(--mantine-font-family-monospace)', color: 'var(--mantine-color-relaykit-filled)', lineHeight: 1, whiteSpace: 'nowrap' }}
+                >
+                  me
+                </UnstyledButton>
+              ) : null
+            }
+            rightSectionWidth={mePubkey && authorTags[0] !== mePubkey ? rem(36) : undefined}
             onChange={setAuthorTags}
             style={{ width: '100%', maxWidth: '100%' }}
             styles={authorValidation.error ? invalidAuthorTagsInputStyles : neutralFilterTagsInputStyles}
@@ -1385,6 +1474,42 @@ const Index = () => {
                                     </Table.Td>
                                   </Table.Tr>
                                 ))}
+                                {encryptedEventMeta && (
+                                  <Table.Tr>
+                                    <Table.Td>
+                                      <Text size="xs" ff="monospace" c="violet.4" fw={700}>
+                                        decrypted
+                                      </Text>
+                                    </Table.Td>
+                                    <Table.Td>
+                                      {decryptedContent !== null ? (
+                                        <Text
+                                          size="xs"
+                                          ff="monospace"
+                                          style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}
+                                        >
+                                          {decryptedContent}
+                                        </Text>
+                                      ) : (
+                                        <Button
+                                          size="compact-xs"
+                                          variant="light"
+                                          color="violet"
+                                          ff="monospace"
+                                          loading={isDecrypting}
+                                          onClick={handleDecrypt}
+                                        >
+                                          decrypt ({encryptedEventMeta.nip})
+                                        </Button>
+                                      )}
+                                    </Table.Td>
+                                    <Table.Td>
+                                      {decryptedContent !== null && (
+                                        <CopyControl value={decryptedContent} label="copy decrypted content" />
+                                      )}
+                                    </Table.Td>
+                                  </Table.Tr>
+                                )}
                                 <Table.Tr>
                                   <Table.Td colSpan={3}>
                                     <Text size="xs" ff="monospace" c="teal.4" fw={700}>

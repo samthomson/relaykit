@@ -37,6 +37,7 @@ export const AppsPage = () => {
               activeLaunch.appId === 'relay-explorer' || activeLaunch.appId === 'nsite-explorer'
                 ? relayOptionsParam
                 : undefined,
+            npub: activeLaunch.appId === 'relay-explorer' ? (npub ?? undefined) : undefined,
             owner: activeLaunch.appId === 'nsite-explorer' ? (npub ?? undefined) : undefined,
           }}
           onClose={() => setActiveLaunch(null)}
