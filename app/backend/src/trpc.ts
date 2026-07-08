@@ -1407,7 +1407,14 @@ export const appRouter = router({
         // Quad9: non-profit, Swiss-based, no logging or data selling
         const resolver = new dns.Resolver()
         resolver.setServers(['9.9.9.9', '149.112.112.112'])
-        const ips = await resolver.resolve4(input.host)
+        let ips: string[]
+        try {
+          ips = await resolver.resolve4(input.host)
+        } catch {
+          // Fall back to system resolver so /etc/hosts entries work in dev
+          const addrs = await dns.lookup(input.host, { family: 4, all: true })
+          ips = addrs.map((a) => a.address)
+        }
         return { ok: ips.includes(input.expectedIp), ips }
       } catch (e: any) {
         return { ok: false, ips: [], error: e?.message || 'DNS lookup failed' }
