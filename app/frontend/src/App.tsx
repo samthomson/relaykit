@@ -28,9 +28,11 @@ import {
   Switch,
   Stack,
   Paper,
+  Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown } from '@tabler/icons-react';
+import { SERVICE_TYPE } from '../../shared/serviceType';
 
 type RubixColor = (typeof RubixLoaderColor)[keyof typeof RubixLoaderColor];
 
@@ -100,6 +102,19 @@ const App = () => {
       seen.add(serviceTypeToRubixLoaderColor(service.type, service.presetId));
     }
     return [RubixLoaderColor.RelayKit, ...Array.from(seen).filter((color) => color !== RubixLoaderColor.RelayKit)];
+  }, [services]);
+
+  const serviceCountTooltip = useMemo(() => {
+    const relays = services.filter(s => s.type === SERVICE_TYPE.RELAY).length;
+    const blossoms = services.filter(s => s.type === SERVICE_TYPE.BLOSSOM).length;
+    const npanels = services.filter(s => s.type === SERVICE_TYPE.NPANEL).length;
+    const other = services.length - relays - blossoms - npanels;
+    return [
+      relays > 0 && `${relays} relay${relays !== 1 ? 's' : ''}`,
+      blossoms > 0 && `${blossoms} blossom${blossoms !== 1 ? 's' : ''}`,
+      npanels > 0 && `${npanels} npanel${npanels !== 1 ? 's' : ''}`,
+      other > 0 && `${other} other`,
+    ].filter(Boolean).join('\n');
   }, [services]);
 
   if (isLoading) {
@@ -183,6 +198,11 @@ const App = () => {
               component={RouterNavLink}
               to="/"
               label="services"
+              rightSection={services.length > 0 ? (
+                <Tooltip label={<Text size="xs" style={{ whiteSpace: 'pre' }}>{serviceCountTooltip}</Text>} withArrow>
+                  <Text size="xs" c="dimmed">{services.length}</Text>
+                </Tooltip>
+              ) : undefined}
               onClick={closeMobileMenu}
             />
             <NavLink
