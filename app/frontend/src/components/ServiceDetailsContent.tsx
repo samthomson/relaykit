@@ -108,19 +108,16 @@ const ServiceDetailsDns = ({
         </Table.Td>
         <Table.Td>
           <Group gap="xs" wrap="nowrap">
-            <Button size="xs" variant="light" loading={state === 'loading'} onClick={() => void testDns(name)}>
-              test
+            <Button
+              size="xs"
+              variant={state === 'ok' ? 'filled' : state === 'fail' ? 'filled' : 'light'}
+              color={state === 'ok' ? 'green' : state === 'fail' ? 'red' : undefined}
+              loading={state === 'loading'}
+              leftSection={state === 'ok' ? <IconCheck size={12} /> : state === 'fail' ? <IconX size={12} /> : undefined}
+              onClick={() => void testDns(name)}
+            >
+              {state === 'ok' ? 'ok' : state === 'fail' ? 'fail' : 'test'}
             </Button>
-            {state === 'ok' && (
-              <Badge size="xs" color="green" variant="filled" leftSection={<IconCheck size={10} />}>
-                OK
-              </Badge>
-            )}
-            {state === 'fail' && (
-              <Badge size="xs" color="red" variant="filled" leftSection={<IconX size={10} />}>
-                Fail
-              </Badge>
-            )}
           </Group>
         </Table.Td>
       </Table.Tr>
