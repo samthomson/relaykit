@@ -193,7 +193,6 @@ RelayKit has two domain flows: **create a service (with domain in one go)** and 
 ## todo
 
 issues:
-- [ ] dns check in prod not working right
 
 next:
 - [ ] convey real deployment status in UI (not assumed success) - especially as it starts up, to know when it's "ready"
