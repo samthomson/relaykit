@@ -214,3 +214,5 @@ unsorted:
 - [ ] super smooth setup/install
 - [ ] updates
 - [ ] backup/export data?
+- [ ] documentation: how to; every feature, one video, text description, pictures.
+
