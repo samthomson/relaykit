@@ -21,7 +21,6 @@ COPY app/shared/package.json ./shared/
 COPY app/shared/ui/package.json ./shared/ui/
 COPY app/apps/hello-world/package.json ./apps/hello-world/
 RUN yarn install --production --frozen-lockfile --network-timeout 600000 2>/dev/null || yarn install --production --network-timeout 600000
-RUN yarn global add tsx
 
 COPY app/shared ./shared
 COPY app/apps/hello-world/server ./apps/hello-world/server
