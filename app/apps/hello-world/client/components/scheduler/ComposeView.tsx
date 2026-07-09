@@ -69,6 +69,7 @@ const CLIENT_TAG: string[][] = [
   ['client', isEmbedded ? 'relaykit — hello world' : 'hello world'],
 ]
 
+const DRAFT_KEY = 'hw:draft-content'
 const RELAY_SELECTION_KEY = 'hw:selected-relays'
 const BLOSSOM_SELECTION_KEY = 'hw:selected-blossoms'
 
@@ -101,7 +102,12 @@ export const ComposeView = ({
   const { config } = useAppContext()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [content, setContent] = useState('')
+  const [content, setContentRaw] = useState(() => localStorage.getItem(DRAFT_KEY) ?? '')
+  const setContent = useCallback((v: string) => {
+    setContentRaw(v)
+    if (v) localStorage.setItem(DRAFT_KEY, v)
+    else localStorage.removeItem(DRAFT_KEY)
+  }, [])
   const [tab, setTab] = useState<string | null>('edit')
   const [publishMode, setPublishMode] = useState('later')
   const [publishAt, setPublishAt] = useState(() => defaultScheduleValue())
