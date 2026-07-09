@@ -179,6 +179,7 @@ services:
     networks:
       - default
       - relaykit-network
+      - dokploy-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.hello-world-secure.rule=Host(`${RELAYKIT_HOST}`) && PathPrefix(`/apps/hello-world`)"
