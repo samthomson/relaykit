@@ -1,6 +1,6 @@
 import { SERVICE_TYPE } from '../../../shared/serviceType'
 
-export type EmbeddableAppId = 'relay-explorer' | 'blossom-explorer' | 'nsite-explorer'
+export type EmbeddableAppId = 'relay-explorer' | 'blossom-explorer' | 'nsite-explorer' | 'hello-world'
 
 export type EmbeddableApp = {
   id: EmbeddableAppId
@@ -20,7 +20,7 @@ const qs = (params: Record<string, string | undefined>): string => {
   return pairs.length ? `?${pairs.join('&')}` : ''
 }
 
-export const EMBEDDABLE_APP_IDS: EmbeddableAppId[] = ['relay-explorer', 'blossom-explorer', 'nsite-explorer']
+export const EMBEDDABLE_APP_IDS: EmbeddableAppId[] = ['relay-explorer', 'blossom-explorer', 'nsite-explorer', 'hello-world']
 
 export const EMBEDDABLE_APPS: Record<EmbeddableAppId, EmbeddableApp> = {
   'relay-explorer': {
@@ -49,6 +49,15 @@ export const EMBEDDABLE_APPS: Record<EmbeddableAppId, EmbeddableApp> = {
     devPort: 5176,
     basePath: '/apps/nsite-explorer/',
     buildContext: (ctx) => qs({ embedded: '1', gateway: ctx.gateway, pubkey: ctx.pubkey, siteD: ctx.siteD, relays: ctx.relays, owner: ctx.owner, standalone: ctx.standalone, session: ctx.session }),
+  },
+  'hello-world': {
+    id: 'hello-world',
+    label: 'hello world',
+    description: 'scheduled nostr posting',
+    serviceType: 'hello-world',
+    devPort: 5177,
+    basePath: '/apps/hello-world/',
+    buildContext: (ctx) => qs({ embedded: '1', relays: ctx.relays, npub: ctx.npub, standalone: ctx.standalone, session: ctx.session }),
   },
 }
 

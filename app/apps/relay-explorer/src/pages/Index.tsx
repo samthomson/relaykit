@@ -24,7 +24,7 @@ import {
 } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { Trash2 } from 'lucide-react';
-import { IconBraces, IconCheck, IconChevronDown, IconTable, IconX } from '@tabler/icons-react';
+import { IconBraces, IconCheck, IconChevronDown, IconEye, IconTable, IconX } from '@tabler/icons-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { formatDistanceToNow } from 'date-fns';
@@ -139,6 +139,7 @@ const Index = () => {
   const [eventLimit, setEventLimit] = useState<EventLimitOption>(DEFAULT_EVENT_LIMIT);
   const [showInspectorTable, setShowInspectorTable] = useState(true);
   const [showInspectorJson, setShowInspectorJson] = useState(true);
+  const [showInspectorPreview, setShowInspectorPreview] = useState(false);
   const [queryModalOpen, setQueryModalOpen] = useState(false);
   const [decryptedContent, setDecryptedContent] = useState<string | null>(null);
   const [isDecrypting, setIsDecrypting] = useState(false);
@@ -1368,6 +1369,18 @@ const Index = () => {
                       <Button
                         size="compact-xs"
                         radius={0}
+                        variant={showInspectorPreview ? 'light' : 'subtle'}
+                        color={showInspectorPreview ? 'relaykit' : 'gray'}
+                        leftSection={<IconEye size={12} />}
+                        onClick={() => setShowInspectorPreview((prev) => !prev)}
+                        disabled={!isConnected || !selectedEvent || selectedEvent.kind !== 1}
+                        ff="monospace"
+                      >
+                        preview
+                      </Button>
+                      <Button
+                        size="compact-xs"
+                        radius={0}
                         variant={showInspectorTable ? 'light' : 'subtle'}
                         color={showInspectorTable ? 'relaykit' : 'gray'}
                         leftSection={<IconTable size={12} />}
@@ -1394,6 +1407,39 @@ const Index = () => {
                   <ScrollArea flex={1} p="md" type="auto">
                     {selectedEvent ? (
                       <Stack gap="sm">
+                        {showInspectorPreview && selectedEvent.kind === 1 && (() => {
+                          const IMAGE_RE = /https?:\/\/\S+\.(?:jpg|jpeg|png|gif|webp|svg)(?:\?\S*)?/gi;
+                          const parts = selectedEvent.content.split(IMAGE_RE);
+                          const imageMatches = selectedEvent.content.match(IMAGE_RE) ?? [];
+                          return (
+                            <Paper withBorder radius={0} p="md">
+                              <Box style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                {parts.map((textPart, i) => (
+                                  <span key={i}>
+                                    {textPart && <Text component="span" size="sm" ff="monospace">{textPart}</Text>}
+                                    {imageMatches[i] && (
+                                      <Box my="xs">
+                                        <img
+                                          src={imageMatches[i]}
+                                          alt=""
+                                          style={{ maxWidth: '100%', maxHeight: 300, objectFit: 'contain', borderRadius: 0 }}
+                                        />
+                                      </Box>
+                                    )}
+                                  </span>
+                                ))}
+                              </Box>
+                              <Group gap="xs" mt="xs">
+                                <Text fz={10} ff="monospace" c="dimmed">
+                                  {new Date(selectedEvent.created_at * 1000).toLocaleString()}
+                                </Text>
+                                <Text fz={10} ff="monospace" c="dimmed">
+                                  {formatDistanceToNow(new Date(selectedEvent.created_at * 1000), { addSuffix: true })}
+                                </Text>
+                              </Group>
+                            </Paper>
+                          );
+                        })()}
                         {showInspectorTable && (
                           <Paper withBorder radius={0}>
                             <Table withTableBorder={false} highlightOnHover stickyHeader stickyHeaderOffset={0}>
@@ -1620,10 +1666,10 @@ const Index = () => {
                             </Paper>
                           </Stack>
                         )}
-                        {!showInspectorTable && !showInspectorJson && (
+                        {!showInspectorTable && !showInspectorJson && !showInspectorPreview && (
                           <Flex align="center" justify="center" mih={120}>
                             <Text size="xs" ff="monospace" c="dimmed">
-                              enable table or json view
+                              enable table, json, or preview view
                             </Text>
                           </Flex>
                         )}

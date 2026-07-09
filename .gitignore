@@ -22,6 +22,9 @@ scripts/dev-domains.txt
 # Generated from dev-domains.txt by scripts/gen-dev-certs.sh
 Caddyfile.dev
 
+# Hello-world app data
+app/apps/hello-world/data/
+
 # OS files
 .DS_Store
 

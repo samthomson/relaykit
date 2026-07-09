@@ -8,6 +8,7 @@
 - For implementation updates, use at most 3 bullets.
 - If you violate this, correct immediately in the next message with a shorter answer.
 - NEVER write report/essay-style answers: no multi-section headers, no numbered "here's how it all works" walls of text, even for analysis/assessment/"how does this work" questions. Give the answer + the fix in a few lines. Lead with the conclusion; add detail only if asked.
+- **Plans:** Keep plans short too. A plan is a checklist of what to do and where, not an architecture document. No "why not X" sections, no data model definitions, no mermaid diagrams unless asked. Max ~30 lines.
 - Assume the user is an expert. Skip explanations of concepts they didn't ask about.
 
 - Answer concisely. No pointless markdown docs, no braindead AI essays. Talk like a normal human.

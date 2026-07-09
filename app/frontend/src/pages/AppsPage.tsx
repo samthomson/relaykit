@@ -34,10 +34,10 @@ export const AppsPage = () => {
             standalone: '1',
             session: activeLaunch.session,
             relays:
-              activeLaunch.appId === 'relay-explorer' || activeLaunch.appId === 'nsite-explorer'
+              activeLaunch.appId === 'relay-explorer' || activeLaunch.appId === 'nsite-explorer' || activeLaunch.appId === 'hello-world'
                 ? relayOptionsParam
                 : undefined,
-            npub: activeLaunch.appId === 'relay-explorer' ? (npub ?? undefined) : undefined,
+            npub: activeLaunch.appId === 'relay-explorer' || activeLaunch.appId === 'hello-world' ? (npub ?? undefined) : undefined,
             owner: activeLaunch.appId === 'nsite-explorer' ? (npub ?? undefined) : undefined,
           }}
           onClose={() => setActiveLaunch(null)}

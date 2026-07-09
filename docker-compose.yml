@@ -59,7 +59,8 @@ services:
     volumes:
       - dokploy_data:/etc/dokploy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    command: --configFile=/etc/dokploy/traefik/traefik.yml
+    entrypoint: ["/bin/sh", "-c", "cp /etc/dokploy/traefik/traefik.yml /tmp/traefik.yml && sed -i '/swarm:/,/watch: true/{d;}' /tmp/traefik.yml && traefik --configFile=/tmp/traefik.yml --log.level=WARN"]
+    command: []
     depends_on:
       - dokploy
     networks:
@@ -114,6 +115,7 @@ services:
       - "5174:5174"
       - "5175:5175"
       - "5176:5176"
+      - "5177:5177"
     environment:
       - NODE_ENV=development
       - PORT=4000
@@ -122,6 +124,9 @@ services:
       - ./app:/app
       - relaykit_data:/app/.relaykit
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - default
+      - dokploy-network
     depends_on:
       dokploy:
         condition: service_started
@@ -163,11 +168,37 @@ services:
         condition: service_started
     command: ["sh", "-c", "cd /app/backend && yarn start"]
 
+  hello-world:
+    profiles: ["prod"]
+    build:
+      context: ./app/apps/hello-world
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - hello_world_data:/data
+    networks:
+      - default
+      - relaykit-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hello-world-secure.rule=Host(`${RELAYKIT_HOST}`) && PathPrefix(`/apps/hello-world`)"
+      - "traefik.http.routers.hello-world-secure.priority=200"
+      - "traefik.http.routers.hello-world-secure.entrypoints=websecure"
+      - "traefik.http.routers.hello-world-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.hello-world-secure.middlewares=hello-world-strip"
+      - "traefik.http.routers.hello-world-web.rule=Host(`${RELAYKIT_HOST}`) && PathPrefix(`/apps/hello-world`)"
+      - "traefik.http.routers.hello-world-web.priority=200"
+      - "traefik.http.routers.hello-world-web.entrypoints=web"
+      - "traefik.http.routers.hello-world-web.middlewares=relaykit-redirect"
+      - "traefik.http.middlewares.hello-world-strip.stripprefix.prefixes=/apps/hello-world"
+      - "traefik.http.services.hello-world.loadbalancer.server.port=3100"
+
 volumes:
   postgres_data:
   redis_data:
   dokploy_data:
   relaykit_data:
+  hello_world_data:
 
 networks:
   relaykit-network:
