@@ -379,7 +379,7 @@ export const ComposeView = ({
     setCustomBlossom('')
   }
 
-  const PRESETS: Record<string, number> = { '+1m': 1, '+2m': 2, '+5m': 5, '+1h': 60, '+6h': 360 }
+  const PRESETS: Record<string, number> = { '+5m': 5, '+1h': 60, '+6h': 360 }
 
   const setPresetTime = (label: string) => {
     if (label === 'tomorrow') {
@@ -615,7 +615,7 @@ export const ComposeView = ({
                   color: 'var(--mantine-color-text)',
                 }}
               />
-              {['+1m', '+2m', '+5m', '+1h', '+6h', 'tomorrow'].map((label) => (
+              {['+5m', '+1h', '+6h', 'tomorrow'].map((label) => (
                 <Button
                   key={label}
                   variant={activePreset === label ? 'light' : 'default'}

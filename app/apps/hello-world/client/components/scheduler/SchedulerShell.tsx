@@ -14,6 +14,8 @@ const FALLBACK_RELAYS = [
   'wss://relay.nostr.band',
 ]
 
+const RELAY_OPTIONS_KEY = 'hw:relay-options'
+
 type View = 'compose' | 'scheduled'
 
 export const SchedulerShell = () => {
@@ -22,9 +24,16 @@ export const SchedulerShell = () => {
 
   const [view, setView] = useState<View>('compose')
   const [loginOpen, setLoginOpen] = useState(false)
-  const [relays, setRelays] = useState<string[]>(() =>
-    params.relays.length > 0 ? params.relays : FALLBACK_RELAYS,
-  )
+  const [relays, setRelays] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(RELAY_OPTIONS_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch {}
+    return params.relays.length > 0 ? params.relays : FALLBACK_RELAYS
+  })
   const [editingPost, setEditingPost] = useState<ScheduledPost | null>(null)
 
   const { data: posts } = useQuery({
@@ -37,7 +46,11 @@ export const SchedulerShell = () => {
   const pendingCount = posts?.filter((p) => p.status === 'pending').length ?? 0
 
   const addRelay = (url: string) => {
-    setRelays((prev) => dedupeRelays([...prev, url]))
+    setRelays((prev) => {
+      const next = dedupeRelays([...prev, url])
+      localStorage.setItem(RELAY_OPTIONS_KEY, JSON.stringify(next))
+      return next
+    })
   }
 
   const handleEdit = (post: ScheduledPost) => {
