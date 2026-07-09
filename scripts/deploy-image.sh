@@ -47,6 +47,10 @@ echo "==> Pulling image and recreating relaykit-prod..."
 run_remote "RELAYKIT_IMAGE=\"$FULL_IMAGE\" docker compose --profile prod pull relaykit-prod && RELAYKIT_IMAGE=\"$FULL_IMAGE\" docker compose --profile prod up -d --no-deps relaykit-prod"
 echo ""
 
+echo "==> Building and starting hello-world..."
+run_remote "docker compose --profile prod up -d --build --no-deps hello-world"
+echo ""
+
 echo "==> Refreshing Traefik routing state..."
 run_remote "docker compose --profile prod restart dokploy-traefik-prod"
 echo ""
