@@ -171,8 +171,8 @@ services:
   hello-world:
     profiles: ["prod"]
     build:
-      context: ./app/apps/hello-world
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: app/apps/hello-world/Dockerfile
     restart: unless-stopped
     volumes:
       - hello_world_data:/data

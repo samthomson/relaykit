@@ -11,6 +11,7 @@ COPY app/shared/ui/package.json ./shared/ui/
 COPY app/apps/relay-explorer/package.json ./apps/relay-explorer/
 COPY app/apps/blossom-explorer/package.json ./apps/blossom-explorer/
 COPY app/apps/nsite-explorer/package.json ./apps/nsite-explorer/
+COPY app/apps/hello-world/package.json ./apps/hello-world/
 RUN yarn install --frozen-lockfile --network-timeout 600000
 
 # Copy sources and build frontend + each embedded app.
@@ -47,6 +48,7 @@ COPY app/shared/ui/package.json ./shared/ui/
 COPY app/apps/relay-explorer/package.json ./apps/relay-explorer/
 COPY app/apps/blossom-explorer/package.json ./apps/blossom-explorer/
 COPY app/apps/nsite-explorer/package.json ./apps/nsite-explorer/
+COPY app/apps/hello-world/package.json ./apps/hello-world/
 RUN yarn install --production --frozen-lockfile --network-timeout 600000
 
 # Install tsx globally for backend runtime command.
