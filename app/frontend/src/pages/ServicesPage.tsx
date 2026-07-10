@@ -5,8 +5,13 @@ import { trpc } from '../trpc';
 import { useAuth } from '../contexts/AuthContext';
 import { useDokploy } from '../contexts/DokployContext';
 import { useRefreshServices } from '../contexts/RefreshServicesContext';
-import { SERVICE_TYPE, isNpanelType, isRelayType } from '../../../shared/serviceType';
+import {
+  SERVICE_TYPE,
+  isNpanelType,
+  isRelayType,
+} from '../../../shared/serviceType';
 import { EmbeddedAppModal } from '../embedded/EmbeddedAppModal';
+import { AddServicePresetModal } from '../components/AddServicePresetModal';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from '../components/NsiteDeployFields';
 import { NpanelSiteIdentity } from '../components/NpanelSiteIdentity';
 import { ServiceDetailsContent, ServiceDetailsModalContext } from '../components/ServiceDetailsContent';
@@ -314,6 +319,7 @@ const AddServiceButton = ({
   const { npub } = useAuth();
   const [presets, setPresets] = useState<any[]>([]);
   const [environments, setEnvironments] = useState<{ environmentId: string; label: string }[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [deployModalOpen, setDeployModalOpen] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<any>(null);
   const [selectedEnvironmentId, setSelectedEnvironmentId] = useState('');
@@ -346,6 +352,7 @@ const AddServiceButton = ({
   }, [refreshTrigger]);
 
   const handleSelectPreset = (preset: any) => {
+    setPickerOpen(false);
     setSelectedPreset(preset);
     const isNsite = isNpanelType(preset.id);
     const defaults = isNsite
@@ -386,35 +393,21 @@ const AddServiceButton = ({
 
   return (
     <>
-      <Menu shadow="md" width={280} position="bottom-end">
-        <Menu.Target>
-          <Button
-            variant="outline"
-            color="relaykit"
-            size={compact ? 'xs' : 'sm'}
-            rightSection={<IconChevronDown size={compact ? 12 : 14} />}
-          >
-            add service
-          </Button>
-        </Menu.Target>
-        <Menu.Dropdown>
-          {presets.map((preset) => (
-            <Menu.Item
-              key={preset.id}
-              onClick={() => handleSelectPreset(preset)}
-              leftSection={renderIcon(preset.icon, 18)}
-              rightSection={preset.repo ? (
-                <Anchor href={preset.repo} target="_blank" size="xs" onClick={(e) => e.stopPropagation()}>
-                  Repo ↗
-                </Anchor>
-              ) : undefined}
-            >
-              <Text fw={500} size="sm">{preset.name}</Text>
-              {preset.description && <Text size="xs" c="dimmed">{preset.description}</Text>}
-            </Menu.Item>
-          ))}
-        </Menu.Dropdown>
-      </Menu>
+      <Button
+        variant="outline"
+        color="relaykit"
+        size={compact ? 'xs' : 'sm'}
+        onClick={() => setPickerOpen(true)}
+      >
+        add service +
+      </Button>
+      <AddServicePresetModal
+        opened={pickerOpen}
+        presets={presets}
+        onClose={() => setPickerOpen(false)}
+        onSelectPreset={handleSelectPreset}
+        renderIcon={renderIcon}
+      />
       {deployModalOpen && selectedPreset && (
         <DeployModal
           preset={selectedPreset}
