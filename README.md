@@ -198,6 +198,7 @@ next:
 - [ ] ngrasp / ngit
 - [ ] multilogin / group login (ie diff npubs/teams)
 - [ ] cloudflare domain app
+- [ ] notifs
 
 - [ ] convey real deployment status in UI (not assumed success) - especially as it starts up, to know when it's "ready"
    - [ ] inc adding a new service, doesn't appear immediately in the ui
