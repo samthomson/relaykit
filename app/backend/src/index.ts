@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'node:fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
@@ -33,9 +34,16 @@ if (process.env.NODE_ENV === 'production') {
   const frontendDistPath = path.join(__dirname, '../../frontend/dist');
   app.use(express.static(frontendDistPath));
 
-  // Handle client-side routing - serve index.html for all non-API routes,
-  // skipping /apps/ so embedded SPAs keep their own routing.
-  app.get(/^(?!\/apps\/).*/, (req, res) => {
+  const embeddedAppsDir = path.join(frontendDistPath, 'apps');
+  const embeddedAppIds = fs.existsSync(embeddedAppsDir)
+    ? fs.readdirSync(embeddedAppsDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+    : [];
+
+  app.get('*', (req, res) => {
+    const appId = req.path.match(/^\/apps\/([^/]+)/)?.[1];
+    if (appId && embeddedAppIds.includes(appId)) {
+      return res.sendFile(path.join(embeddedAppsDir, appId, 'index.html'));
+    }
     res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
 } else {
