@@ -203,7 +203,6 @@ next:
 - [ ] improve blossom app
 - [ ] negentropy app
 - [ ] uptime/service monitoring app
-- [ ] in relayexplorer, when viewing an event with encyrpted content, and I'm the author/receiver, show a decrypt button/option
 
 maybe later:
 - [ ] expose volumes to user so they can manage (view/delete/optional: create service from volume)
