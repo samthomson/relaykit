@@ -195,6 +195,10 @@ RelayKit has two domain flows: **create a service (with domain in one go)** and 
 issues:
 
 next:
+- [ ] ngrasp / ngit
+- [ ] multilogin / group login (ie diff npubs/teams)
+- [ ] cloudflare domain app
+
 - [ ] convey real deployment status in UI (not assumed success) - especially as it starts up, to know when it's "ready"
    - [ ] inc adding a new service, doesn't appear immediately in the ui
    - [ ] restart ui option. 
@@ -209,7 +213,6 @@ maybe later:
 - [ ] publicly exposed relayexplorer?
 
 unsorted:
-- [ ] group login (ie diff npubs/teams)
 - [ ] super smooth setup/install
 - [ ] updates
 - [ ] backup/export data?
