@@ -19,11 +19,12 @@ type PresetGroup = {
 
 const RELAY_PRESET_ORDER = ['stirfry', 'nostr-rs-relay', 'chapar'] as const;
 const RELAY_PRESET_ORDER_MAP = new Map<string, number>(RELAY_PRESET_ORDER.map((id, idx) => [id, idx]));
-const GROUP_ORDER = [SERVICE_TYPE.RELAY, SERVICE_TYPE.BLOSSOM, SERVICE_TYPE.NPANEL] as const;
+const GROUP_ORDER = [SERVICE_TYPE.RELAY, SERVICE_TYPE.BLOSSOM, SERVICE_TYPE.NPANEL, SERVICE_TYPE.TOOLS] as const;
 const GROUP_LABEL: Record<(typeof GROUP_ORDER)[number], string> = {
   [SERVICE_TYPE.RELAY]: 'relays',
   [SERVICE_TYPE.BLOSSOM]: 'blossom',
   [SERVICE_TYPE.NPANEL]: 'npanel',
+  [SERVICE_TYPE.TOOLS]: 'tools',
 };
 
 const sortPresetsInGroup = (type: string, presets: Preset[]): Preset[] => {

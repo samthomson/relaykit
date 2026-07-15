@@ -1,0 +1,37 @@
+# Routing is configured via Dokploy's Domains API (domain.create), not Traefik labels in this file.
+# Service must be on dokploy-network so Traefik can reach it (Dokploy requirement).
+# One route to port 7334 covers BOTH git smart-http and the nostr relay (wss).
+#
+# Dokploy raw compose only sends this file, not local build context, so build from a remote
+# repo holding the Dockerfile (mirrors the blossom preset). Push app/presets/grasp/Dockerfile
+# to that repo and pin a tag for deliberate version control.
+services:
+  grasp:
+    build: https://github.com/samthomson/grasp-dokploy.git#master
+    restart: unless-stopped
+    environment:
+      NGIT_DOMAIN: ${NGIT_DOMAIN}
+      NGIT_BIND_ADDRESS: 0.0.0.0:7334
+      NGIT_DATABASE_BACKEND: lmdb
+      NGIT_GIT_DATA_PATH: /data/git
+      NGIT_RELAY_DATA_PATH: /data/relay
+      NGIT_RELAY_NAME: ${NGIT_RELAY_NAME:-}
+      NGIT_RELAY_DESCRIPTION: ${NGIT_RELAY_DESCRIPTION:-}
+      NGIT_SYNC_BOOTSTRAP_RELAY_URL: ${NGIT_SYNC_BOOTSTRAP_RELAY_URL:-}
+      NGIT_GRASP06_ENABLE: ${NGIT_GRASP06_ENABLE:-false}
+      NGIT_REPOSITORY_WHITELIST: ${NGIT_REPOSITORY_WHITELIST:-}
+      NGIT_EVENT_BLACKLIST: ${NGIT_EVENT_BLACKLIST:-}
+    volumes:
+      # holds git data, relay lmdb, and the auto-generated .relay-owner.nsec (stable identity)
+      - grasp_data_{{DEPLOY_SUFFIX}}:/data
+    expose:
+      - "7334"
+    networks:
+      - dokploy-network
+
+volumes:
+  grasp_data_{{DEPLOY_SUFFIX}}:
+
+networks:
+  dokploy-network:
+    external: true

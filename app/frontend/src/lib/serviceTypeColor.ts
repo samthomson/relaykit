@@ -11,6 +11,7 @@ const RELAY_PRESET_RUBIX: Partial<Record<string, RubixColor>> = {
 };
 
 export const serviceTypeToRubixLoaderColor = (type?: string | null, presetId?: string | null) => {
+  if (presetId === 'grasp') return RubixLoaderColor.Grasp;
   if (type === SERVICE_TYPE.BLOSSOM) return RubixLoaderColor.Blossom;
   if (isNpanelType(type)) return RubixLoaderColor.Npanel;
   if (isRelayType(type)) {

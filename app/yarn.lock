@@ -1950,6 +1950,11 @@
   resolved "https://registry.yarnpkg.com/@samthomson/rubix-loader/-/rubix-loader-0.5.1.tgz#27b7eaca1b8eb871445ddbb230c9c9bb69faedd8"
   integrity sha512-cfUwalXd3xxVzC87S+vhMBk58XoiehXaRoyPHejsqsrpNUaCQ0vt9NjJJoY14jnRksYFYdpuVkv+c4BcsyBFuw==
 
+"@samthomson/rubix-loader@0.5.3":
+  version "0.5.3"
+  resolved "https://registry.yarnpkg.com/@samthomson/rubix-loader/-/rubix-loader-0.5.3.tgz#3cc97d221b83d72cc7e55ddf770df8119fd638cf"
+  integrity sha512-ufOnkuuS5JIIC/e1fNgNyLET4aIC92QuJ6J33QT6AeO2xZasLZYgESPWCVUtwEPp8WYfJ7c+HOZkiDqeHulw2Q==
+
 "@scure/base@1.1.1":
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/@scure/base/-/base-1.1.1.tgz#ebb651ee52ff84f420097055f4bf46cfba403938"

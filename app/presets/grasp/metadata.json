@@ -1,0 +1,67 @@
+{
+  "id": "grasp",
+  "name": "grasp (ngit-grasp)",
+  "label": "grasp",
+  "repo": "https://gitworkshop.dev/danconwaydev.com/ngit-grasp",
+  "icon": "/presets/grasp/logo.png",
+  "description": "Self-hosted git-over-nostr backend: git host + embedded relay (GRASP)",
+  "version": "1.0.0",
+  "type": "tools",
+  "serviceName": "grasp",
+  "internalPort": 7334,
+  "domainConfigKey": "NGIT_DOMAIN",
+  "requiredConfig": [
+    {
+      "id": "NGIT_DOMAIN",
+      "name": "grasp domain",
+      "type": "string",
+      "required": true,
+      "description": "public domain for your grasp server; serves both git clone/push and the nostr relay (e.g. git.example.com)",
+      "placeholder": "git.example.com"
+    },
+    {
+      "id": "NGIT_RELAY_NAME",
+      "name": "relay name",
+      "type": "string",
+      "required": false,
+      "description": "display name shown in the relay's nip-11 info. defaults to your domain."
+    },
+    {
+      "id": "NGIT_RELAY_DESCRIPTION",
+      "name": "relay description",
+      "type": "string",
+      "required": false,
+      "description": "short description shown in the relay's nip-11 info."
+    },
+    {
+      "id": "NGIT_SYNC_BOOTSTRAP_RELAY_URL",
+      "name": "bootstrap sync relay",
+      "type": "string",
+      "required": false,
+      "description": "optional wss relay to seed repo discovery; more relays are found automatically (e.g. wss://relay.damus.io)",
+      "placeholder": "wss://relay.damus.io"
+    },
+    {
+      "id": "NGIT_GRASP06_ENABLE",
+      "name": "accept contributor prs",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "enable grasp-06 so anyone can push pr branches without pre-authorisation."
+    },
+    {
+      "id": "NGIT_REPOSITORY_WHITELIST",
+      "name": "repository whitelist",
+      "type": "string",
+      "required": false,
+      "description": "comma-separated npub, npub/identifier, or identifier. empty = accept any repo that lists this server."
+    },
+    {
+      "id": "NGIT_EVENT_BLACKLIST",
+      "name": "blocked authors",
+      "type": "string",
+      "required": false,
+      "description": "comma-separated npubs whose events are always rejected."
+    }
+  ]
+}
