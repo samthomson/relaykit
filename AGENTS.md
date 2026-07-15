@@ -22,5 +22,6 @@
 - Use maintainable UI styling: use Mantine variants/theme overrides/component props first, and avoid repeated inline style objects unless truly one-off.
 - **UI copy:** Lowercase for user-visible labels and status (buttons, badges, tooltips).
 - Do not plan for failure: build features that work. No conditionals or fallback UIs for "when X fails". If something cannot be made to work, say so and we will change direction.
+- **Surface errors, never cover them up.** When something breaks, find and fix the root cause. Do NOT add `onError` fallbacks, try/catch that swallows, default/placeholder values, retries, or graceful-degradation UI to hide a failure. Masking a bug is worse than the bug — let it fail loudly so it's visible and fixable. If you can't determine the cause, say so and ask for the concrete error (logs, network status, stack trace) rather than guessing or papering over it.
 - Put shared constants, enums, and config values in `app/backend/src/constants.ts` rather than scattering them in trpc or other modules.
 - Production runtime requires Playwright + Chromium for setup automation. Do not remove browser runtime dependencies from the prod image during optimizations.
