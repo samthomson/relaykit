@@ -187,6 +187,7 @@ export type ServiceDetailsContentProps = {
   onOpenRelayExplorer: () => void;
   onOpenBlossomExplorer: () => void;
   onOpenNsiteExplorer: () => void;
+  onOpenGraspExplorer: () => void;
   /** When host is edited in the service card header / modal title instead. */
   omitHostEditor?: boolean;
   /** Tab to open on first render (e.g. 'config'). */
@@ -208,6 +209,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
     onOpenRelayExplorer,
     onOpenBlossomExplorer,
     onOpenNsiteExplorer,
+    onOpenGraspExplorer,
     omitHostEditor = false,
   } = props;
   const domain = service.domains?.[0];
@@ -323,7 +325,7 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
               </Group>
             </DetailBlock>
           )}
-          {(isRelayType(service.type) || service.type === SERVICE_TYPE.BLOSSOM || isNpanelType(service.type)) && (
+          {(isRelayType(service.type) || service.type === SERVICE_TYPE.BLOSSOM || isNpanelType(service.type) || service.presetId === 'grasp') && (
             <DetailBlock label="Data">
               <Group gap="xs" wrap="wrap" align="center">
                 {isRelayType(service.type) && (
@@ -357,6 +359,17 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
                     rightSection={<IconExternalLink size={12} />}
                   >
                     nPanel
+                  </Button>
+                )}
+                {service.presetId === 'grasp' && (
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="relaykit"
+                    onClick={onOpenGraspExplorer}
+                    rightSection={<IconExternalLink size={12} />}
+                  >
+                    grasp explorer
                   </Button>
                 )}
               </Group>

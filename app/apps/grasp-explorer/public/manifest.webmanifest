@@ -1,0 +1,8 @@
+{
+  "name": "grasp-explorer",
+  "short_name": "grasp-explorer",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4334FF"
+}

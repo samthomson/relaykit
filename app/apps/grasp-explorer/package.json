@@ -1,0 +1,40 @@
+{
+  "name": "app-grasp-explorer",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build -l error",
+    "test": "tsc --noEmit && eslint && vite build -l error"
+  },
+  "dependencies": {
+    "@mantine/code-highlight": "7",
+    "@mantine/core": "7",
+    "@mantine/notifications": "7",
+    "@relaykit/ui": "*",
+    "@tabler/icons-react": "^3.41.1",
+    "date-fns": "^3.6.0",
+    "nostr-tools": "^2.13.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.9.0",
+    "@html-eslint/eslint-plugin": "^0.41.0",
+    "@html-eslint/parser": "^0.41.0",
+    "@types/node": "^22.5.5",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react-swc": "^3.5.0",
+    "eslint": "^9.9.0",
+    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
+    "eslint-plugin-react-refresh": "^0.4.9",
+    "globals": "^15.9.0",
+    "postcss": "^8.4.47",
+    "typescript": "^5.5.3",
+    "typescript-eslint": "^8.0.1",
+    "vite": "^6.3.5"
+  }
+}

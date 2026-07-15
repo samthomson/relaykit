@@ -10,9 +10,9 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "concurrently \"cd backend && yarn dev\" \"cd frontend && yarn dev --host\" \"cd apps/relay-explorer && yarn dev --host --port 5174\" \"cd apps/blossom-explorer && yarn dev --host --port 5175\" \"cd apps/nsite-explorer && yarn dev --host --port 5176\" \"cd apps/hello-world && yarn dev:server\" \"cd apps/hello-world && yarn dev:client\"",
+    "dev": "concurrently \"cd backend && yarn dev\" \"cd frontend && yarn dev --host\" \"cd apps/relay-explorer && yarn dev --host --port 5174\" \"cd apps/blossom-explorer && yarn dev --host --port 5175\" \"cd apps/nsite-explorer && yarn dev --host --port 5176\" \"cd apps/grasp-explorer && yarn dev --host --port 5178\" \"cd apps/hello-world && yarn dev:server\" \"cd apps/hello-world && yarn dev:client\"",
     "start": "cd backend && yarn start",
-    "build:apps": "yarn workspace app-relay-explorer build && yarn workspace app-blossom-explorer build && yarn workspace app-nsite-explorer build && yarn workspace app-hello-world build"
+    "build:apps": "yarn workspace app-relay-explorer build && yarn workspace app-blossom-explorer build && yarn workspace app-nsite-explorer build && yarn workspace app-grasp-explorer build && yarn workspace app-hello-world build"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

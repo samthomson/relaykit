@@ -483,6 +483,7 @@ const ServiceCard = ({
   const [showExplorer, setShowExplorer] = useState(false);
   const [showBlossomExplorer, setShowBlossomExplorer] = useState(false);
   const [showNsiteExplorer, setShowNsiteExplorer] = useState(false);
+  const [showGraspExplorer, setShowGraspExplorer] = useState(false);
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [detailsInitialSection, setDetailsInitialSection] = useState('info');
@@ -594,6 +595,7 @@ const ServiceCard = ({
     onOpenRelayExplorer: () => setShowExplorer(true),
     onOpenBlossomExplorer: () => setShowBlossomExplorer(true),
     onOpenNsiteExplorer: () => setShowNsiteExplorer(true),
+    onOpenGraspExplorer: () => setShowGraspExplorer(true),
     onConfigSaved,
   };
 
@@ -626,6 +628,14 @@ const ServiceCard = ({
           }}
           presetId={service.presetId}
           onClose={() => setShowNsiteExplorer(false)}
+        />
+      )}
+      {showGraspExplorer && domain && (
+        <EmbeddedAppModal
+          appId="grasp-explorer"
+          context={{ relay: wssUrl, server: httpsUrl }}
+          presetId={service.presetId}
+          onClose={() => setShowGraspExplorer(false)}
         />
       )}
       {showMoveModal && (
@@ -867,6 +877,18 @@ const ServiceCard = ({
                             variant="light"
                             color="relaykit"
                             onClick={() => setShowNsiteExplorer(true)}
+                            rightSection={<IconExternalLink size={12} />}
+                            style={{ flexShrink: 0 }}
+                          >
+                            data
+                          </Button>
+                        )}
+                        {domain && service.presetId === 'grasp' && (
+                          <Button
+                            size="xs"
+                            variant="light"
+                            color="relaykit"
+                            onClick={() => setShowGraspExplorer(true)}
                             rightSection={<IconExternalLink size={12} />}
                             style={{ flexShrink: 0 }}
                           >

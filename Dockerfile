@@ -11,6 +11,7 @@ COPY app/shared/ui/package.json ./shared/ui/
 COPY app/apps/relay-explorer/package.json ./apps/relay-explorer/
 COPY app/apps/blossom-explorer/package.json ./apps/blossom-explorer/
 COPY app/apps/nsite-explorer/package.json ./apps/nsite-explorer/
+COPY app/apps/grasp-explorer/package.json ./apps/grasp-explorer/
 COPY app/apps/hello-world/package.json ./apps/hello-world/
 RUN yarn install --frozen-lockfile --network-timeout 600000
 
@@ -22,6 +23,7 @@ RUN cd frontend && yarn build
 RUN yarn workspace app-relay-explorer build
 RUN yarn workspace app-blossom-explorer build
 RUN yarn workspace app-nsite-explorer build
+RUN yarn workspace app-grasp-explorer build
 
 FROM node:20-alpine
 
@@ -48,6 +50,7 @@ COPY app/shared/ui/package.json ./shared/ui/
 COPY app/apps/relay-explorer/package.json ./apps/relay-explorer/
 COPY app/apps/blossom-explorer/package.json ./apps/blossom-explorer/
 COPY app/apps/nsite-explorer/package.json ./apps/nsite-explorer/
+COPY app/apps/grasp-explorer/package.json ./apps/grasp-explorer/
 COPY app/apps/hello-world/package.json ./apps/hello-world/
 RUN yarn install --production --frozen-lockfile --network-timeout 600000
 
@@ -64,13 +67,14 @@ COPY --from=builder /build/frontend/dist ./frontend/dist
 COPY --from=builder /build/apps/relay-explorer/dist ./frontend/dist/apps/relay-explorer
 COPY --from=builder /build/apps/blossom-explorer/dist ./frontend/dist/apps/blossom-explorer
 COPY --from=builder /build/apps/nsite-explorer/dist ./frontend/dist/apps/nsite-explorer
+COPY --from=builder /build/apps/grasp-explorer/dist ./frontend/dist/apps/grasp-explorer
 
 # Copy scripts
 COPY scripts/automate-dokploy-setup.js /app/scripts/
 COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-EXPOSE 4000 5173 5174 5175 5176
+EXPOSE 4000 5173 5174 5175 5176 5178
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["yarn", "dev"]

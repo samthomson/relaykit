@@ -116,6 +116,7 @@ services:
       - "5175:5175"
       - "5176:5176"
       - "5177:5177"
+      - "5178:5178"
     environment:
       - NODE_ENV=development
       - PORT=4000
