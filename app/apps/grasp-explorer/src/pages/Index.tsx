@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import {
   ActionIcon,
-  Anchor,
   Badge,
   Box,
   Button,
@@ -11,11 +10,13 @@ import {
   Group,
   Loader,
   Paper,
+  Pill,
+  PillsInput,
+  rem,
   ScrollArea,
   Stack,
   Table,
   Text,
-  TextInput,
   Title,
   Tooltip,
 } from '@mantine/core';
@@ -27,7 +28,6 @@ import {
   IconGitBranch,
   IconPlugConnected,
   IconRefresh,
-  IconWorld,
 } from '@tabler/icons-react';
 import { nip19 } from 'nostr-tools';
 import { formatDistanceToNow } from 'date-fns';
@@ -146,6 +146,47 @@ const buildRepo = (announcement: NostrEvent, state?: NostrEvent): Repo => {
   };
 };
 
+const shortenUrl = (url: string, max = 48) => {
+  const bare = url.replace(/^(https?|wss?):\/\//, '');
+  if (bare.length <= max) return bare;
+  const head = Math.ceil((max - 1) * 0.6);
+  const tail = max - 1 - head;
+  return `${bare.slice(0, head)}…${bare.slice(-tail)}`;
+};
+
+// Copyable url pill using relaykit's secondary (light) variant; truncates long
+// urls (full value stays in the tooltip and clipboard) so cards never overflow.
+const UrlChip = ({ url }: { url: string }) => (
+  <CopyButton value={url} timeout={1500}>
+    {({ copied, copy }) => (
+      <Tooltip
+        label={copied ? 'copied' : url}
+        withArrow
+        multiline
+        openDelay={200}
+        styles={{ tooltip: { maxWidth: 360, whiteSpace: 'normal', wordBreak: 'break-all' } }}
+      >
+        <Pill
+          size="sm"
+          color="relaykit"
+          variant="light"
+          onClick={copy}
+          style={{
+            cursor: 'pointer',
+            maxWidth: '100%',
+            fontWeight: 400,
+            background: 'var(--mantine-color-relaykit-light)',
+            color: 'var(--mantine-color-relaykit-light-color)',
+            border: 'none',
+          }}
+        >
+          {shortenUrl(url)}
+        </Pill>
+      </Tooltip>
+    )}
+  </CopyButton>
+);
+
 const CopyIcon = ({ value }: { value: string }) => (
   <CopyButton value={value} timeout={1500}>
     {({ copied, copy }) => (
@@ -158,9 +199,8 @@ const CopyIcon = ({ value }: { value: string }) => (
   </CopyButton>
 );
 
-const RepoCard = ({ repo }: { repo: Repo }) => {
+const RepoCardBase = ({ repo }: { repo: Repo }) => {
   const [showJson, setShowJson] = useState(false);
-  const cloneUrl = repo.clone[0] ?? '';
   const headCommit = repo.head ? repo.refs.find((r) => r.name === repo.head)?.commit : undefined;
 
   return (
@@ -223,14 +263,15 @@ const RepoCard = ({ repo }: { repo: Repo }) => {
           </Box>
         </Group>
 
-        {cloneUrl && (
+        {repo.clone.length > 0 && (
           <Box>
             <Text size="xs" c="dimmed" mb={4}>
               clone
             </Text>
-            <Group gap="xs" wrap="nowrap">
-              <Code style={{ flex: 1, overflowX: 'auto', whiteSpace: 'nowrap' }}>{cloneUrl}</Code>
-              <CopyIcon value={cloneUrl} />
+            <Group gap={6} wrap="wrap">
+              {repo.clone.map((url) => (
+                <UrlChip key={url} url={url} />
+              ))}
             </Group>
           </Box>
         )}
@@ -288,22 +329,30 @@ const RepoCard = ({ repo }: { repo: Repo }) => {
           </Text>
         )}
 
-        {(repo.web.length > 0 || repo.relays.length > 0) && (
-          <Group gap="lg" wrap="wrap">
-            {repo.web.length > 0 && (
-              <Anchor href={repo.web[0]} target="_blank" size="sm">
-                <Group gap={4} wrap="nowrap">
-                  <IconWorld size={14} />
-                  browse
-                </Group>
-              </Anchor>
-            )}
-            {repo.relays.length > 0 && (
-              <Text size="xs" c="dimmed">
-                relays: {repo.relays.length}
-              </Text>
-            )}
-          </Group>
+        {repo.relays.length > 0 && (
+          <Box>
+            <Text size="xs" c="dimmed" mb={4}>
+              relays
+            </Text>
+            <Group gap={6} wrap="wrap">
+              {repo.relays.map((url) => (
+                <UrlChip key={url} url={url} />
+              ))}
+            </Group>
+          </Box>
+        )}
+
+        {repo.web.length > 0 && (
+          <Box>
+            <Text size="xs" c="dimmed" mb={4}>
+              web
+            </Text>
+            <Group gap={6} wrap="wrap">
+              {repo.web.map((url) => (
+                <UrlChip key={url} url={url} />
+              ))}
+            </Group>
+          </Box>
         )}
 
         {showJson && (
@@ -320,6 +369,13 @@ const RepoCard = ({ repo }: { repo: Repo }) => {
   );
 };
 
+// A repo only changes when its underlying announcement/state event changes, so
+// compare by event ids — `buildRepo` returns a fresh object on every flush.
+const RepoCard = memo(
+  RepoCardBase,
+  (a, b) => a.repo.announcement.id === b.repo.announcement.id && a.repo.state?.id === b.repo.state?.id,
+);
+
 const Index = () => {
   const [hostInput, setHostInput] = useState('');
   const [endpoints, setEndpoints] = useState(() => deriveEndpoints(''));
@@ -330,11 +386,31 @@ const Index = () => {
   const [loading, setLoading] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Buffer incoming events in refs and flush to state once per frame, so a burst
+  // of N events causes ~1 render instead of N (and no per-event Map copy).
+  const annRef = useRef<Map<string, NostrEvent>>(new Map());
+  const stateRef = useRef<Map<string, NostrEvent>>(new Map());
+  const flushHandle = useRef<number | null>(null);
+
+  const scheduleFlush = useCallback(() => {
+    if (flushHandle.current != null) return;
+    flushHandle.current = requestAnimationFrame(() => {
+      flushHandle.current = null;
+      setAnnouncements(new Map(annRef.current));
+      setStates(new Map(stateRef.current));
+    });
+  }, []);
 
   const connect = useCallback((relay: string) => {
     if (!relay) return;
     wsRef.current?.close();
     if (settleTimer.current) clearTimeout(settleTimer.current);
+    if (flushHandle.current != null) {
+      cancelAnimationFrame(flushHandle.current);
+      flushHandle.current = null;
+    }
+    annRef.current = new Map();
+    stateRef.current = new Map();
     setAnnouncements(new Map());
     setStates(new Map());
     setError('');
@@ -371,25 +447,18 @@ const Index = () => {
         const event = data[2] as NostrEvent;
         const identifier = firstTag(event, 'd');
         const key = `${event.pubkey}:${identifier}`;
-        if (event.kind === KIND_REPO_ANNOUNCEMENT) {
-          setAnnouncements((prev) => {
-            const existing = prev.get(key);
-            if (existing && existing.created_at >= event.created_at) return prev;
-            return new Map(prev).set(key, event);
-          });
-        } else if (event.kind === KIND_REPO_STATE) {
-          setStates((prev) => {
-            const existing = prev.get(key);
-            if (existing && existing.created_at >= event.created_at) return prev;
-            return new Map(prev).set(key, event);
-          });
-        }
+        const bucket = event.kind === KIND_REPO_ANNOUNCEMENT ? annRef.current : event.kind === KIND_REPO_STATE ? stateRef.current : null;
+        if (!bucket) return;
+        const existing = bucket.get(key);
+        if (existing && existing.created_at >= event.created_at) return;
+        bucket.set(key, event);
+        scheduleFlush();
       } else if (type === 'EOSE') {
         if (settleTimer.current) clearTimeout(settleTimer.current);
         settleTimer.current = setTimeout(() => setLoading(false), EOSE_SETTLE_MS);
       }
     };
-  }, []);
+  }, [scheduleFlush]);
 
   // Auto-connect in embedded mode (relay/server passed by relaykit).
   useEffect(() => {
@@ -401,6 +470,7 @@ const Index = () => {
     return () => {
       wsRef.current?.close();
       if (settleTimer.current) clearTimeout(settleTimer.current);
+      if (flushHandle.current != null) cancelAnimationFrame(flushHandle.current);
     };
   }, [connect]);
 
@@ -410,9 +480,30 @@ const Index = () => {
       setError('enter a grasp server host, e.g. grasp.example.com');
       return;
     }
+    setHostInput('');
     setEndpoints(next);
     connect(next.relay);
   };
+
+  const disconnect = () => {
+    wsRef.current?.close();
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    if (flushHandle.current != null) {
+      cancelAnimationFrame(flushHandle.current);
+      flushHandle.current = null;
+    }
+    annRef.current = new Map();
+    stateRef.current = new Map();
+    setEndpoints(deriveEndpoints(''));
+    setAnnouncements(new Map());
+    setStates(new Map());
+    setError('');
+    setStatus('idle');
+    setLoading(false);
+  };
+
+  const isConnected = status === 'connected';
+  const isConnecting = status === 'connecting';
 
   const repos = useMemo(() => {
     const list: Repo[] = [];
@@ -443,33 +534,67 @@ const Index = () => {
           </Group>
         )}
 
-        {!params.get('relay') && (
-          <Group gap="xs" align="flex-end">
-            <TextInput
-              label="grasp server"
-              placeholder="grasp.example.com"
-              value={hostInput}
-              onChange={(e) => setHostInput(e.currentTarget.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleConnect()}
-              style={{ flex: 1 }}
-            />
-            <Button leftSection={<IconPlugConnected size={16} />} onClick={handleConnect}>
-              connect
+        <Paper withBorder p="sm" radius={0}>
+          <Group gap="sm" align="center" wrap="wrap">
+            <Text size="xs" ff="monospace" tt="uppercase" c="dimmed" style={{ flexShrink: 0 }}>
+              connect to
+            </Text>
+            <PillsInput
+              size="xs"
+              style={{ flex: 1, minWidth: rem(200) }}
+              onKeyDownCapture={(e) => {
+                if ((e.key === 'Backspace' || e.key === 'Delete') && hostInput.trim().length === 0 && endpoints.host) {
+                  e.preventDefault();
+                  disconnect();
+                }
+              }}
+            >
+              <Pill.Group>
+                {endpoints.host && (
+                  <Pill
+                    size="xs"
+                    color="relaykit"
+                    variant="light"
+                    withRemoveButton
+                    onRemove={disconnect}
+                    title={endpoints.host}
+                    style={{
+                      flexShrink: 0,
+                      background: 'var(--mantine-color-relaykit-light)',
+                      color: 'var(--mantine-color-relaykit-light-color)',
+                      border: 'none',
+                    }}
+                  >
+                    {endpoints.host}
+                  </Pill>
+                )}
+                <PillsInput.Field
+                  aria-label="grasp server"
+                  value={hostInput}
+                  onChange={(e) => setHostInput(e.currentTarget.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleConnect()}
+                  placeholder={endpoints.host ? 'paste a new grasp server and press enter...' : 'grasp.example.com'}
+                  style={{ flex: 1, minWidth: rem(160) }}
+                />
+              </Pill.Group>
+            </PillsInput>
+            <Button
+              onClick={isConnected ? disconnect : handleConnect}
+              variant="light"
+              color={isConnected ? 'red' : 'relaykit'}
+              loading={isConnecting}
+              size="xs"
+              leftSection={<IconPlugConnected size={14} />}
+            >
+              {isConnecting ? 'connecting...' : isConnected ? 'disconnect' : 'connect'}
             </Button>
           </Group>
-        )}
+        </Paper>
 
         <Group justify="space-between" align="center">
-          <Group gap="xs">
-            <Badge color={statusColor[status]} variant="light" size="sm">
-              {status}
-            </Badge>
-            {endpoints.host && (
-              <Text size="sm" c="dimmed" ff="monospace">
-                {endpoints.host}
-              </Text>
-            )}
-          </Group>
+          <Badge color={statusColor[status]} variant="light" size="sm">
+            {status}
+          </Badge>
           <Group gap="xs">
             {loading && <Loader size="xs" />}
             <Text size="sm" c="dimmed">
