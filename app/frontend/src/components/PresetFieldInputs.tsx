@@ -1,20 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Button, Stack, Text, TextInput } from '@mantine/core';
 import { nip19 } from 'nostr-tools';
 import { RelayPillsInput, dedupeRelays } from '@relaykit/ui';
-import { trpc } from '../trpc';
 import { useAuth } from '../contexts/AuthContext';
 import { useRefreshServices } from '../contexts/RefreshServicesContext';
 import { isRelayType } from '../../../shared/serviceType';
-
-/** Instance domain as configured at install time (RELAYKIT_HOST in .env). */
-const useInstanceHost = () => {
-  const [host, setHost] = useState<string | null>(null);
-  useEffect(() => {
-    void trpc.getInstanceHost.query().then((r) => setHost(r.host));
-  }, []);
-  return host;
-};
 
 const toNpub = (value: string | null): string | null => {
   if (!value) return null;
@@ -35,6 +25,7 @@ export const DomainField = ({
   description,
   required,
   subdomain,
+  instanceHost,
   value,
   onChange,
   error,
@@ -43,12 +34,13 @@ export const DomainField = ({
   description?: string;
   required?: boolean;
   subdomain?: string;
+  /** Instance domain as configured at install time (RELAYKIT_HOST); comes with listPresets. */
+  instanceHost?: string | null;
   value: string;
   onChange: (value: string) => void;
   error?: React.ReactNode;
 }) => {
-  const host = useInstanceHost();
-  const suggestion = subdomain && host ? `${subdomain}.${host}` : null;
+  const suggestion = subdomain && instanceHost ? `${subdomain}.${instanceHost}` : null;
   return (
     <Stack gap={4}>
       <TextInput

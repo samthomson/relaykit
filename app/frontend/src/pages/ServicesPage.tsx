@@ -319,6 +319,7 @@ const AddServiceButton = ({
   const { triggerRefresh, refreshTrigger } = useRefreshServices();
   const { npub } = useAuth();
   const [presets, setPresets] = useState<any[]>([]);
+  const [instanceHost, setInstanceHost] = useState<string | null>(null);
   const [environments, setEnvironments] = useState<{ environmentId: string; label: string }[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [deployModalOpen, setDeployModalOpen] = useState(false);
@@ -337,7 +338,8 @@ const AddServiceButton = ({
           trpc.listProjects.query(),
         ]);
         if (!alive) return;
-        setPresets(presetsResult);
+        setPresets(presetsResult.presets);
+        setInstanceHost(presetsResult.instanceHost);
         setEnvironments(
           projectsResult.flatMap((p: any) =>
             p.environments.map((e: any) => ({ environmentId: e.environmentId, label: `${p.name} → ${e.name}` })),
@@ -420,6 +422,7 @@ const AddServiceButton = ({
           environments={environments}
           initialEnvironmentId={selectedEnvironmentId}
           ownerPubkeyHex={npub}
+          instanceHost={instanceHost}
         />
       )}
     </>
@@ -1696,6 +1699,7 @@ const DeployModal = ({
   environments,
   initialEnvironmentId,
   ownerPubkeyHex,
+  instanceHost,
 }: {
   preset: any;
   initialConfig: Record<string, string>;
@@ -1706,6 +1710,7 @@ const DeployModal = ({
   environments: { environmentId: string; label: string }[];
   initialEnvironmentId: string;
   ownerPubkeyHex: string | null;
+  instanceHost: string | null;
 }) => {
   const byGroup = environments.reduce<Record<string, { environmentId: string; label: string }[]>>((acc, env) => {
     const [groupName, envName] = env.label.includes(' → ') ? env.label.split(' → ') : [env.label, ''];
@@ -1787,6 +1792,7 @@ const DeployModal = ({
           description={field.description}
           required={field.required}
           subdomain={field.subdomain}
+          instanceHost={instanceHost}
           value={form.values[field.id] ?? ''}
           onChange={(v) => form.setFieldValue(field.id, v)}
           error={form.errors[field.id]}

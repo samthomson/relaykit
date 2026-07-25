@@ -850,7 +850,8 @@ export const appRouter = router({
     } catch (error) {
       console.error('Error reading presets:', error)
     }
-    return presets
+    // Instance host rides along so the deploy modal can suggest <subdomain>.<host> without another query.
+    return { presets, instanceHost: process.env.RELAYKIT_HOST?.trim() || null }
   }),
 
   listProjects: protectedProcedure
@@ -1313,10 +1314,6 @@ export const appRouter = router({
       if (!ip) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Could not resolve server IP.' })
       return { ip }
     }),
-
-  getInstanceHost: protectedProcedure
-    .input(z.void())
-    .query(async () => ({ host: process.env.RELAYKIT_HOST?.trim() || null })),
 
   getServerInsights: protectedProcedure
     .input(z.void())
