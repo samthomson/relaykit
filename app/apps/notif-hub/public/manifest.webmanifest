@@ -1,0 +1,15 @@
+{
+  "name": "notif hub",
+  "short_name": "notif hub",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1a1b1e",
+  "theme_color": "#800020",
+  "icons": [
+    {
+      "src": "icon-512.png?v=4",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

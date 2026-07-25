@@ -3,6 +3,7 @@ import { useForm } from '@mantine/form';
 import { Stack, Switch, TextInput, Button, Group } from '@mantine/core';
 import { SERVICE_TYPE, isNpanelType } from '../../../shared/serviceType';
 import { NsiteDeployFields } from './NsiteDeployFields';
+import { DomainField, NpubField, RelaysField } from './PresetFieldInputs';
 
 /** Reusable config-editing form for a service (generic fields, or nsite-specific fields for npanel). */
 export const ServiceConfigEditor = ({
@@ -55,6 +56,44 @@ export const ServiceConfigEditor = ({
           description={field.description}
           checked={checked}
           onChange={(e) => form.setFieldValue(field.id, e.currentTarget.checked ? 'true' : 'false')}
+        />
+      );
+    }
+    if (field.type === 'npub') {
+      return (
+        <NpubField
+          key={field.id}
+          label={field.name}
+          description={field.description}
+          required={field.required}
+          value={form.values[field.id] ?? ''}
+          onChange={(v) => form.setFieldValue(field.id, v)}
+          error={form.errors[field.id]}
+        />
+      );
+    }
+    if (field.type === 'relays') {
+      return (
+        <RelaysField
+          key={field.id}
+          label={field.name}
+          description={field.description}
+          value={form.values[field.id] ?? ''}
+          onChange={(csv) => form.setFieldValue(field.id, csv)}
+        />
+      );
+    }
+    if (field.type === 'domain') {
+      return (
+        <DomainField
+          key={field.id}
+          label={field.name}
+          description={field.description}
+          required={field.required}
+          subdomain={field.subdomain}
+          value={form.values[field.id] ?? ''}
+          onChange={(v) => form.setFieldValue(field.id, v)}
+          error={form.errors[field.id]}
         />
       );
     }

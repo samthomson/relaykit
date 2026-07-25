@@ -25,6 +25,9 @@ Caddyfile.dev
 # Hello-world app data
 app/apps/hello-world/data/
 
+# Notif-hub app data
+app/apps/notif-hub/data/
+
 # OS files
 .DS_Store
 

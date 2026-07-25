@@ -1,0 +1,24 @@
+{
+  "id": "notif-hub",
+  "name": "notif hub",
+  "label": "notif hub",
+  "repo": "https://github.com/samthomson/relaykit",
+  "icon": "/presets/notif-hub/logo.svg",
+  "description": "Personal push notifications for nostr events (mentions, replies, zaps, dms) straight to your phone as an installable pwa.",
+  "version": "1.0.0",
+  "type": "tools",
+  "serviceName": "notif-hub",
+  "internalPort": 3200,
+  "domainConfigKey": "NOTIF_DOMAIN",
+  "requiredConfig": [
+    {
+      "id": "NOTIF_DOMAIN",
+      "name": "notif hub domain",
+      "type": "domain",
+      "subdomain": "notifs",
+      "required": true,
+      "description": "public domain for this notification hub; open it on your phone and add it to your home screen to receive pushes. identity, relays and notification rules are set in the app itself.",
+      "placeholder": "notifs.example.com"
+    }
+  ]
+}

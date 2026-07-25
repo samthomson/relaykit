@@ -110,19 +110,32 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "4000:4000"
-      - "5173:5173"
-      - "5174:5174"
-      - "5175:5175"
-      - "5176:5176"
-      - "5177:5177"
-      - "5178:5178"
+      - "4000:4000" # backend api
+      - "5173:5173" # frontend
+      - "5174:5174" # relay explorer
+      - "5175:5175" # blossom explorer
+      - "5176:5176" # npanel
+      - "5177:5177" # hello world
+      - "5178:5178" # grasp explorer
+      - "5179:5179" # notif hub
     environment:
       - NODE_ENV=development
       - PORT=4000
       - JWT_SECRET=${JWT_SECRET}
+      - RELAYKIT_HOST=${RELAYKIT_HOST:-}
     volumes:
       - ./app:/app
+      # Container-private node_modules: the host (macOS) and container (Linux) need different
+      # native binaries (esbuild/rollup/swc), so they must not share these dirs via the bind mount.
+      - dev_nm_root:/app/node_modules
+      - dev_nm_frontend:/app/frontend/node_modules
+      - dev_nm_backend:/app/backend/node_modules
+      - dev_nm_relay_explorer:/app/apps/relay-explorer/node_modules
+      - dev_nm_blossom_explorer:/app/apps/blossom-explorer/node_modules
+      - dev_nm_nsite_explorer:/app/apps/nsite-explorer/node_modules
+      - dev_nm_grasp_explorer:/app/apps/grasp-explorer/node_modules
+      - dev_nm_hello_world:/app/apps/hello-world/node_modules
+      - dev_nm_notif_hub:/app/apps/notif-hub/node_modules
       - relaykit_data:/app/.relaykit
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
@@ -140,6 +153,7 @@ services:
       - NODE_ENV=production
       - PORT=4000
       - JWT_SECRET=${JWT_SECRET}
+      - RELAYKIT_HOST=${RELAYKIT_HOST:-}
     volumes:
       - relaykit_data:/app/.relaykit
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -201,6 +215,15 @@ volumes:
   dokploy_data:
   relaykit_data:
   hello_world_data:
+  dev_nm_root:
+  dev_nm_frontend:
+  dev_nm_backend:
+  dev_nm_relay_explorer:
+  dev_nm_blossom_explorer:
+  dev_nm_nsite_explorer:
+  dev_nm_grasp_explorer:
+  dev_nm_hello_world:
+  dev_nm_notif_hub:
 
 networks:
   relaykit-network:

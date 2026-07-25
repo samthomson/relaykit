@@ -59,7 +59,7 @@ const parseCsvList = (value: string | undefined): string[] =>
     .map((v) => v.trim())
     .filter(Boolean)
 
-type PresetFieldType = 'string' | 'boolean'
+type PresetFieldType = 'string' | 'boolean' | 'domain' | 'npub' | 'relays'
 type PresetField = {
   id: string
   name: string
@@ -68,6 +68,10 @@ type PresetField = {
   default?: string
   description?: string
   placeholder?: string
+  /** for 'domain' fields: suggested subdomain prefix, prefills <subdomain>.<relaykit host> */
+  subdomain?: string
+  /** keep the deploy modal minimal: hide this field there, but keep it in the post-deploy config editor */
+  hideOnDeploy?: boolean
 }
 type PresetMetadata = {
   id: string
@@ -1309,6 +1313,10 @@ export const appRouter = router({
       if (!ip) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Could not resolve server IP.' })
       return { ip }
     }),
+
+  getInstanceHost: protectedProcedure
+    .input(z.void())
+    .query(async () => ({ host: process.env.RELAYKIT_HOST?.trim() || null })),
 
   getServerInsights: protectedProcedure
     .input(z.void())

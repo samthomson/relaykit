@@ -13,6 +13,7 @@ COPY app/apps/blossom-explorer/package.json ./apps/blossom-explorer/
 COPY app/apps/nsite-explorer/package.json ./apps/nsite-explorer/
 COPY app/apps/grasp-explorer/package.json ./apps/grasp-explorer/
 COPY app/apps/hello-world/package.json ./apps/hello-world/
+COPY app/apps/notif-hub/package.json ./apps/notif-hub/
 RUN yarn install --frozen-lockfile --network-timeout 600000
 
 # Copy sources and build frontend + each embedded app.
@@ -52,6 +53,7 @@ COPY app/apps/blossom-explorer/package.json ./apps/blossom-explorer/
 COPY app/apps/nsite-explorer/package.json ./apps/nsite-explorer/
 COPY app/apps/grasp-explorer/package.json ./apps/grasp-explorer/
 COPY app/apps/hello-world/package.json ./apps/hello-world/
+COPY app/apps/notif-hub/package.json ./apps/notif-hub/
 RUN yarn install --production --frozen-lockfile --network-timeout 600000
 
 # Install tsx globally for backend runtime command.

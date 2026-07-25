@@ -13,6 +13,7 @@ import {
 import { EmbeddedAppModal } from '../embedded/EmbeddedAppModal';
 import { AddServicePresetModal } from '../components/AddServicePresetModal';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from '../components/NsiteDeployFields';
+import { DomainField, NpubField, RelaysField } from '../components/PresetFieldInputs';
 import { NpanelSiteIdentity } from '../components/NpanelSiteIdentity';
 import { ServiceDetailsContent, ServiceDetailsModalContext } from '../components/ServiceDetailsContent';
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from '../components/InlineTextEditRow';
@@ -484,6 +485,7 @@ const ServiceCard = ({
   const [showBlossomExplorer, setShowBlossomExplorer] = useState(false);
   const [showNsiteExplorer, setShowNsiteExplorer] = useState(false);
   const [showGraspExplorer, setShowGraspExplorer] = useState(false);
+  const [showNotifApp, setShowNotifApp] = useState(false);
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [detailsInitialSection, setDetailsInitialSection] = useState('info');
@@ -636,6 +638,14 @@ const ServiceCard = ({
           context={{ relay: wssUrl, server: httpsUrl }}
           presetId={service.presetId}
           onClose={() => setShowGraspExplorer(false)}
+        />
+      )}
+      {showNotifApp && domain && (
+        <EmbeddedAppModal
+          externalSrc={httpsUrl}
+          externalLabel="notif hub"
+          presetId={service.presetId}
+          onClose={() => setShowNotifApp(false)}
         />
       )}
       {showMoveModal && (
@@ -893,6 +903,18 @@ const ServiceCard = ({
                             style={{ flexShrink: 0 }}
                           >
                             data
+                          </Button>
+                        )}
+                        {domain && service.presetId === 'notif-hub' && (
+                          <Button
+                            size="xs"
+                            variant="light"
+                            color="relaykit"
+                            onClick={() => setShowNotifApp(true)}
+                            rightSection={<IconExternalLink size={12} />}
+                            style={{ flexShrink: 0 }}
+                          >
+                            app
                           </Button>
                         )}
                       </Group>
@@ -1733,6 +1755,44 @@ const DeployModal = ({
         />
       );
     }
+    if (field.type === 'npub') {
+      return (
+        <NpubField
+          key={field.id}
+          label={field.name}
+          description={field.description}
+          required={field.required}
+          value={form.values[field.id] ?? ''}
+          onChange={(v) => form.setFieldValue(field.id, v)}
+          error={form.errors[field.id]}
+        />
+      );
+    }
+    if (field.type === 'relays') {
+      return (
+        <RelaysField
+          key={field.id}
+          label={field.name}
+          description={field.description}
+          value={form.values[field.id] ?? ''}
+          onChange={(csv) => form.setFieldValue(field.id, csv)}
+        />
+      );
+    }
+    if (field.type === 'domain') {
+      return (
+        <DomainField
+          key={field.id}
+          label={field.name}
+          description={field.description}
+          required={field.required}
+          subdomain={field.subdomain}
+          value={form.values[field.id] ?? ''}
+          onChange={(v) => form.setFieldValue(field.id, v)}
+          error={form.errors[field.id]}
+        />
+      );
+    }
 
     return (
       <TextInput
@@ -1788,7 +1848,7 @@ const DeployModal = ({
                 autoFetchProfile
               />
             ) : (
-              preset.requiredConfig.map(renderField)
+              preset.requiredConfig.filter((f: any) => !f.hideOnDeploy).map(renderField)
             )}
             {deployResult && (
               <Paper color={deployResult.error ? 'red' : 'green'} p="md">

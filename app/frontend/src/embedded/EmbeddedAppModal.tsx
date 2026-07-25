@@ -6,16 +6,19 @@ import { serviceTypeToRubixLoaderColor } from '../lib/serviceTypeColor'
 import { buildEmbeddedAppSrc, EMBEDDABLE_APPS, type EmbeddableAppId } from './registry'
 
 type Props = {
-  appId: EmbeddableAppId
-  context: Record<string, string | undefined>
+  appId?: EmbeddableAppId
+  context?: Record<string, string | undefined>
+  /** For apps served by a deployed service at its own domain (not in the registry): raw iframe url + label. */
+  externalSrc?: string
+  externalLabel?: string
   /** Relay preset id (e.g. strfry/chapar) to refine the loader cube colour; app type comes from the registry. */
   presetId?: string | null
   onClose: () => void
 }
 
-export const EmbeddedAppModal = ({ appId, context, presetId, onClose }: Props) => {
-  const app = EMBEDDABLE_APPS[appId]
-  const src = buildEmbeddedAppSrc(appId, context)
+export const EmbeddedAppModal = ({ appId, context, externalSrc, externalLabel, presetId, onClose }: Props) => {
+  const app = appId ? EMBEDDABLE_APPS[appId] : { label: externalLabel ?? '', serviceType: null }
+  const src = appId ? buildEmbeddedAppSrc(appId, context ?? {}) : externalSrc!
   const [loaded, setLoaded] = useState(false)
   const color = useMemo(
     () => serviceTypeToRubixLoaderColor(app.serviceType, presetId),

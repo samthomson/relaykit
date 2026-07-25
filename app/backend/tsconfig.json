@@ -10,6 +10,6 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*", "../shared/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "../shared/ui"]
 }
 

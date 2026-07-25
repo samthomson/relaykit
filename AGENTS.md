@@ -1,5 +1,8 @@
 # Relaykit-proto – Cursor rules
 
+# TOP PRIORITY: GIT (NON-NEGOTIABLE)
+- **NEVER run `git commit` or `git push`.** Not even when asked to "get this into prod" or when a commit seems like the obvious next step. Stage changes at most; the user always commits and pushes themselves.
+
 # TOP PRIORITY: RESPONSE LENGTH (NON-NEGOTIABLE)
 - Keep responses very short by default: 1-4 sentences.
 - Do not provide background, caveats, or extra context unless explicitly asked.

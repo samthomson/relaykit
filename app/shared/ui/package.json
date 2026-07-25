@@ -5,6 +5,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "peerDependencies": {
-    "@mantine/core": "7"
+    "@mantine/core": "7",
+    "react": ">=18"
   }
 }

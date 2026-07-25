@@ -1,0 +1,27 @@
+# Routing is configured via Dokploy's Domains API (domain.create), not Traefik labels in this file.
+# Service must be on dokploy-network so Traefik can reach it (Dokploy requirement).
+#
+# Image is published by .github/workflows/image.yml on push to master. For local dev, build the
+# same tag from your checkout and compose will use it without pulling:
+#   docker build -t ghcr.io/samthomson/relaykit-notif-hub:latest -f app/apps/notif-hub/Dockerfile .
+services:
+  notif-hub:
+    image: ghcr.io/samthomson/relaykit-notif-hub:${NOTIF_HUB_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      # vapid contact subject for web push; push services reject bogus TLDs (apple: 403 BadJwtToken)
+      VAPID_SUBJECT: https://${NOTIF_DOMAIN}
+    volumes:
+      # holds config, rules, devices, vapid keys, and the notification log
+      - notif_hub_data_{{DEPLOY_SUFFIX}}:/data
+    expose:
+      - "3200"
+    networks:
+      - dokploy-network
+
+volumes:
+  notif_hub_data_{{DEPLOY_SUFFIX}}:
+
+networks:
+  dokploy-network:
+    external: true

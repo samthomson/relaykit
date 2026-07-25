@@ -195,6 +195,7 @@ RelayKit has two domain flows: **create a service (with domain in one go)** and 
 issues:
 
 next:
+- [ ] standardise shared ui components (@relaykit/ui RelayPillsInput) across relay-explorer + hello-world
 - [ ] ngrasp / ngit
 - [ ] multilogin / group login (ie diff npubs/teams)
 - [ ] cloudflare domain app
@@ -204,6 +205,7 @@ next:
    - [ ] inc adding a new service, doesn't appear immediately in the ui
    - [ ] restart ui option. 
    - [ ] loader while service comes online, until started (and healthy?)
+   - [ ] failed deploys show as "running" (eg dokploy compose build fails → no container, but card is green; insights/logs just error with "container is not running")
 - [ ] what happens if I try to create a project with a domain already in use on another project?
 - [ ] improve blossom app
 - [ ] negentropy app
