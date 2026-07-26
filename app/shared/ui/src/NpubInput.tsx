@@ -3,7 +3,11 @@ import type { ReactNode } from 'react'
 import { Avatar, Button, Pill, PillsInput } from '@mantine/core'
 import { fetchNostrProfile, npubToHex, type NostrProfile } from './nostrProfile'
 
-const shortNpub = (npub: string): string => `${npub.slice(0, 12)}…${npub.slice(-4)}`
+const ellipsis = {
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+} as const
 
 /**
  * npub input in the same pills style as the relay input: the set identity is a chip
@@ -66,7 +70,7 @@ export const NpubInput = ({
       error={error}
       // Fixed height with room for the two-line identity chip, so the control
       // never resizes as the chip appears/disappears.
-      styles={{ input: { minHeight: 52, display: 'flex', alignItems: 'center' } }}
+      styles={{ input: { minHeight: 52, display: 'flex', alignItems: 'center', padding: 8 } }}
       rightSectionWidth={canFill ? 64 : undefined}
       rightSection={
         canFill ? (
@@ -90,23 +94,32 @@ export const NpubInput = ({
             withRemoveButton
             radius={0}
             onRemove={() => onChange('')}
-            styles={{ root: { height: 'auto', paddingTop: 4, paddingBottom: 4 }, label: { display: 'flex' } }}
+            styles={{
+              root: { height: 'auto', paddingTop: 4, paddingBottom: 4, maxWidth: '100%' },
+              label: { display: 'flex', minWidth: 0 },
+            }}
           >
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <Avatar src={profile?.picture} size={26} radius={0} />
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              {/* Plain square while the picture loads/misses — no placeholder icon. */}
+              {profile?.picture ? (
+                <Avatar src={profile.picture} size={26} radius={0} />
+              ) : (
+                <span style={{ width: 26, height: 26, flexShrink: 0, background: 'rgba(0, 0, 0, 0.15)' }} />
+              )}
               {/* Both lines always occupy space (npub line hidden until a name arrives),
                   so the chip doesn't grow when the profile loads. */}
-              <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.35 }}>
-                <span>{profile?.name ?? shortNpub(value.trim())}</span>
+              <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.35, minWidth: 0 }}>
+                <span style={ellipsis}>{profile?.name ?? value.trim()}</span>
                 <span
                   style={{
+                    ...ellipsis,
                     fontSize: 10,
                     opacity: 0.65,
                     fontFamily: 'monospace',
                     visibility: profile?.name ? 'visible' : 'hidden',
                   }}
                 >
-                  {shortNpub(value.trim())}
+                  {value.trim()}
                 </span>
               </span>
             </span>
