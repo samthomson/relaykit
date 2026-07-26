@@ -223,6 +223,9 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
   const requireNip42: boolean = !!service.requireNip42;
 
   const isEditing = editingDomain?.domainId === domain?.domainId;
+  // domainFields[0] is always the primary domain (already shown above); anything after is an
+  // extra public domain for a sidecar container (e.g. pulse's bundled ntfy server).
+  const extraDomainFields = ((service.domainFields ?? []) as Array<{ domainId: string; host: string; label: string }>).slice(1);
   const createdAt = new Date(service.createdAt);
   const createdStr = format(createdAt, 'd MMM yyyy, h:mm a');
   const createdAgo = formatDistanceToNow(createdAt, { addSuffix: true });
@@ -302,6 +305,41 @@ const ServiceDetailsInfo = (props: ServiceDetailsContentProps) => {
               </Group>
             )}
           </DetailBlock>
+          {extraDomainFields.map((field) => {
+            const rowEditing = editingDomain?.domainId === field.domainId && !omitHostEditor;
+            return (
+              <DetailBlock key={field.domainId} label={field.label}>
+                {rowEditing ? (
+                  <InlineTextEditRow
+                    value={newDomainHost}
+                    onChange={setNewDomainHost}
+                    onSave={onSaveDomain}
+                    onCancel={onCancelEdit}
+                    density="comfortable"
+                    inputStyle={{ maxWidth: '100%' }}
+                    rowStyle={{ minHeight: rem(28), width: 'fit-content', maxWidth: '100%' }}
+                  />
+                ) : (
+                  <Group gap="xs" wrap="nowrap" align="center" style={{ minHeight: rem(28), minWidth: 0 }}>
+                    <Text size="sm" ff="monospace" style={monoBreakable}>
+                      {field.host}
+                    </Text>
+                    <CopyControl text={field.host} onCopy={onCopy} tooltip="copy domain" />
+                    <Tooltip label="edit domain">
+                      <ActionIcon
+                        variant="subtle"
+                        size="sm"
+                        onClick={() => onEditDomain(service.composeId, { domainId: field.domainId, host: field.host })}
+                        aria-label="edit domain"
+                      >
+                        <IconPencil size={14} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Group>
+                )}
+              </DetailBlock>
+            );
+          })}
           <DetailBlock label="HTTPS">
             <Group gap="xs" wrap="wrap" align="center">
               <Anchor href={httpsUrl} target="_blank" size="sm" fw={500} style={monoBreakable}>

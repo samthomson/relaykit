@@ -88,27 +88,29 @@ export const NpubInput = ({
         ) : null
       }
     >
-      <Pill.Group>
+      <Pill.Group style={{ width: '100%' }}>
         {hex && (
           <Pill
             withRemoveButton
             radius={0}
             onRemove={() => onChange('')}
             styles={{
-              root: { height: 'auto', paddingTop: 4, paddingBottom: 4, maxWidth: '100%' },
-              label: { display: 'flex', minWidth: 0 },
+              // flex: 1 fills the input's width instead of shrinking to content, so swapping
+              // the npub for a (shorter) display name never changes the chip's size.
+              root: { height: 'auto', paddingTop: 4, paddingBottom: 4, flex: 1, minWidth: 0 },
+              label: { display: 'flex', minWidth: 0, width: '100%' },
             }}
           >
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, width: '100%' }}>
               {/* Plain square while the picture loads/misses — no placeholder icon. */}
               {profile?.picture ? (
-                <Avatar src={profile.picture} size={26} radius={0} />
+                <Avatar src={profile.picture} size={26} radius={0} style={{ flexShrink: 0 }} />
               ) : (
                 <span style={{ width: 26, height: 26, flexShrink: 0, background: 'rgba(0, 0, 0, 0.15)' }} />
               )}
               {/* Both lines always occupy space (npub line hidden until a name arrives),
                   so the chip doesn't grow when the profile loads. */}
-              <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.35, minWidth: 0 }}>
+              <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.35, minWidth: 0, flex: 1 }}>
                 <span style={ellipsis}>{profile?.name ?? value.trim()}</span>
                 <span
                   style={{
@@ -135,7 +137,14 @@ export const NpubInput = ({
             if (npubToHex(next)) commit(next)
           }}
           onBlur={() => setDraft('')}
-          style={{ fontFamily: 'monospace' }}
+          // Collapsed to nothing once the chip is showing — a bare <input> defaults to ~20ch
+          // wide even with flex-basis auto, which was overflowing narrow (mobile) screens.
+          // Editing then happens by removing the chip first, same as the relay input.
+          style={
+            hex
+              ? { flex: '0 0 0', width: 0, minWidth: 0, padding: 0, border: 0 }
+              : { fontFamily: 'monospace', flex: 1 }
+          }
         />
       </Pill.Group>
     </PillsInput>

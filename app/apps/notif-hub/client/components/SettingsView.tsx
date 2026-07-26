@@ -40,7 +40,7 @@ export const SettingsView = ({ config, params }: { config: HubConfigResponse; pa
     mutationFn: () => saveConfig(npub.trim(), relays, discoveryRelays, linkClient),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config'] })
-      notifications.show({ message: 'settings saved — watching relays' })
+      notifications.show({ message: 'settings saved' })
     },
     onError: (err) => notifications.show({ color: 'red', message: String(err) }),
   })

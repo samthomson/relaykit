@@ -19,6 +19,11 @@ const FUTURE_TOLERANCE_S = 300
 const META_TIMEOUT_MS = 1_500
 const META_CACHE_MS = 60 * 60 * 1000
 const CONTENT_TRUNCATE = 100
+// Relay connections can die at the TCP level (idle proxy/NAT timeout) without a close frame —
+// the socket looks OPEN forever but nothing arrives again. Ping on an interval and force-close
+// if nothing (not even a pong) has been heard back within a couple of intervals.
+const HEARTBEAT_INTERVAL_MS = 30_000
+const HEARTBEAT_TIMEOUT_MS = 70_000
 
 // --- helpers ---
 
@@ -48,6 +53,8 @@ type Conn = {
   ws: WebSocket | null
   reconnectMs: number
   closed: boolean
+  /** last time any frame (event, EOSE, pong, ...) was seen; used to detect a dead-but-not-closed socket */
+  lastActivityAt: number
 }
 
 const conns = new Map<string, Conn>()
@@ -475,17 +482,23 @@ const connect = async (conn: Conn) => {
 
   ws.on('open', () => {
     conn.reconnectMs = RECONNECT_BASE_MS
+    conn.lastActivityAt = Date.now()
     console.log(`watcher: connected to ${conn.url}`)
     sendSubs(conn)
   })
 
   ws.on('message', (data) => {
+    conn.lastActivityAt = Date.now()
     try {
       const msg = JSON.parse(String(data))
       if (Array.isArray(msg) && msg[0] === 'EVENT' && typeof msg[1] === 'string' && msg[2]) {
         void handleEvent(msg[1], msg[2] as NostrEvent)
       }
     } catch {}
+  })
+
+  ws.on('pong', () => {
+    conn.lastActivityAt = Date.now()
   })
 
   ws.on('error', (err) => {
@@ -497,6 +510,25 @@ const connect = async (conn: Conn) => {
     if (!conn.closed) scheduleReconnect(conn)
   })
 }
+
+/** Runs continuously: pings live connections and force-closes any that have gone silent. */
+const startHeartbeat = () => {
+  setInterval(() => {
+    const now = Date.now()
+    for (const conn of conns.values()) {
+      if (!conn.ws || conn.ws.readyState !== WebSocket.OPEN) continue
+      if (now - conn.lastActivityAt > HEARTBEAT_TIMEOUT_MS) {
+        console.error(`watcher: ${conn.url} went silent, forcing reconnect`)
+        conn.ws.terminate()
+        continue
+      }
+      try {
+        conn.ws.ping()
+      } catch {}
+    }
+  }, HEARTBEAT_INTERVAL_MS)
+}
+startHeartbeat()
 
 const scheduleReconnect = (conn: Conn) => {
   const delay = conn.reconnectMs
@@ -549,7 +581,7 @@ export const rebuild = () => {
       // Replace subscriptions on the live connection.
       sendSubs(existing)
     } else {
-      const conn: Conn = { url, ws: null, reconnectMs: RECONNECT_BASE_MS, closed: false }
+      const conn: Conn = { url, ws: null, reconnectMs: RECONNECT_BASE_MS, closed: false, lastActivityAt: Date.now() }
       conns.set(url, conn)
       void connect(conn)
     }

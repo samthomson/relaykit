@@ -103,9 +103,41 @@ const coerceConfigValueToString = (field: PresetField, value: unknown): string =
   return String(value ?? '')
 }
 
-const getEditablePresetFields = (preset: PresetMetadata): PresetField[] => {
+/**
+ * Domain fields are excluded from the generic config editor: saving them there would only
+ * rewrite the env var, not re-register the domain with Dokploy/Traefik. They're edited instead
+ * via the per-domain pencil icon, which goes through registerDomain — see domainFieldsFor.
+ */
+const getEditablePresetFields = (preset: PresetMetadata): PresetField[] =>
+  (preset.requiredConfig || []).filter((f) => f.type !== 'domain')
+
+type DomainField = { configKey: string; label: string; host: string; internalPort: number; serviceName?: string }
+
+/** All domain-backed fields for a preset (primary + extras), each resolved to its current host and target container. */
+const domainFieldsFor = (preset: PresetMetadata, envVars: Record<string, string>): DomainField[] => {
+  const fieldName = (configKey: string) => preset.requiredConfig?.find((f) => f.id === configKey)?.name ?? configKey
   const domainKey = preset.domainConfigKey ?? 'RELAY_HOST'
-  return (preset.requiredConfig || []).filter((f) => f.id !== domainKey)
+  const fields: DomainField[] = []
+  if (envVars[domainKey]) {
+    fields.push({
+      configKey: domainKey,
+      label: fieldName(domainKey),
+      host: envVars[domainKey],
+      internalPort: preset.internalPort,
+      serviceName: preset.serviceName,
+    })
+  }
+  for (const extra of preset.extraDomains ?? []) {
+    if (!envVars[extra.configKey]) continue
+    fields.push({
+      configKey: extra.configKey,
+      label: fieldName(extra.configKey),
+      host: envVars[extra.configKey],
+      internalPort: extra.internalPort,
+      serviceName: extra.serviceName,
+    })
+  }
+  return fields
 }
 
 const getPresetMetadata = async (presetId: string) => {
@@ -1009,6 +1041,12 @@ export const appRouter = router({
             isNpanelType(presetData.id)
               ? envVars.NSITE_ROUTER_HOST || envVars.NSITE_DOMAIN || envVars[domainKey]
               : envVars[domainKey]
+          const composeDomains = (compose.domains || []) as { domainId: string; host: string }[]
+          // Pairs each dokploy domain record with the preset field (and its target container) it belongs to,
+          // so the per-domain editor can re-register it against the right service/port when changed.
+          const domainFields = domainFieldsFor(presetData, envVars)
+            .map((field) => ({ ...field, domainId: composeDomains.find((d) => d.host === field.host)?.domainId }))
+            .filter((field) => !!field.domainId)
           services.push({
             composeId: compose.composeId,
             name: compose.name,
@@ -1018,6 +1056,7 @@ export const appRouter = router({
             createdAt: compose.createdAt,
             hostname: hostname || 'No hostname configured',
             domains: compose.domains || [],
+            domainFields,
             projectId: project.projectId,
             projectName: project.name,
             environmentId: environment.environmentId,
@@ -1132,12 +1171,31 @@ export const appRouter = router({
         return { success: true, message: 'Domain updated and service redeployed' }
       }
 
+      // Match the domain being edited to its preset field (primary, or an extra like pulse's
+      // ntfy sidecar) so it's re-registered against the right container/port, and so the env
+      // var the container reads stays in sync with the new host.
+      const envVars = parseServiceEnvVarsString(compose.env)
+      const oldHost = ((compose.domains || []) as { domainId: string; host: string }[]).find(
+        (d) => d.domainId === input.domainId,
+      )?.host
+      const field = domainFieldsFor(presetData, envVars).find((f) => f.host === oldHost) ?? {
+        configKey: presetData.domainConfigKey ?? 'RELAY_HOST',
+        internalPort: presetData.internalPort,
+        serviceName: presetData.serviceName,
+      }
+
+      envVars[field.configKey] = input.newHost
+      await dokployFetch('/api/compose.update', {
+        method: 'POST',
+        body: JSON.stringify({ composeId: input.composeId, env: stringifyEnvVars(envVars), sourceType: 'raw' }),
+      })
+
       // Dokploy has no domain.update; change domain = delete old then create new
       await dokployFetch('/api/domain.delete', {
         method: 'POST',
         body: JSON.stringify({ domainId: input.domainId })
       })
-      await registerDomain(input.composeId, input.newHost, presetData)
+      await registerDomain(input.composeId, input.newHost, field)
       await dokployFetch('/api/compose.redeploy', {
         method: 'POST',
         body: JSON.stringify({ composeId: input.composeId })

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Box, Divider, NavLink, Text, rem } from '@mantine/core'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { UnauthorizedError, getAuthState, getConfig } from '@/lib/api'
+import { UnauthorizedError, getAuthState, getConfig, listDevices } from '@/lib/api'
 import { clearToken, getToken } from '@/lib/auth'
 import { parseParams } from '@/lib/queryParams'
 import { BrandHeader } from './BrandHeader'
@@ -32,6 +32,13 @@ export const HubShell = () => {
     retry: false,
   })
 
+  // Same query key DevicesView uses, so this just reads the shared cache — no extra fetch.
+  const { data: devices } = useQuery({
+    queryKey: ['devices'],
+    enabled: !!token,
+    queryFn: ({ signal }) => listDevices(signal),
+  })
+
   if (!authState) return null
 
   if (!token || configError instanceof UnauthorizedError) {
@@ -50,10 +57,10 @@ export const HubShell = () => {
 
   const activeView: View = view ?? (config.npub ? 'notifications' : 'settings')
 
-  const navItems: Array<{ id: View; label: string }> = [
+  const navItems: Array<{ id: View; label: string; count?: number }> = [
     { id: 'notifications', label: 'notifs' },
     { id: 'rules', label: 'rules' },
-    { id: 'devices', label: 'devices' },
+    { id: 'devices', label: 'devices', count: devices?.length },
     { id: 'settings', label: 'settings' },
   ]
 
@@ -83,6 +90,9 @@ export const HubShell = () => {
             <NavLink
               key={item.id}
               label={<Text size="xs" ff="monospace">{item.label}</Text>}
+              rightSection={
+                item.count ? <Text size="xs" c="dimmed" ff="monospace">{item.count}</Text> : undefined
+              }
               active={activeView === item.id}
               onClick={() => setView(item.id)}
               px="sm"
