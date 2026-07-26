@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import webpush from 'web-push'
 import { loadDevices, deleteDeviceByEndpoint, recordPushResult } from './storage.js'
+import { sendToNtfy } from './ntfy.js'
 import type { PushDevice } from '../types.js'
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data')
@@ -36,6 +37,8 @@ export type PushPayload = {
   url?: string
   /** notification icon (e.g. author avatar); shown on android/desktop, ignored on ios */
   icon?: string
+  /** notification log entry id — tapping the push marks it seen on the hub */
+  entryId?: string
 }
 
 const errorDetail = (err: unknown): string => {
@@ -80,9 +83,15 @@ export const sendToDevice = async (device: PushDevice, payload: PushPayload, att
   }
 }
 
-/** Send a payload to all registered devices. Returns the number of successful deliveries. */
+/**
+ * Fans a payload out to every delivery channel: web push devices plus the ntfy topic if
+ * configured. Returns the number of successful deliveries across all of them.
+ */
 export const sendToAll = async (payload: PushPayload): Promise<number> => {
   const devices = loadDevices()
-  const results = await Promise.all(devices.map((d) => sendToDevice(d, payload)))
+  const results = await Promise.all([
+    ...devices.map((d) => sendToDevice(d, payload)),
+    sendToNtfy(payload),
+  ])
   return results.filter(Boolean).length
 }

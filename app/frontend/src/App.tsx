@@ -13,8 +13,6 @@ import { LoginScreen } from './pages/LoginScreen';
 import { ServiceList } from './pages/ServicesPage';
 import { serviceTypeToRubixLoaderColor } from './lib/serviceTypeColor';
 import {
-  Menu,
-  Button,
   Text,
   Group,
   Title,
@@ -31,10 +29,10 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconChevronDown } from '@tabler/icons-react';
+import { DropdownButton } from '@relaykit/ui';
 import { SERVICE_TYPE } from '../../shared/serviceType';
 
-type RubixColor = (typeof RubixLoaderColor)[keyof typeof RubixLoaderColor];
+type RubixColor = (typeof RubixLoaderColor)[keyof typeof RubixLoaderColor] | (string & {});
 
 const DokployConnectionAlert = ({ message }: { message: string }) => (
   <Paper color="red" p="md">
@@ -159,36 +157,34 @@ const App = () => {
                 RelayKit
               </Title>
             </Group>
-            <Menu shadow="md" width={200}>
-              <Menu.Target>
-                <Button variant="default" size="sm" rightSection={<IconChevronDown size={14} />}>
-                  init
-                </Button>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item onClick={openAccountModal}>
-                  identity
-                </Menu.Item>
-                <Menu.Item
-                  closeMenuOnClick={false}
-                  onClick={() => setColorScheme(colorScheme === 'dark' ? 'light' : 'dark')}
-                >
-                  <Group justify="space-between" wrap="nowrap" w="100%">
-                    <Text size="sm">dark mode</Text>
-                    <Switch
-                      size="sm"
-                      checked={colorScheme === 'dark'}
-                      readOnly
-                      tabIndex={-1}
-                    />
-                  </Group>
-                </Menu.Item>
-                <Menu.Divider />
-                <Menu.Item color="red" onClick={logout}>
-                  logout
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
+            <DropdownButton
+              variant="default"
+              size="sm"
+              menuWidth={200}
+              items={[
+                { id: 'identity', label: 'identity', onSelect: openAccountModal },
+                {
+                  id: 'dark-mode',
+                  label: (
+                    <Group justify="space-between" wrap="nowrap" w="100%">
+                      <Text size="sm">dark mode</Text>
+                      <Switch
+                        size="sm"
+                        checked={colorScheme === 'dark'}
+                        readOnly
+                        tabIndex={-1}
+                      />
+                    </Group>
+                  ),
+                  closeOnClick: false,
+                  onSelect: () => setColorScheme(colorScheme === 'dark' ? 'light' : 'dark'),
+                },
+                { id: 'divider', divider: true },
+                { id: 'logout', label: 'logout', color: 'red', onSelect: logout },
+              ]}
+            >
+              init
+            </DropdownButton>
           </Group>
         </AppShell.Header>
 

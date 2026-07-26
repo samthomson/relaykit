@@ -1,10 +1,10 @@
 {
   "id": "notif-hub",
-  "name": "notif hub",
-  "label": "notif hub",
+  "name": "pulse",
+  "label": "pulse",
   "repo": "https://github.com/samthomson/relaykit",
-  "icon": "/presets/notif-hub/logo.svg",
-  "description": "Personal push notifications for nostr events (mentions, replies, zaps, dms) straight to your phone as an installable pwa.",
+  "icon": "/presets/notif-hub/logo.png",
+  "description": "Pulse: nostr notifications. Personal push notifications for nostr events (mentions, replies, zaps, dms) straight to your phone as an installable pwa.",
   "version": "1.0.0",
   "type": "tools",
   "serviceName": "notif-hub",
@@ -13,7 +13,7 @@
   "requiredConfig": [
     {
       "id": "NOTIF_DOMAIN",
-      "name": "notif hub domain",
+      "name": "pulse domain",
       "type": "domain",
       "subdomain": "notifs",
       "required": true,

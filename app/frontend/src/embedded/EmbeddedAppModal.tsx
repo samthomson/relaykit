@@ -3,7 +3,12 @@ import { ActionIcon, Box, Divider, Group, Modal, Text } from '@mantine/core'
 import { IconChevronRight, IconX } from '@tabler/icons-react'
 import { useEffect, useMemo, useState } from 'react'
 import { serviceTypeToRubixLoaderColor } from '../lib/serviceTypeColor'
+import { signNostrEvent } from '../lib/nostr'
 import { buildEmbeddedAppSrc, EMBEDDABLE_APPS, type EmbeddableAppId } from './registry'
+
+const SIGN_REQUEST = 'relaykit:sign-event'
+const SIGN_RESULT = 'relaykit:sign-event:result'
+const NIP98_KIND = 27235
 
 type Props = {
   appId?: EmbeddableAppId
@@ -27,6 +32,29 @@ export const EmbeddedAppModal = ({ appId, context, externalSrc, externalLabel, p
   useEffect(() => {
     setLoaded(false)
   }, [src])
+
+  // Apps on their own domain can't reach the user's nip-07 extension from inside the iframe,
+  // so relaykit signs http-auth events (kind 27235) on their behalf.
+  useEffect(() => {
+    if (!externalSrc) return
+    const appOrigin = new URL(externalSrc).origin
+    const onMessage = async (event: MessageEvent) => {
+      if (event.origin !== appOrigin || event.data?.type !== SIGN_REQUEST) return
+      const reply = (payload: Record<string, unknown>) =>
+        (event.source as Window | null)?.postMessage({ type: SIGN_RESULT, id: event.data.id, ...payload }, appOrigin)
+      if (event.data.event?.kind !== NIP98_KIND) {
+        reply({ error: 'relaykit only signs kind 27235 auth events for embedded apps' })
+        return
+      }
+      try {
+        reply({ event: await signNostrEvent(event.data.event) })
+      } catch (err) {
+        reply({ error: err instanceof Error ? err.message : String(err) })
+      }
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [externalSrc])
 
   return (
     <Modal

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Button, Stack, Text, TextInput } from '@mantine/core';
 import { nip19 } from 'nostr-tools';
-import { RelayPillsInput, dedupeRelays } from '@relaykit/ui';
+import { NpubInput, RelayPillsInput, dedupeRelays } from '@relaykit/ui';
 import { useAuth } from '../contexts/AuthContext';
 import { useRefreshServices } from '../contexts/RefreshServicesContext';
 import { isRelayType } from '../../../shared/serviceType';
@@ -79,25 +79,15 @@ export const NpubField = ({
   error?: React.ReactNode;
 }) => {
   const { npub } = useAuth();
-  const mine = toNpub(npub);
   return (
-    <TextInput
+    <NpubInput
       label={label}
       description={description}
       required={required}
-      placeholder="npub1…"
       value={value}
-      onChange={(e) => onChange(e.currentTarget.value)}
+      onChange={onChange}
+      mine={toNpub(npub)}
       error={error}
-      styles={{ input: { fontFamily: 'monospace' } }}
-      rightSectionWidth={78}
-      rightSection={
-        mine && value !== mine ? (
-          <Button size="compact-xs" variant="light" onClick={() => onChange(mine)}>
-            use mine
-          </Button>
-        ) : null
-      }
     />
   );
 };

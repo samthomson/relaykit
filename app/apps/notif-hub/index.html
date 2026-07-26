@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="personal nostr push notifications">
-    <title>notif hub</title>
+    <title>pulse</title>
     <link rel="manifest" href="%BASE_URL%manifest.webmanifest">
-    <link rel="apple-touch-icon" href="%BASE_URL%icon-512.png?v=4">
+    <!-- browser tab: the transparent cube render, so it sits on the tab strip like relaykit's own -->
+    <link rel="icon" type="image/png" href="%BASE_URL%favicon.png">
+    <!-- ios ignores apple-touch-icons with a query string, so version by filename if this changes -->
+    <link rel="apple-touch-icon" sizes="180x180" href="%BASE_URL%apple-touch-icon.png">
     <meta name="theme-color" content="#800020">
   </head>
   <body>

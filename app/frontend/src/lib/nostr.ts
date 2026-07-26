@@ -32,6 +32,13 @@ export async function getNostrPublicKey(): Promise<string> {
   return await window.nostr.getPublicKey();
 }
 
+export const signNostrEvent = async (event: { kind: number; created_at: number; tags: string[][]; content: string }) => {
+  if (!window.nostr) {
+    throw new Error('Nostr extension not found');
+  }
+  return await window.nostr.signEvent(event);
+}
+
 export async function signNostrChallenge(challenge: string): Promise<any> {
   if (!window.nostr) {
     throw new Error('Nostr extension not found');

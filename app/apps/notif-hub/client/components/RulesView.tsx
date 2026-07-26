@@ -4,6 +4,7 @@ import { notifications } from '@mantine/notifications'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
 import { addCustomRule, deleteRule, listRules, setRuleEnabled } from '@/lib/api'
+import { LoadingState } from './LoadingState'
 import type { NotificationRule, RuleType } from '../../types'
 
 const RULE_LABELS: Partial<Record<RuleType, string>> = {
@@ -78,6 +79,15 @@ export const RulesView = () => {
       />
     </Group>
   )
+
+  if (!rules) {
+    return (
+      <Stack gap="md" maw={640}>
+        <Text size="sm" fw={600}>rules</Text>
+        <LoadingState />
+      </Stack>
+    )
+  }
 
   return (
     <Stack gap="md" maw={640}>

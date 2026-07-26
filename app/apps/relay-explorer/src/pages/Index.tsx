@@ -8,7 +8,6 @@ import {
   Combobox,
   Flex,
   Group,
-  Menu,
   Modal,
   Pill,
   PillsInput,
@@ -24,7 +23,8 @@ import {
 } from '@mantine/core';
 import { CodeHighlight } from '@mantine/code-highlight';
 import { Trash2 } from 'lucide-react';
-import { IconBraces, IconCheck, IconChevronDown, IconEye, IconTable, IconX } from '@tabler/icons-react';
+import { IconBraces, IconEye, IconTable, IconX } from '@tabler/icons-react';
+import { DropdownButton } from '@relaykit/ui';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { formatDistanceToNow } from 'date-fns';
@@ -76,19 +76,6 @@ const isStandaloneEmbeddedMode = (): boolean => {
   const params = new URLSearchParams(window.location.search);
   return params.get('standalone') === '1';
 };
-
-const DropdownButton = ({
-  target,
-  children,
-}: {
-  target: ReactNode;
-  children: ReactNode;
-}) => (
-  <Menu shadow="md" position="bottom-end">
-    <Menu.Target>{target}</Menu.Target>
-    <Menu.Dropdown>{children}</Menu.Dropdown>
-  </Menu>
-);
 
 const Index = () => {
   const { user } = useCurrentUser();
@@ -998,83 +985,51 @@ const Index = () => {
 
   const renderAuthControl = () => (
     <DropdownButton
-      target={
-        <Button
-          size="xs"
-          variant="light"
-          color="relaykit"
-          rightSection={<IconChevronDown size={10} />}
-          style={{ maxWidth: '100%', justifyContent: 'space-between' }}
-        >
-          <Box ta="left" style={{ minWidth: 0 }}>
-            <Text ff="monospace" fz={rem(12)}>
-              {currentUser ? 'authed' : 'authenticate'}
-            </Text>
-            {currentUser && (
-              <Text c="dimmed" ff="monospace" fz={rem(10)} style={{ maxWidth: rem(300) }}>
-                {formatNpubMiddle(currentNpub)}
-              </Text>
-            )}
-          </Box>
-        </Button>
-      }
-    >
-      <>
-        {!currentUser && (
-          <Menu.Item ff="monospace" fz={rem(12)} onClick={() => setLoginDialogOpen(true)}>
-            auth options
-          </Menu.Item>
-        )}
-        <Menu.Item
-          color="red"
-          ff="monospace"
-          fz={rem(12)}
-          disabled={!currentUser}
-          onClick={() => {
+      color="relaykit"
+      buttonProps={{ style: { maxWidth: '100%', justifyContent: 'space-between' } }}
+      items={[
+        ...(!currentUser
+          ? [{ id: 'auth', label: 'auth options', onSelect: () => setLoginDialogOpen(true) }]
+          : []),
+        {
+          id: 'remove',
+          label: 'remove auth',
+          color: 'red',
+          disabled: !currentUser,
+          onSelect: () => {
             if (currentUser) {
               removeLogin(currentUser.id);
             }
-          }}
-        >
-          remove auth
-        </Menu.Item>
-      </>
+          },
+        },
+      ]}
+    >
+      <Box ta="left" style={{ minWidth: 0 }}>
+        <Text ff="monospace" fz={rem(12)}>
+          {currentUser ? 'authed' : 'authenticate'}
+        </Text>
+        {currentUser && (
+          <Text c="dimmed" ff="monospace" fz={rem(10)} style={{ maxWidth: rem(300) }}>
+            {formatNpubMiddle(currentNpub)}
+          </Text>
+        )}
+      </Box>
     </DropdownButton>
   );
 
   const renderLimitControl = () => (
     <DropdownButton
-      target={
-        <Button
-          type="button"
-          variant="light"
-          color="relaykit"
-          size="xs"
-          fz={rem(12)}
-          ff="monospace"
-          rightSection={<IconChevronDown size={10} />}
-          style={{ flexShrink: 0 }}
-          disabled={!isConnected}
-        >
-          {eventLimit === 'infinity' ? '∞' : eventLimit}
-        </Button>
-      }
+      color="relaykit"
+      disabled={!isConnected}
+      buttonProps={{ style: { flexShrink: 0 } }}
+      items={LIMIT_OPTIONS.map((option) => ({
+        id: String(option),
+        label: option === 'infinity' ? '∞' : String(option),
+        active: eventLimit === option,
+        onSelect: () => setEventLimit(option),
+      }))}
     >
-      <>
-        {LIMIT_OPTIONS.map((option) => (
-          <Menu.Item
-            key={String(option)}
-            ff="monospace"
-            fz={rem(12)}
-            c={eventLimit === option ? 'relaykit' : undefined}
-            fw={eventLimit === option ? 700 : undefined}
-            rightSection={eventLimit === option ? <IconCheck size={12} /> : undefined}
-            onClick={() => setEventLimit(option)}
-          >
-            {option === 'infinity' ? '∞' : option}
-          </Menu.Item>
-        ))}
-      </>
+      {eventLimit === 'infinity' ? '∞' : eventLimit}
     </DropdownButton>
   );
 

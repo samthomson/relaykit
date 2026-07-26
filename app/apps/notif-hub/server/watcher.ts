@@ -1,4 +1,5 @@
 import WebSocket from 'ws'
+import crypto from 'crypto'
 import dns from 'dns'
 import { verifyEvent, nip19 } from 'nostr-tools'
 import type { Event as NostrEvent, Filter } from 'nostr-tools'
@@ -126,17 +127,38 @@ const classify = (ev: NostrEvent): RuleType | null => {
   }
 }
 
-/** For zap receipts the real sender + amount live in the embedded zap request (description tag). */
+/** Reads the amount out of a bolt11 invoice's hrp (e.g. lnbc2500u1...) in sats. */
+const bolt11Sats = (invoice: string): number | null => {
+  const match = /^ln(?:bc|tb|bcrt)(\d+)([munp])?1/.exec(invoice.trim().toLowerCase())
+  if (!match) return null
+  const value = Number(match[1])
+  if (!Number.isFinite(value)) return null
+  // Multiplier is a fraction of a BTC (1e8 sats): m=1e-3, u=1e-6, n=1e-9, p=1e-12.
+  const satsPerUnit = { m: 1e5, u: 1e2, n: 1e-1, p: 1e-4, '': 1e8 }[match[2] ?? '']
+  const sats = value * satsPerUnit
+  return Number.isInteger(sats) ? sats : Math.floor(sats)
+}
+
+/**
+ * For zap receipts the real sender + amount live in the embedded zap request (description tag).
+ * The request's amount tag is optional, so fall back to the invoice on the receipt itself —
+ * that one is authoritative anyway, it's what was actually paid.
+ */
 const parseZap = (ev: NostrEvent): { sender: string; sats: number | null } => {
+  const invoice = ev.tags.find((t) => t[0] === 'bolt11')?.[1]
+  const invoiceSats = invoice ? bolt11Sats(invoice) : null
   try {
     const description = ev.tags.find((t) => t[0] === 'description')?.[1]
-    if (!description) return { sender: ev.pubkey, sats: null }
+    if (!description) return { sender: ev.pubkey, sats: invoiceSats }
     const zapRequest = JSON.parse(description)
     const amountTag = (zapRequest.tags as string[][] | undefined)?.find((t) => t[0] === 'amount')?.[1]
-    const sats = amountTag ? Math.floor(Number(amountTag) / 1000) : null
-    return { sender: zapRequest.pubkey || ev.pubkey, sats: Number.isFinite(sats) ? sats : null }
+    const requestSats = amountTag ? Math.floor(Number(amountTag) / 1000) : null
+    return {
+      sender: zapRequest.pubkey || ev.pubkey,
+      sats: Number.isFinite(requestSats ?? NaN) ? requestSats : invoiceSats,
+    }
   } catch {
-    return { sender: ev.pubkey, sats: null }
+    return { sender: ev.pubkey, sats: invoiceSats }
   }
 }
 
@@ -267,13 +289,18 @@ const formatNotification = async (
       return { title: 'reply', body: `${name}: ${content}`, author: ev.pubkey, icon }
     case 'quote':
       return { title: 'quote', body: `${name} quoted you: ${content}`, author: ev.pubkey, icon }
-    case 'reaction':
-      return {
-        title: 'reaction',
-        body: ev.content === '+' || ev.content === '' ? `${name} liked your note` : `${name} reacted ${truncate(ev.content, 20)}`,
-        author: ev.pubkey,
-        icon,
-      }
+    case 'reaction': {
+      // NIP-30 custom emoji: content is :shortcode: and the image lives in an emoji tag.
+      // Notification text can't show the image, so name the emoji instead of leaking colons.
+      const custom = /^:([\w+-]+):$/.exec(ev.content.trim())
+      const body =
+        ev.content === '+' || ev.content === ''
+          ? `${name} liked your note`
+          : custom
+            ? `${name} reacted with ${custom[1]}`
+            : `${name} reacted ${truncate(ev.content, 20)}`
+      return { title: 'reaction', body, author: ev.pubkey, icon }
+    }
     case 'repost':
       return { title: 'repost', body: `${name} reposted your note`, author: ev.pubkey, icon }
     default:
@@ -329,8 +356,10 @@ const handleEvent = async (subId: string, ev: NostrEvent) => {
     } catch {}
   }
 
-  const pushed = await sendToAll({ title, body, url, icon })
+  const entryId = crypto.randomUUID()
+  const pushed = await sendToAll({ title, body, url, icon, entryId })
   addNotification({
+    id: entryId,
     ruleType: rule.type,
     title,
     body,

@@ -55,6 +55,11 @@ export const subscribeToPush = async (vapidPublicKey: string): Promise<PushSubsc
     userVisibleOnly: true,
     applicationServerKey: applicationServerKey as BufferSource,
   })
+  // Firefox resolves with null (instead of rejecting) when its push service can't
+  // register the subscription — usually the browser lacks os-level notification access.
+  if (!subscription) {
+    throw new Error('the browser returned no push subscription — check that the browser itself is allowed to send notifications in android settings, then retry')
+  }
   return subscription.toJSON()
 }
 

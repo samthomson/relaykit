@@ -14,6 +14,7 @@
     "@mantine/hooks": "7",
     "@mantine/notifications": "7",
     "@relaykit/ui": "*",
+    "@samthomson/rubix-loader": "0.5.1",
     "@tanstack/react-query": "^5.100.5",
     "cors": "^2.8.5",
     "express": "^4.18.2",

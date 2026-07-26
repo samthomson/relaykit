@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Button, Group, Select, Stack, Text, TextInput } from '@mantine/core'
+import { Button, Group, Select, Stack, Text } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { nip19 } from 'nostr-tools'
-import { RelayPillsInput, dedupeRelays } from '@relaykit/ui'
+import { NpubInput, RelayPillsInput, dedupeRelays } from '@relaykit/ui'
 import { saveConfig, type HubConfigResponse } from '@/lib/api'
 import { type HubParams } from '@/lib/queryParams'
 import { LINK_CLIENTS, type LinkClient } from '../../types'
@@ -29,6 +29,11 @@ export const SettingsView = ({ config, params }: { config: HubConfigResponse; pa
   )
   const [linkClient, setLinkClient] = useState<LinkClient>(config.linkClient)
 
+  const dirty =
+    npub.trim() !== (config.npub ?? '') ||
+    linkClient !== config.linkClient ||
+    relays.join(',') !== config.relays.join(',')
+
   const saveMutation = useMutation({
     mutationFn: () => saveConfig(npub.trim(), relays, linkClient),
     onSuccess: () => {
@@ -48,13 +53,12 @@ export const SettingsView = ({ config, params }: { config: HubConfigResponse; pa
         </Text>
       )}
 
-      <TextInput
+      <NpubInput
         size="xs"
         label="your npub"
-        placeholder="npub1..."
         value={npub}
-        onChange={(e) => setNpub(e.currentTarget.value)}
-        styles={{ input: { fontFamily: 'monospace' } }}
+        onChange={setNpub}
+        mine={toNpub(params.npub) || null}
       />
 
       <Stack gap={4}>
@@ -75,7 +79,7 @@ export const SettingsView = ({ config, params }: { config: HubConfigResponse; pa
       <Group justify="flex-end">
         <Button
           size="xs"
-          disabled={!npub.trim().startsWith('npub1') || relays.length === 0}
+          disabled={!dirty || !npub.trim().startsWith('npub1') || relays.length === 0}
           loading={saveMutation.isPending}
           onClick={() => saveMutation.mutate()}
         >

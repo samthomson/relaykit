@@ -46,6 +46,8 @@ export type NotificationEntry = {
   createdAt: string
   /** number of devices the push was delivered to */
   pushed: number
+  /** set when the owner opened it (in-app or via a push tap); shared across devices */
+  seenAt?: string
 }
 
 export type LinkClient = 'njump' | 'primal' | 'iris' | 'jumble' | 'ditto' | 'yakihonne' | 'native'
@@ -65,6 +67,22 @@ export const LINK_CLIENTS: Record<LinkClient, { label: string; eventUrl: (nevent
   native: { label: 'native app (damus, amethyst, …)', eventUrl: (nevent) => `nostr:${nevent}` },
 }
 
+/**
+ * Delivery to an ntfy topic, as an alternative to web push. The ntfy android app holds its own
+ * connection, so this is the route that works without google play services.
+ */
+export type NtfyConfig = {
+  enabled: boolean
+  /** e.g. https://ntfy.sh or a self-hosted server */
+  server: string
+  topic: string
+  /** access token for protected topics (ntfy's `tk_...`), optional on public ones */
+  token?: string
+  lastOkAt?: string
+  lastError?: string
+  lastErrorAt?: string
+}
+
 export type HubConfig = {
   /** owner pubkey in hex (null until configured) */
   pubkey: string | null
@@ -72,4 +90,5 @@ export type HubConfig = {
   relays: string[]
   /** which client notification links open in */
   linkClient: LinkClient
+  ntfy: NtfyConfig
 }

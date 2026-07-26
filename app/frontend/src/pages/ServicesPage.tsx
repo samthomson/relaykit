@@ -21,7 +21,6 @@ import { ServiceHostTitleView } from '../components/ServiceHostTitleView';
 import { CopyControl } from '../components/CopyControl';
 import { serviceTypeToRubixLoaderColor } from '../lib/serviceTypeColor';
 import {
-  Menu,
   Button,
   Text,
   Modal,
@@ -44,8 +43,8 @@ import {
   useMantineTheme,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { DropdownButton } from '@relaykit/ui';
 import {
-  IconChevronDown,
   IconExternalLink,
   IconPencil,
   IconCpu,
@@ -134,32 +133,21 @@ const CogMenu = ({
   /** Bordered “Actions” button; otherwise icon-only chevron (overview / tight rows). */
   showLabel?: boolean;
 }) => (
-  <Menu shadow="md" width={200} position="bottom-end">
-    <Menu.Target>
-      {showLabel ? (
-        <Button variant="default" size="sm" rightSection={<IconChevronDown size={14} />}>
-          actions
-        </Button>
-      ) : (
-        <Tooltip label="actions" position="bottom">
-          <ActionIcon variant="subtle" color="gray" size="sm" aria-label="actions">
-            <IconChevronDown size={14} />
-          </ActionIcon>
-        </Tooltip>
-      )}
-    </Menu.Target>
-    <Menu.Dropdown>
-      {items.map((item, i) => (
-        <Menu.Item
-          key={i}
-          color={item.danger ? 'red' : undefined}
-          onClick={item.onClick}
-        >
-          {item.label}
-        </Menu.Item>
-      ))}
-    </Menu.Dropdown>
-  </Menu>
+  <DropdownButton
+    variant="default"
+    size="sm"
+    menuWidth={200}
+    iconOnly={!showLabel}
+    tooltip={showLabel ? undefined : 'actions'}
+    items={items.map((item, i) => ({
+      id: String(i),
+      label: item.label,
+      color: item.danger ? 'red' : undefined,
+      onSelect: item.onClick,
+    }))}
+  >
+    actions
+  </DropdownButton>
 );
 
 const ConfirmModal = ({
@@ -484,6 +472,7 @@ const ServiceCard = ({
   const theme = useMantineTheme();
   const colorScheme = useComputedColorScheme('light');
   const serviceCardBg = colorScheme === 'dark' ? theme.colors.dark[5] : theme.white;
+  const { npub: ownerNpub } = useAuth();
   const [showExplorer, setShowExplorer] = useState(false);
   const [showBlossomExplorer, setShowBlossomExplorer] = useState(false);
   const [showNsiteExplorer, setShowNsiteExplorer] = useState(false);
@@ -511,6 +500,12 @@ const ServiceCard = ({
   const showCanonical = npanel && canonicalHost && canonicalHost !== publicHost;
   const httpsUrl = publicHost ? `https://${publicHost}` : '';
   const wssUrl = publicHost ? `wss://${publicHost}` : '';
+  // Apps on their own domain get the same context params as registry-embedded ones.
+  const notifAppSrc = `${httpsUrl}/?${new URLSearchParams({
+    embedded: '1',
+    ...(ownerNpub ? { npub: ownerNpub } : {}),
+    ...(availableRelays.length > 0 ? { relays: availableRelays.join(',') } : {}),
+  })}`;
   const titleHost = domain ? publicHost ?? domain.host : service.name;
   const statusNorm = String(service.status ?? '').toLowerCase();
   const moveTargets = allEnvironments.filter((env) => env.environmentId !== service.environmentId);
@@ -645,8 +640,8 @@ const ServiceCard = ({
       )}
       {showNotifApp && domain && (
         <EmbeddedAppModal
-          externalSrc={httpsUrl}
-          externalLabel="notif hub"
+          externalSrc={notifAppSrc}
+          externalLabel="pulse"
           presetId={service.presetId}
           onClose={() => setShowNotifApp(false)}
         />

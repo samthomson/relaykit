@@ -8,10 +8,13 @@ import {
   loadConfig, saveConfig,
   loadRules, updateRule, addCustomRule, deleteRule,
   loadDevices, addDevice, deleteDevice,
-  loadNotifications,
+  loadNotifications, markNotificationSeen, markAllNotificationsSeen,
+  issueToken,
 } from './storage.js'
 import { getVapidPublicKey, sendToAll, sendToDevice } from './push.js'
+import { sendToNtfy } from './ntfy.js'
 import { startWatcher, rebuild } from './watcher.js'
+import { requireAuth, unclaimed, verifyNip98 } from './auth.js'
 import { LINK_CLIENTS, type LinkClient } from '../types.js'
 
 // Node's happy-eyeballs default gives each connect attempt 250ms; push endpoints
@@ -25,11 +28,62 @@ const PORT = process.env.NH_PORT || 3200
 app.use(cors())
 app.use(express.json())
 
+// --- auth ---
+
+/** Public: tells the ui whether signing in will claim the hub or log in to it. */
+app.get('/api/auth/state', (_req, res) => {
+  res.json({ unclaimed: unclaimed() })
+})
+
+/**
+ * Trades a nip-98 signature for a bearer token this browser can keep. The first signature
+ * claims the hub, which also sets the identity it watches — no npub to type in.
+ */
+app.post('/api/auth/nostr', (req, res) => {
+  const [scheme, value] = (req.headers.authorization ?? '').split(' ')
+  if (!/^nostr$/i.test(scheme ?? '') || !value) {
+    res.status(401).json({ error: 'expected a nostr authorization header' })
+    return
+  }
+  const result = verifyNip98(value, req)
+  if ('error' in result) {
+    res.status(401).json({ error: result.error })
+    return
+  }
+  const config = loadConfig()
+  if (config.pubkey && result.pubkey !== config.pubkey) {
+    res.status(403).json({ error: 'not the owner of this hub' })
+    return
+  }
+  if (!config.pubkey) {
+    saveConfig({ ...config, pubkey: result.pubkey, npub: nip19.npubEncode(result.pubkey) })
+    rebuild()
+  }
+  res.json({ token: issueToken(typeof req.body?.label === 'string' ? req.body.label : 'browser') })
+})
+
+/**
+ * Unauthenticated on purpose: the service worker fires this when a push notification is
+ * tapped, and it has no bearer token. Entry ids are random uuids and the only effect is
+ * flipping a seen flag, so there is nothing to protect.
+ */
+app.post('/seen/:id', (req, res) => {
+  res.json({ ok: markNotificationSeen(req.params.id) })
+})
+
+app.use('/api', requireAuth)
+
 // --- config ---
 
 app.get('/api/config', (_req, res) => {
   const config = loadConfig()
-  res.json({ npub: config.npub, relays: config.relays, linkClient: config.linkClient, vapidPublicKey: getVapidPublicKey() })
+  res.json({
+    npub: config.npub,
+    relays: config.relays,
+    linkClient: config.linkClient,
+    ntfy: config.ntfy,
+    vapidPublicKey: getVapidPublicKey(),
+  })
 })
 
 app.put('/api/config', (req, res) => {
@@ -55,9 +109,43 @@ app.put('/api/config', (req, res) => {
     res.status(400).json({ error: 'at least one relay is required' })
     return
   }
-  saveConfig({ pubkey, npub: npub.trim(), relays, linkClient: linkClient as LinkClient })
+  saveConfig({ ...loadConfig(), pubkey, npub: npub.trim(), relays, linkClient: linkClient as LinkClient })
   rebuild()
   res.json({ npub: npub.trim(), relays, linkClient })
+})
+
+// --- ntfy ---
+
+app.put('/api/ntfy', (req, res) => {
+  const { enabled, server, topic, token } = req.body ?? {}
+  if (typeof enabled !== 'boolean' || typeof server !== 'string' || typeof topic !== 'string') {
+    res.status(400).json({ error: 'expected enabled (boolean), server (string) and topic (string)' })
+    return
+  }
+  if (!/^https?:\/\/.+/.test(server.trim())) {
+    res.status(400).json({ error: 'server must be an http(s) url, e.g. https://ntfy.sh' })
+    return
+  }
+  if (enabled && !topic.trim()) {
+    res.status(400).json({ error: 'a topic is required to enable ntfy' })
+    return
+  }
+  const config = loadConfig()
+  const ntfy = {
+    ...config.ntfy,
+    enabled,
+    server: server.trim().replace(/\/$/, ''),
+    topic: topic.trim(),
+    token: typeof token === 'string' && token.trim() ? token.trim() : undefined,
+  }
+  saveConfig({ ...config, ntfy })
+  res.json(ntfy)
+})
+
+/** Publishes a one-off message so the topic can be verified while setting it up. */
+app.post('/api/ntfy/test', async (_req, res) => {
+  const ok = await sendToNtfy({ title: 'pulse', body: 'ntfy is wired up correctly' })
+  res.json({ ok, error: ok ? undefined : loadConfig().ntfy.lastError })
 })
 
 // --- rules ---
@@ -112,7 +200,7 @@ app.post('/api/devices', async (req, res) => {
     return
   }
   const device = addDevice({ label, endpoint, keys: { p256dh, auth } })
-  await sendToDevice(device, { title: 'notif hub', body: 'notifications enabled on this device' })
+  await sendToDevice(device, { title: 'pulse', body: 'notifications enabled on this device' })
   res.status(201).json({ id: device.id, label: device.label, endpoint: device.endpoint, createdAt: device.createdAt })
 })
 
@@ -127,8 +215,17 @@ app.get('/api/notifications', (_req, res) => {
   res.json(loadNotifications())
 })
 
+app.post('/api/notifications/seen-all', (_req, res) => {
+  res.json({ marked: markAllNotificationsSeen() })
+})
+
+app.post('/api/notifications/:id/seen', (req, res) => {
+  if (!markNotificationSeen(req.params.id)) { res.status(404).json({ error: 'not found' }); return }
+  res.json({ ok: true })
+})
+
 app.post('/api/test', async (_req, res) => {
-  const pushed = await sendToAll({ title: 'notif hub', body: 'test notification' })
+  const pushed = await sendToAll({ title: 'pulse', body: 'test notification' })
   res.json({ pushed })
 })
 

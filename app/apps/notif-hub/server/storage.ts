@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { LINK_CLIENTS } from '../types.js'
-import type { HubConfig, NotificationEntry, NotificationRule, PushDevice, RuleType } from '../types.js'
+import type { HubConfig, NotificationEntry, NotificationRule, NtfyConfig, PushDevice, RuleType } from '../types.js'
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data')
 
@@ -28,17 +28,36 @@ const writeJson = (file: string, data: unknown) => {
 
 const DEFAULT_RELAYS = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://relay.nostr.band']
 
-const DEFAULT_CONFIG: HubConfig = { pubkey: null, npub: null, relays: DEFAULT_RELAYS, linkClient: 'njump' }
+const DEFAULT_NTFY: NtfyConfig = { enabled: false, server: 'https://ntfy.sh', topic: '' }
+
+const DEFAULT_CONFIG: HubConfig = {
+  pubkey: null,
+  npub: null,
+  relays: DEFAULT_RELAYS,
+  linkClient: 'njump',
+  ntfy: DEFAULT_NTFY,
+}
 
 export const loadConfig = (): HubConfig => {
   const config = { ...DEFAULT_CONFIG, ...readJson<Partial<HubConfig>>('config.json', {}) }
   // A saved client that no longer exists (removed option) falls back to the default.
   if (!(config.linkClient in LINK_CLIENTS)) config.linkClient = 'njump'
+  config.ntfy = { ...DEFAULT_NTFY, ...config.ntfy }
   return config
 }
 
 export const saveConfig = (config: HubConfig) => {
   writeJson('config.json', config)
+}
+
+/** Keeps the last ntfy delivery outcome on the config so failures surface in the ui. */
+export const recordNtfyResult = (result: { ok: true } | { ok: false; error: string }) => {
+  const config = loadConfig()
+  const now = new Date().toISOString()
+  config.ntfy = result.ok
+    ? { ...config.ntfy, lastOkAt: now, lastError: undefined, lastErrorAt: undefined }
+    : { ...config.ntfy, lastError: result.error, lastErrorAt: now }
+  saveConfig(config)
 }
 
 // --- rules ---
@@ -138,6 +157,29 @@ export const recordPushResult = (endpoint: string, result: { ok: true } | { ok: 
   writeJson('devices.json', devices)
 }
 
+// --- auth ---
+
+export type AuthStore = {
+  /** long-lived bearer tokens, one per signed-in browser/pwa */
+  tokens: Array<{ token: string; label: string; createdAt: string }>
+}
+
+const loadAuth = (): AuthStore => readJson<AuthStore>('auth.json', { tokens: [] })
+
+const saveAuth = (store: AuthStore) => {
+  writeJson('auth.json', store)
+}
+
+export const issueToken = (label: string): string => {
+  const store = loadAuth()
+  const token = crypto.randomBytes(32).toString('base64url')
+  store.tokens.push({ token, label, createdAt: new Date().toISOString() })
+  saveAuth(store)
+  return token
+}
+
+export const tokenValid = (token: string): boolean => loadAuth().tokens.some((t) => t.token === token)
+
 // --- watcher state ---
 
 export type WatcherState = { lastSeenTs: number; seenIds: string[] }
@@ -153,14 +195,38 @@ export const saveWatcherState = (state: WatcherState) => {
 
 export const loadNotifications = (): NotificationEntry[] => readJson<NotificationEntry[]>('notifications.json', [])
 
-export const addNotification = (entry: Omit<NotificationEntry, 'id' | 'createdAt'>): NotificationEntry => {
+export const addNotification = (entry: Omit<NotificationEntry, 'createdAt'>): NotificationEntry => {
   const notifications = loadNotifications()
   const full: NotificationEntry = {
     ...entry,
-    id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
   }
   notifications.unshift(full)
   writeJson('notifications.json', notifications.slice(0, MAX_NOTIFICATIONS))
   return full
+}
+
+export const markNotificationSeen = (id: string): boolean => {
+  const notifications = loadNotifications()
+  const entry = notifications.find((n) => n.id === id)
+  if (!entry) return false
+  if (!entry.seenAt) {
+    entry.seenAt = new Date().toISOString()
+    writeJson('notifications.json', notifications)
+  }
+  return true
+}
+
+export const markAllNotificationsSeen = (): number => {
+  const notifications = loadNotifications()
+  const now = new Date().toISOString()
+  let marked = 0
+  for (const entry of notifications) {
+    if (!entry.seenAt) {
+      entry.seenAt = now
+      marked++
+    }
+  }
+  if (marked > 0) writeJson('notifications.json', notifications)
+  return marked
 }

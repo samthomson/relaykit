@@ -5,7 +5,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
 import QRCode from 'qrcode'
 import { deleteDevice, listDevices, registerDevice, sendTestNotification } from '@/lib/api'
+import { embedded } from '@/lib/auth'
 import { defaultDeviceLabel, getExistingSubscription, isInstalledPwa, isIos, pushSupported, subscribeToPush, subscriptionMatchesKey } from '@/lib/push'
+import { LoadingState } from './LoadingState'
+import { NtfyCard } from './NtfyCard'
+import type { NtfyConfig } from '../../types'
 
 const QrCanvas = ({ value, size = 168 }: { value: string; size?: number }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -27,7 +31,7 @@ const Step = ({ n, children }: { n: number; children: React.ReactNode }) => (
   </Group>
 )
 
-export const DevicesView = ({ vapidPublicKey }: { vapidPublicKey: string }) => {
+export const DevicesView = ({ vapidPublicKey, ntfy }: { vapidPublicKey: string; ntfy: NtfyConfig }) => {
   const queryClient = useQueryClient()
   const [currentEndpoint, setCurrentEndpoint] = useState<string | null>(null)
 
@@ -56,7 +60,7 @@ export const DevicesView = ({ vapidPublicKey }: { vapidPublicKey: string }) => {
       queryClient.invalidateQueries({ queryKey: ['devices'] })
       notifications.show({ message: 'notifications enabled on this device' })
     },
-    onError: (err) => notifications.show({ color: 'red', message: String(err) }),
+    onError: (err) => notifications.show({ color: 'red', autoClose: false, message: String(err) }),
   })
 
   const deleteMutation = useMutation({
@@ -81,6 +85,18 @@ export const DevicesView = ({ vapidPublicKey }: { vapidPublicKey: string }) => {
   const thisDeviceRegistered = !!currentEndpoint && (devices ?? []).some((d) => d.endpoint === currentEndpoint)
   // iOS Safari (not installed) exposes no push API; the fix is installing, not a different browser.
   const needsInstall = !supported && isIos() && !installed
+  // Browsers refuse notification permission requests from a cross-origin iframe, so enabling
+  // this computer has to happen in relaykit's parent frame — i.e. the hub's own tab.
+  const needsOwnTab = embedded()
+
+  if (!devices) {
+    return (
+      <Stack gap="md" maw={640}>
+        <Text size="sm" fw={600}>devices</Text>
+        <LoadingState />
+      </Stack>
+    )
+  }
 
   return (
     <Stack gap="md" maw={640}>
@@ -92,6 +108,20 @@ export const DevicesView = ({ vapidPublicKey }: { vapidPublicKey: string }) => {
           </Button>
         )}
       </Group>
+
+      {needsOwnTab && !thisDeviceRegistered && supported && (
+        <Alert variant="light" title="enable this computer in the hub's own tab">
+          <Stack gap="sm" align="flex-start">
+            <Text size="xs">
+              browsers refuse notification permission requests from an embedded frame, so this has to be done
+              with the hub open on its own.
+            </Text>
+            <Button size="xs" variant="light" component="a" href={standaloneUrl} target="_blank" rel="noreferrer">
+              open pulse in a new tab
+            </Button>
+          </Stack>
+        </Alert>
+      )}
 
       {needsInstall && (
         <Alert variant="light" title="almost there — install to enable notifications">
@@ -140,16 +170,25 @@ export const DevicesView = ({ vapidPublicKey }: { vapidPublicKey: string }) => {
                   ? 'push is not supported in this browser'
                   : thisDeviceRegistered
                     ? 'registered — pushes will arrive here'
-                    : 'not registered'}
+                    : needsOwnTab
+                      ? 'not registered — see above'
+                      : 'not registered'}
             </Text>
+            {enableMutation.error && (
+              <Text size="xs" c="red" style={{ wordBreak: 'break-word' }}>
+                {String(enableMutation.error)}
+              </Text>
+            )}
           </Stack>
-          {supported && !thisDeviceRegistered && (
-            <Button size="xs" loading={enableMutation.isPending} onClick={() => enableMutation.mutate()}>
+          {supported && !thisDeviceRegistered && !needsOwnTab && (
+            <Button size="xs" style={{ flexShrink: 0 }} loading={enableMutation.isPending} onClick={() => enableMutation.mutate()}>
               enable notifications
             </Button>
           )}
         </Group>
       </Paper>
+
+      <NtfyCard ntfy={ntfy} />
 
       {(devices ?? []).map((device) => (
         <Paper key={device.id} withBorder p="sm">
