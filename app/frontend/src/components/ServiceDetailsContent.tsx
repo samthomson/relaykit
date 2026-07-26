@@ -54,6 +54,10 @@ const ServiceDetailsDns = ({
   const dnsCopy = 'service-details-dns-copy';
   const publicHost =
     (isNpanelType(service.type) ? service.nsiteVisitorHost || service.nsiteCanonicalHost : null) || domain.host;
+  // Every domain registered on the service (e.g. pulse's bundled ntfy) needs its own record.
+  const allHosts = [
+    ...new Set([publicHost, ...((service.domains ?? []) as { host: string }[]).map((d) => d.host)]),
+  ].filter(Boolean);
   type DnsStatus = 'idle' | 'loading' | 'ok' | 'proxied' | 'fail';
   type DnsEntry = { status: DnsStatus; ips?: string[]; error?: string };
   type DnsResult = { ok: boolean; proxied?: string; ips: string[]; error?: string };
@@ -160,7 +164,7 @@ const ServiceDetailsDns = ({
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {dnsRow(publicHost)}
+            {allHosts.map((host) => dnsRow(host))}
           </Table.Tbody>
         </Table>
       </Table.ScrollContainer>

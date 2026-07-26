@@ -1,5 +1,5 @@
-import { finalizeEvent, generateSecretKey, nip19 } from 'nostr-tools'
-import { BunkerSigner, parseBunkerInput } from 'nostr-tools/nip46'
+import { finalizeEvent, generateSecretKey, getPublicKey, nip19 } from 'nostr-tools'
+import { BunkerSigner, createNostrConnectURI, parseBunkerInput } from 'nostr-tools/nip46'
 import type { EventTemplate } from 'nostr-tools'
 
 const TOKEN_KEY = 'nh:token'
@@ -66,6 +66,27 @@ export type LoginMethod =
   | { via: 'relaykit' }
   | { via: 'nsec'; nsec: string }
   | { via: 'bunker'; uri: string }
+  | { via: 'connect'; signer: BunkerSigner }
+
+const NOSTR_CONNECT_RELAYS = ['wss://relay.nsec.app', 'wss://relay.primal.net']
+
+export type NostrConnect = { uri: string; signer: Promise<BunkerSigner> }
+
+/**
+ * Reverse nip-46 flow: we render this uri as a qr / deep link and the signer app
+ * (amber, nsec.app, …) initiates the connection — nothing to paste.
+ */
+export const startNostrConnect = (abort: AbortSignal): NostrConnect => {
+  const clientSecret = generateSecretKey()
+  const uri = createNostrConnectURI({
+    clientPubkey: getPublicKey(clientSecret),
+    relays: [...NOSTR_CONNECT_RELAYS],
+    secret: crypto.randomUUID().replace(/-/g, ''),
+    name: 'pulse',
+    perms: [`sign_event:${NIP98_KIND}`],
+  })
+  return { uri, signer: BunkerSigner.fromURI(clientSecret, uri, {}, abort) }
+}
 
 const signWith = async (method: LoginMethod, template: EventTemplate): Promise<SignedEvent> => {
   if (method.via === 'extension') {
@@ -78,6 +99,13 @@ const signWith = async (method: LoginMethod, template: EventTemplate): Promise<S
     const decoded = nip19.decode(method.nsec.trim())
     if (decoded.type !== 'nsec') throw new Error('that is not an nsec')
     return finalizeEvent(template, decoded.data)
+  }
+  if (method.via === 'connect') {
+    try {
+      return await method.signer.signEvent(template)
+    } finally {
+      await method.signer.close()
+    }
   }
   const pointer = await parseBunkerInput(method.uri.trim())
   if (!pointer) throw new Error('could not read that bunker uri')
