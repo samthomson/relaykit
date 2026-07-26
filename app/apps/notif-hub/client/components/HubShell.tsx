@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Box, Divider, NavLink, Text, rem } from '@mantine/core'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { UnauthorizedError, getAuthState, getConfig } from '@/lib/api'
-import { getToken } from '@/lib/auth'
+import { clearToken, getToken } from '@/lib/auth'
 import { parseParams } from '@/lib/queryParams'
 import { BrandHeader } from './BrandHeader'
 import { NotificationsView } from './NotificationsView'
@@ -72,7 +72,12 @@ export const HubShell = () => {
       <Box style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <Box
           py="xs"
-          style={{ borderRight: '1px solid var(--mantine-color-default-border)', flexShrink: 0 }}
+          style={{
+            borderRight: '1px solid var(--mantine-color-default-border)',
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
         >
           {navItems.map((item) => (
             <NavLink
@@ -84,6 +89,18 @@ export const HubShell = () => {
               style={{ height: rem(36) }}
             />
           ))}
+          <Box style={{ flex: 1 }} />
+          <Divider />
+          <NavLink
+            label={<Text size="xs" ff="monospace" c="dimmed">log out</Text>}
+            onClick={() => {
+              clearToken()
+              setToken(null)
+              queryClient.clear()
+            }}
+            px="sm"
+            style={{ height: rem(36) }}
+          />
         </Box>
 
         <Box style={{ flex: 1, overflow: 'auto', minWidth: 0 }} p="md">

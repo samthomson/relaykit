@@ -94,13 +94,20 @@ export const NpubInput = ({
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <Avatar src={profile?.picture} size={26} radius={0} />
+              {/* Both lines always occupy space (npub line hidden until a name arrives),
+                  so the chip doesn't grow when the profile loads. */}
               <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.35 }}>
                 <span>{profile?.name ?? shortNpub(value.trim())}</span>
-                {profile?.name && (
-                  <span style={{ fontSize: 10, opacity: 0.65, fontFamily: 'monospace' }}>
-                    {shortNpub(value.trim())}
-                  </span>
-                )}
+                <span
+                  style={{
+                    fontSize: 10,
+                    opacity: 0.65,
+                    fontFamily: 'monospace',
+                    visibility: profile?.name ? 'visible' : 'hidden',
+                  }}
+                >
+                  {shortNpub(value.trim())}
+                </span>
               </span>
             </span>
           </Pill>
