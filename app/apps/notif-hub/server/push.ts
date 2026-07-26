@@ -37,6 +37,8 @@ export type PushPayload = {
   url?: string
   /** notification icon (e.g. author avatar); shown on android/desktop, ignored on ios */
   icon?: string
+  /** ntfy emoji-shortcode tags, rendered in front of the title by the ntfy app */
+  tags?: string[]
   /** notification log entry id — tapping the push marks it seen on the hub */
   entryId?: string
 }

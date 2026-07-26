@@ -80,6 +80,7 @@ app.get('/api/config', (_req, res) => {
   res.json({
     npub: config.npub,
     relays: config.relays,
+    discoveryRelays: config.discoveryRelays,
     linkClient: config.linkClient,
     ntfy: config.ntfy,
     vapidPublicKey: getVapidPublicKey(),
@@ -87,9 +88,13 @@ app.get('/api/config', (_req, res) => {
 })
 
 app.put('/api/config', (req, res) => {
-  const { npub, relays, linkClient } = req.body
+  const { npub, relays, discoveryRelays, linkClient } = req.body
   if (typeof npub !== 'string' || !Array.isArray(relays) || relays.some((r) => typeof r !== 'string')) {
     res.status(400).json({ error: 'expected npub (string) and relays (string[])' })
+    return
+  }
+  if (!Array.isArray(discoveryRelays) || discoveryRelays.some((r) => typeof r !== 'string')) {
+    res.status(400).json({ error: 'expected discoveryRelays (string[])' })
     return
   }
   if (!(linkClient in LINK_CLIENTS)) {
@@ -109,9 +114,9 @@ app.put('/api/config', (req, res) => {
     res.status(400).json({ error: 'at least one relay is required' })
     return
   }
-  saveConfig({ ...loadConfig(), pubkey, npub: npub.trim(), relays, linkClient: linkClient as LinkClient })
+  saveConfig({ ...loadConfig(), pubkey, npub: npub.trim(), relays, discoveryRelays, linkClient: linkClient as LinkClient })
   rebuild()
-  res.json({ npub: npub.trim(), relays, linkClient })
+  res.json({ npub: npub.trim(), relays, discoveryRelays, linkClient })
 })
 
 // --- ntfy ---

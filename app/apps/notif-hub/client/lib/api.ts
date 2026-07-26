@@ -9,6 +9,7 @@ export class UnauthorizedError extends Error {}
 export type HubConfigResponse = {
   npub: string | null
   relays: string[]
+  discoveryRelays: string[]
   linkClient: LinkClient
   ntfy: NtfyConfig
   vapidPublicKey: string
@@ -67,8 +68,12 @@ export const signInWithNostr = async (login: LoginMethod, label: string): Promis
 export const getConfig = async (signal?: AbortSignal): Promise<HubConfigResponse> =>
   call('/api/config', { signal })
 
-export const saveConfig = async (npub: string, relays: string[], linkClient: LinkClient): Promise<void> =>
-  call('/api/config', json('PUT', { npub, relays, linkClient }))
+export const saveConfig = async (
+  npub: string,
+  relays: string[],
+  discoveryRelays: string[],
+  linkClient: LinkClient,
+): Promise<void> => call('/api/config', json('PUT', { npub, relays, discoveryRelays, linkClient }))
 
 export const saveNtfy = async (ntfy: Pick<NtfyConfig, 'enabled' | 'server' | 'topic' | 'token'>): Promise<NtfyConfig> =>
   call('/api/ntfy', json('PUT', ntfy))

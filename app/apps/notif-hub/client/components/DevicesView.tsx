@@ -128,7 +128,7 @@ export const DevicesView = ({ vapidPublicKey, ntfy }: { vapidPublicKey: string; 
           <Stack gap={6}>
             <Step n={1}>tap the share button in your browser</Step>
             <Step n={2}>choose “add to home screen”</Step>
-            <Step n={3}>open the installed app from your home screen and tap “enable notifications”</Step>
+            <Step n={3}>open the installed app from your home screen and tap “enable notifs”</Step>
           </Stack>
         </Alert>
       )}
@@ -141,7 +141,7 @@ export const DevicesView = ({ vapidPublicKey, ntfy }: { vapidPublicKey: string; 
               <Text size="sm" fw={500}>get notifications on your phone</Text>
               <Step n={1}>scan the qr code (or open the link) on your phone</Step>
               <Step n={2}>add it to your home screen (on ios: share → add to home screen)</Step>
-              <Step n={3}>open it from the home screen and tap “enable notifications”</Step>
+              <Step n={3}>open it from the home screen and tap “enable notifs”</Step>
               <Group gap="xs" mt={4}>
                 <Text size="xs" ff="monospace" c="dimmed" truncate style={{ minWidth: 0 }}>
                   {standaloneUrl}
@@ -182,7 +182,7 @@ export const DevicesView = ({ vapidPublicKey, ntfy }: { vapidPublicKey: string; 
           </Stack>
           {supported && !thisDeviceRegistered && !needsOwnTab && (
             <Button size="xs" style={{ flexShrink: 0 }} loading={enableMutation.isPending} onClick={() => enableMutation.mutate()}>
-              enable notifications
+              enable notifs
             </Button>
           )}
         </Group>

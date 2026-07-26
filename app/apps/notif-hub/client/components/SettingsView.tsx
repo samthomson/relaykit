@@ -27,15 +27,17 @@ export const SettingsView = ({ config, params }: { config: HubConfigResponse; pa
   const [relays, setRelays] = useState<string[]>(
     config.npub ? config.relays : dedupeRelays([...params.relays, ...config.relays]),
   )
+  const [discoveryRelays, setDiscoveryRelays] = useState<string[]>(config.discoveryRelays)
   const [linkClient, setLinkClient] = useState<LinkClient>(config.linkClient)
 
   const dirty =
     npub.trim() !== (config.npub ?? '') ||
     linkClient !== config.linkClient ||
-    relays.join(',') !== config.relays.join(',')
+    relays.join(',') !== config.relays.join(',') ||
+    discoveryRelays.join(',') !== config.discoveryRelays.join(',')
 
   const saveMutation = useMutation({
-    mutationFn: () => saveConfig(npub.trim(), relays, linkClient),
+    mutationFn: () => saveConfig(npub.trim(), relays, discoveryRelays, linkClient),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config'] })
       notifications.show({ message: 'settings saved — watching relays' })
@@ -64,6 +66,14 @@ export const SettingsView = ({ config, params }: { config: HubConfigResponse; pa
       <Stack gap={4}>
         <Text size="xs" fw={500}>relays to watch</Text>
         <RelayPillsInput value={relays} onChange={setRelays} knownRelays={params.relays} storageKey="nh:previous-relays" />
+      </Stack>
+
+      <Stack gap={4}>
+        <Text size="xs" fw={500}>discovery relays</Text>
+        <Text size="xs" c="dimmed">
+          profile aggregators used to resolve names and avatars when the watch relays don't have them
+        </Text>
+        <RelayPillsInput value={discoveryRelays} onChange={setDiscoveryRelays} knownRelays={[]} storageKey="nh:previous-discovery-relays" />
       </Stack>
 
       <Select

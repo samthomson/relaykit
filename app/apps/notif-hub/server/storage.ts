@@ -28,6 +28,9 @@ const writeJson = (file: string, data: unknown) => {
 
 const DEFAULT_RELAYS = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://relay.nostr.band']
 
+// Profile aggregators: where author kind-0s are looked up when the watch relays lack them.
+const DEFAULT_DISCOVERY_RELAYS = ['wss://purplepag.es', 'wss://relay.nostr.band']
+
 // Deployed via the preset, NTFY_DEFAULT_SERVER points at the bundled self-hosted ntfy.
 const DEFAULT_NTFY: NtfyConfig = { enabled: false, server: process.env.NTFY_DEFAULT_SERVER || 'https://ntfy.sh', topic: '' }
 
@@ -35,6 +38,7 @@ const DEFAULT_CONFIG: HubConfig = {
   pubkey: null,
   npub: null,
   relays: DEFAULT_RELAYS,
+  discoveryRelays: DEFAULT_DISCOVERY_RELAYS,
   linkClient: 'njump',
   ntfy: DEFAULT_NTFY,
 }

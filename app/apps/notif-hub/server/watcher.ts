@@ -172,6 +172,55 @@ const shortPubkey = (pk: string): string => {
 
 // --- profile name resolution ---
 
+/** One-shot kind-0 lookup on the configured discovery relays, for authors whose profiles aren't on the watch relays. */
+const fetchDiscoveryMeta = (pubkey: string): Promise<NostrEvent | null> =>
+  new Promise((resolve) => {
+    const discoveryRelays = loadConfig().discoveryRelays
+    if (discoveryRelays.length === 0) {
+      resolve(null)
+      return
+    }
+    let best: NostrEvent | null = null
+    let remaining = discoveryRelays.length
+    let done = false
+    const sockets: WebSocket[] = []
+    const finish = () => {
+      if (done) return
+      done = true
+      for (const ws of sockets) {
+        try { ws.close() } catch {}
+      }
+      resolve(best)
+    }
+    const oneDone = () => {
+      remaining--
+      if (remaining <= 0) finish()
+    }
+    setTimeout(finish, META_TIMEOUT_MS * 2)
+    for (const url of discoveryRelays) {
+      let ws: WebSocket
+      try {
+        ws = new WebSocket(url)
+      } catch {
+        oneDone()
+        continue
+      }
+      sockets.push(ws)
+      ws.on('open', () => ws.send(JSON.stringify(['REQ', 'meta', { kinds: [0], authors: [pubkey], limit: 1 }])))
+      ws.on('message', (raw) => {
+        try {
+          const msg = JSON.parse(raw.toString())
+          if (msg[0] === 'EVENT' && msg[2]?.kind === 0 && msg[2].pubkey === pubkey) {
+            if (!best || msg[2].created_at > best.created_at) best = msg[2]
+          } else if (msg[0] === 'EOSE') {
+            oneDone()
+          }
+        } catch {}
+      })
+      ws.on('error', oneDone)
+    }
+  })
+
 const requestMeta = (pubkey: string): Promise<Meta> => {
   const cached = metaCache.get(pubkey)
   if (cached && Date.now() - cached.ts < META_CACHE_MS) {
@@ -186,7 +235,8 @@ const requestMeta = (pubkey: string): Promise<Meta> => {
     const subId = `meta-${pubkey.slice(0, 8)}-${Date.now()}`
     let best: NostrEvent | null = null
 
-    const finish = () => {
+    const finish = async () => {
+      if (!best) best = await fetchDiscoveryMeta(pubkey)
       const meta: Meta = { name: null, picture: null }
       if (best) {
         try {
@@ -253,6 +303,18 @@ const renderContent = async (text: string): Promise<string> => {
     .replace(/nostr:(?:nevent|note|naddr)1[a-z0-9]+/g, '[note]')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/** ntfy renders these emoji shortcodes in front of the push title. */
+const NTFY_TAGS: Partial<Record<RuleType, string>> = {
+  mention: 'speech_balloon',
+  reply: 'speech_balloon',
+  quote: 'speech_balloon',
+  reaction: 'heart',
+  repost: 'repeat',
+  zap: 'zap',
+  dm: 'envelope',
+  'dm-legacy': 'envelope',
 }
 
 type Formatted = { title: string; body: string; author: string; icon?: string }
@@ -357,7 +419,7 @@ const handleEvent = async (subId: string, ev: NostrEvent) => {
   }
 
   const entryId = crypto.randomUUID()
-  const pushed = await sendToAll({ title, body, url, icon, entryId })
+  const pushed = await sendToAll({ title, body, url, icon, entryId, tags: [NTFY_TAGS[rule.type] ?? 'bell'] })
   addNotification({
     id: entryId,
     ruleType: rule.type,

@@ -88,6 +88,8 @@ export type HubConfig = {
   pubkey: string | null
   npub: string | null
   relays: string[]
+  /** profile aggregators used to resolve author names when the watch relays don't have them */
+  discoveryRelays: string[]
   /** which client notification links open in */
   linkClient: LinkClient
   ntfy: NtfyConfig
