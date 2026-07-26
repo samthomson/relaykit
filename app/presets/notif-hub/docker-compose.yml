@@ -7,6 +7,9 @@
 services:
   notif-hub:
     image: ghcr.io/samthomson/relaykit-notif-hub:${NOTIF_HUB_IMAGE_TAG:-latest}
+    # :latest moves on every master push; without this, redeploys reuse the stale local image.
+    # local dev (locally built tag): set NOTIF_HUB_PULL_POLICY=missing so the local build is used.
+    pull_policy: ${NOTIF_HUB_PULL_POLICY:-always}
     restart: unless-stopped
     environment:
       # vapid contact subject for web push; push services reject bogus TLDs (apple: 403 BadJwtToken)
@@ -25,6 +28,7 @@ services:
   # connection to this server, so pushes work on grapheneos without any play services.
   ntfy:
     image: binwiederhier/ntfy:latest
+    pull_policy: always
     command: serve
     restart: unless-stopped
     environment:
