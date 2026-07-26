@@ -50,7 +50,7 @@ export const NtfyCard = ({ ntfy }: { ntfy: NtfyConfig }) => {
           <Stack gap={2} style={{ minWidth: 0 }}>
             <Text size="sm" fw={500}>ntfy</Text>
             <Text size="xs" c="dimmed">
-              delivery without google — install the ntfy app and subscribe it to this topic
+              delivery without google — pulse bundles its own ntfy server; install the ntfy app and subscribe it to this topic
             </Text>
           </Stack>
           <Switch size="sm" checked={enabled} onChange={(e) => setEnabled(e.currentTarget.checked)} />

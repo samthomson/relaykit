@@ -99,9 +99,6 @@ export const NotificationsView = ({ defaultClient }: { defaultClient: LinkClient
                 <Group gap="xs">
                   <Badge size="xs" variant={entry.seenAt ? 'default' : 'light'}>{entry.ruleType}</Badge>
                   <Text size="xs" c="dimmed">{formatTime(entry.createdAt)}</Text>
-                  {!entry.seenAt && (
-                    <Badge size="xs" variant="filled" radius="sm">new</Badge>
-                  )}
                 </Group>
                 <Text size="sm" c={entry.seenAt ? 'dimmed' : undefined} style={{ wordBreak: 'break-word' }}>
                   {entry.body}

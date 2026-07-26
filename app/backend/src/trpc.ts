@@ -81,6 +81,8 @@ type PresetMetadata = {
   serviceName?: string
   internalPort: number
   domainConfigKey?: string
+  /** additional public domains for sidecar containers (e.g. pulse's bundled ntfy server) */
+  extraDomains?: { configKey: string; serviceName: string; internalPort: number }[]
   requiredConfig: PresetField[]
   repo?: string
   icon?: string
@@ -1506,6 +1508,15 @@ export const appRouter = router({
         const hostname = configForDeploy[domainKey] || configForDeploy.NSITE_DOMAIN
         if (hostname && presetData.serviceName) {
           await registerDomain(createCompose.composeId, hostname, presetData)
+        }
+        for (const extra of presetData.extraDomains ?? []) {
+          const extraHost = configForDeploy[extra.configKey]
+          if (extraHost) {
+            await registerDomain(createCompose.composeId, extraHost, {
+              internalPort: extra.internalPort,
+              serviceName: extra.serviceName,
+            })
+          }
         }
 
         await dokployFetch('/api/compose.deploy', {

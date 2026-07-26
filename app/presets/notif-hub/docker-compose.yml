@@ -11,6 +11,8 @@ services:
     environment:
       # vapid contact subject for web push; push services reject bogus TLDs (apple: 403 BadJwtToken)
       VAPID_SUBJECT: https://${NOTIF_DOMAIN}
+      # the bundled ntfy server below is the default delivery server for the ntfy channel
+      NTFY_DEFAULT_SERVER: https://${NTFY_DOMAIN}
     volumes:
       # holds config, rules, devices, vapid keys, and the notification log
       - notif_hub_data_{{DEPLOY_SUFFIX}}:/data
@@ -19,8 +21,27 @@ services:
     networks:
       - dokploy-network
 
+  # Self-hosted ntfy: the google-free push channel. The ntfy android app holds its own
+  # connection to this server, so pushes work on grapheneos without any play services.
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    command: serve
+    restart: unless-stopped
+    environment:
+      NTFY_BASE_URL: https://${NTFY_DOMAIN}
+      NTFY_BEHIND_PROXY: "true"
+      # cache lets subscribers catch up on messages published while they were offline
+      NTFY_CACHE_FILE: /var/cache/ntfy/cache.db
+    volumes:
+      - ntfy_cache_{{DEPLOY_SUFFIX}}:/var/cache/ntfy
+    expose:
+      - "80"
+    networks:
+      - dokploy-network
+
 volumes:
   notif_hub_data_{{DEPLOY_SUFFIX}}:
+  ntfy_cache_{{DEPLOY_SUFFIX}}:
 
 networks:
   dokploy-network:

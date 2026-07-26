@@ -28,7 +28,8 @@ const writeJson = (file: string, data: unknown) => {
 
 const DEFAULT_RELAYS = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://relay.nostr.band']
 
-const DEFAULT_NTFY: NtfyConfig = { enabled: false, server: 'https://ntfy.sh', topic: '' }
+// Deployed via the preset, NTFY_DEFAULT_SERVER points at the bundled self-hosted ntfy.
+const DEFAULT_NTFY: NtfyConfig = { enabled: false, server: process.env.NTFY_DEFAULT_SERVER || 'https://ntfy.sh', topic: '' }
 
 const DEFAULT_CONFIG: HubConfig = {
   pubkey: null,
