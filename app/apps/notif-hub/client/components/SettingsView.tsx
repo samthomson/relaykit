@@ -1,9 +1,10 @@
-import { useState } from 'react'
-import { Button, Group, Select, Stack, Text } from '@mantine/core'
+import { useEffect, useState } from 'react'
+import { Button, Divider, Group, Select, Stack, Text } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { nip19 } from 'nostr-tools'
-import { NpubInput, RelayPillsInput, dedupeRelays } from '@relaykit/ui'
+import { DISCOVERY_RELAYS, NpubInput, RelayPillsInput, fetchRelayList, npubToHex } from '@relaykit/ui'
+import type { RelaySuggestionGroup } from '@relaykit/ui'
 import { saveConfig, type HubConfigResponse } from '@/lib/api'
 import { type HubParams } from '@/lib/queryParams'
 import { LINK_CLIENTS, type LinkClient } from '../../types'
@@ -23,12 +24,36 @@ const toNpub = (value: string | null): string => {
 
 export const SettingsView = ({ config, params }: { config: HubConfigResponse; params: HubParams }) => {
   const queryClient = useQueryClient()
-  const [npub, setNpub] = useState(toNpub(config.npub ?? params.npub))
-  const [relays, setRelays] = useState<string[]>(
-    config.npub ? config.relays : dedupeRelays([...params.relays, ...config.relays]),
-  )
+  // Only ever what's actually saved — nothing is prefilled from the launch params, since a
+  // silently seeded npub/relay gets saved by accident and then watched for real.
+  const [npub, setNpub] = useState(toNpub(config.npub))
+  const [relays, setRelays] = useState<string[]>(config.relays)
   const [discoveryRelays, setDiscoveryRelays] = useState<string[]>(config.discoveryRelays)
   const [linkClient, setLinkClient] = useState<LinkClient>(config.linkClient)
+  const [ownRelays, setOwnRelays] = useState<string[]>([])
+
+  const npubHex = npubToHex(npub)
+  useEffect(() => {
+    setOwnRelays([])
+    if (!npubHex) return
+    let cancelled = false
+    fetchRelayList(npubHex).then((list) => {
+      if (!cancelled) setOwnRelays(list)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [npubHex])
+
+  const relaySuggestions: RelaySuggestionGroup[] = [
+    { label: 'your relay list', relays: ownRelays },
+    { label: 'from relaykit', relays: params.relays },
+  ].filter((group) => group.relays.length > 0)
+
+  const discoverySuggestions: RelaySuggestionGroup[] = [
+    { label: 'aggregators', relays: [...DISCOVERY_RELAYS] },
+    { label: 'your relay list', relays: ownRelays },
+  ].filter((group) => group.relays.length > 0)
 
   const dirty =
     npub.trim() !== (config.npub ?? '') ||
@@ -46,7 +71,7 @@ export const SettingsView = ({ config, params }: { config: HubConfigResponse; pa
   })
 
   return (
-    <Stack gap="md" maw={640}>
+    <Stack gap="lg" maw={640}>
       <Text size="sm" fw={600}>settings</Text>
 
       {!config.npub && (
@@ -63,18 +88,39 @@ export const SettingsView = ({ config, params }: { config: HubConfigResponse; pa
         mine={toNpub(params.npub) || null}
       />
 
-      <Stack gap={4}>
-        <Text size="xs" fw={500}>relays to watch</Text>
-        <RelayPillsInput value={relays} onChange={setRelays} knownRelays={params.relays} storageKey="nh:previous-relays" />
+      <Divider />
+
+      <Stack gap="md">
+        <Stack gap={4}>
+          <Text size="xs" fw={500}>relays to watch</Text>
+          <Text size="xs" c="dimmed">
+            only these are watched for events — pick the ones you actually publish and receive on
+          </Text>
+          <RelayPillsInput
+            value={relays}
+            onChange={setRelays}
+            knownRelays={params.relays}
+            storageKey="nh:previous-relays"
+            suggestions={relaySuggestions}
+          />
+        </Stack>
+
+        <Stack gap={4}>
+          <Text size="xs" fw={500}>discovery relays</Text>
+          <Text size="xs" c="dimmed">
+            profile aggregators used to resolve names and avatars when the watch relays don't have them
+          </Text>
+          <RelayPillsInput
+            value={discoveryRelays}
+            onChange={setDiscoveryRelays}
+            knownRelays={[]}
+            storageKey="nh:previous-discovery-relays"
+            suggestions={discoverySuggestions}
+          />
+        </Stack>
       </Stack>
 
-      <Stack gap={4}>
-        <Text size="xs" fw={500}>discovery relays</Text>
-        <Text size="xs" c="dimmed">
-          profile aggregators used to resolve names and avatars when the watch relays don't have them
-        </Text>
-        <RelayPillsInput value={discoveryRelays} onChange={setDiscoveryRelays} knownRelays={[]} storageKey="nh:previous-discovery-relays" />
-      </Stack>
+      <Divider />
 
       <Select
         size="xs"
@@ -85,6 +131,8 @@ export const SettingsView = ({ config, params }: { config: HubConfigResponse; pa
         onChange={(value) => value && setLinkClient(value as LinkClient)}
         allowDeselect={false}
       />
+
+      <Divider />
 
       <Group justify="flex-end">
         <Button

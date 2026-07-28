@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
-import { CloseButton, Combobox, Group, Pill, PillsInput, Text, rem, useCombobox } from '@mantine/core'
+import { Button, CloseButton, Combobox, Group, Pill, PillsInput, Stack, Text, rem, useCombobox } from '@mantine/core'
 import { dedupeRelays } from './relays'
+
+/** A labelled set of relays offered as one-click adds below the input (e.g. the user's own nip-65 list). */
+export type RelaySuggestionGroup = { label: string; relays: string[] }
 
 const MAX_PREVIOUS_RELAYS = 20
 
@@ -25,6 +28,7 @@ export const RelayPillsInput = ({
   onChange,
   knownRelays,
   storageKey,
+  suggestions,
 }: {
   value: string[]
   onChange: (relays: string[]) => void
@@ -32,6 +36,8 @@ export const RelayPillsInput = ({
   knownRelays: string[]
   /** app-namespaced localStorage key for remembering manually added relays */
   storageKey: string
+  /** optional one-click adds rendered below the input; nothing is ever added implicitly */
+  suggestions?: RelaySuggestionGroup[]
 }) => {
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() })
   const [draft, setDraft] = useState('')
@@ -75,7 +81,15 @@ export const RelayPillsInput = ({
     return [...known, ...previous]
   }, [knownRelays, previousRelays, value, draft])
 
-  return (
+  const suggestionGroups = useMemo(
+    () =>
+      (suggestions ?? [])
+        .map((group) => ({ label: group.label, relays: dedupeRelays(group.relays).filter((r) => !value.includes(r)) }))
+        .filter((group) => group.relays.length > 0),
+    [suggestions, value],
+  )
+
+  const input = (
     <Combobox
       store={combobox}
       withinPortal={false}
@@ -168,5 +182,29 @@ export const RelayPillsInput = ({
         </Combobox.Options>
       </Combobox.Dropdown>
     </Combobox>
+  )
+
+  if (suggestionGroups.length === 0) return input
+
+  return (
+    <Stack gap={6}>
+      {input}
+      {suggestionGroups.map((group) => (
+        <Group key={group.label} gap={6} align="center">
+          <Text size="xs" c="dimmed">{group.label}</Text>
+          {group.relays.map((relay) => (
+            <Button
+              key={relay}
+              size="compact-xs"
+              variant="default"
+              onClick={() => addRelay(relay)}
+              styles={{ label: { fontFamily: 'monospace', fontSize: rem(10) } }}
+            >
+              + {relay.replace(/^wss:\/\//, '')}
+            </Button>
+          ))}
+        </Group>
+      ))}
+    </Stack>
   )
 }

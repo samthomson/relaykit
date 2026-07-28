@@ -26,7 +26,9 @@ const writeJson = (file: string, data: unknown) => {
 
 // --- config ---
 
-const DEFAULT_RELAYS = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://relay.nostr.band']
+// Deliberately empty: watching a guessed relay set silently produces no notifications and looks
+// like a broken hub. The settings ui offers the owner's own nip-65 relays to pick from instead.
+const DEFAULT_RELAYS: string[] = []
 
 // Profile aggregators: where author kind-0s are looked up when the watch relays lack them.
 const DEFAULT_DISCOVERY_RELAYS = ['wss://purplepag.es', 'wss://relay.nostr.band']
