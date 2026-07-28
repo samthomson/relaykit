@@ -22,8 +22,8 @@ const CONTENT_TRUNCATE = 100
 // Relay connections can die at the TCP level (idle proxy/NAT timeout) without a close frame —
 // the socket looks OPEN forever but nothing arrives again. Ping on an interval and force-close
 // if nothing (not even a pong) has been heard back within a couple of intervals.
-const HEARTBEAT_INTERVAL_MS = 30_000
-const HEARTBEAT_TIMEOUT_MS = 70_000
+const HEARTBEAT_INTERVAL_MS = 15_000
+const HEARTBEAT_TIMEOUT_MS = 35_000
 
 // --- helpers ---
 
