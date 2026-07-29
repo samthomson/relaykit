@@ -539,12 +539,15 @@ const renderPresetComposeForUpdate = async (
   const marker = '{{DEPLOY_SUFFIX}}'
   if (!template.includes(marker)) return template
 
+  // The marker also appears in a header comment (not attached to a name prefix), so scan every
+  // "prefix_{{DEPLOY_SUFFIX}}" occurrence rather than assuming the first one is a real usage.
   let suffix: string | null = null
-  const before = template.slice(0, template.indexOf(marker))
-  const prefixMatch = before.match(/([A-Za-z0-9_]+_)$/)
-  if (prefixMatch && oldComposeFile) {
-    const found = oldComposeFile.match(new RegExp(escapeRegExp(prefixMatch[1]) + '(\\d+)'))
-    if (found) suffix = found[1]
+  for (const [, prefix] of template.matchAll(/([A-Za-z0-9_]+_)\{\{DEPLOY_SUFFIX\}\}/g)) {
+    const found = oldComposeFile?.match(new RegExp(escapeRegExp(prefix) + '(\\d+)'))
+    if (found) {
+      suffix = found[1]
+      break
+    }
   }
   if (!suffix) return null
   return template.replace(/\{\{DEPLOY_SUFFIX\}\}/g, suffix)
