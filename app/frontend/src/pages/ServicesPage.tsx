@@ -433,6 +433,7 @@ const ServiceCard = ({
   onDelete,
   onConfigSaved,
   onRefreshNsite,
+  onRedeploy,
   onMove,
   allEnvironments,
   availableRelays,
@@ -453,6 +454,7 @@ const ServiceCard = ({
   onDelete: (composeId: string, name: string) => void;
   onConfigSaved: () => void;
   onRefreshNsite: (composeId: string) => void;
+  onRedeploy: (composeId: string) => void;
   onMove: (composeId: string, targetEnvironmentId: string) => void;
   allEnvironments: { environmentId: string; label: string }[];
   availableRelays: string[];
@@ -519,6 +521,7 @@ const ServiceCard = ({
   if (isNpanelType(service.type)) {
     manageItems.push({ label: 'refresh nsite content', onClick: () => onRefreshNsite(service.composeId) });
   }
+  manageItems.push({ label: 'redeploy', onClick: () => onRedeploy(service.composeId) });
   if (statusNorm === 'running') {
     manageItems.push({ label: 'stop', onClick: () => onStop(service.composeId) });
   } else {
@@ -1172,6 +1175,16 @@ export const ServiceList = () => {
     }
   };
 
+  const handleRedeployService = async (composeId: string) => {
+    try {
+      await trpc.updateServiceConfig.mutate({ composeId, config: {} });
+      await loadData();
+      toast.success('Service redeployed');
+    } catch (error: any) {
+      toast.error(`Failed to redeploy service: ${error.message}`);
+    }
+  };
+
   const handleRefreshNsite = async (composeId: string) => {
     try {
       await trpc.refreshNpanelGateway.mutate({ composeId });
@@ -1500,6 +1513,7 @@ export const ServiceList = () => {
                                   onDelete={openDeleteServiceConfirm}
                                   onConfigSaved={loadData}
                                   onRefreshNsite={handleRefreshNsite}
+                                  onRedeploy={handleRedeployService}
                                   onMove={handleMoveService}
                                   allEnvironments={allEnvironments}
                                   availableRelays={availableRelays}
@@ -1582,6 +1596,7 @@ export const ServiceList = () => {
                                       onDelete={openDeleteServiceConfirm}
                                       onConfigSaved={loadData}
                                       onRefreshNsite={handleRefreshNsite}
+                                      onRedeploy={handleRedeployService}
                                       onMove={handleMoveService}
                                       allEnvironments={allEnvironments}
                                       availableRelays={availableRelays}
