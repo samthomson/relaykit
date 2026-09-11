@@ -39,5 +39,6 @@
     "@vitejs/plugin-react-swc": "^3.5.0",
     "typescript": "^5.5.3",
     "vite": "^6.3.5"
-  }
+  },
+  "license": "MIT"
 }

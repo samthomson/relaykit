@@ -8,5 +8,6 @@
     "@mantine/core": "7",
     "nostr-tools": "*",
     "react": ">=18"
-  }
+  },
+  "license": "MIT"
 }
