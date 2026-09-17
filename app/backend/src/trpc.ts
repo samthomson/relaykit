@@ -21,6 +21,7 @@ import {
   dockerSocketGetJson,
   dockerSocketMutate,
 } from './dockerSocket'
+import { getStorageSnapshot } from './storageInsights'
 import {
   compareVersions,
   readChangelog,
@@ -499,6 +500,28 @@ const loadComposeAppName = async (composeId: string): Promise<string> => {
   return appName
 }
 
+/** Resolve appNames for every managed compose in one parallel fan-out, warming the cache for
+ * joins (e.g. storage snapshot → composeId) that must not depend on insights calls having run. */
+const refreshComposeAppNameCache = async () => {
+  const projects = (await dokployFetch('/api/project.all')) as { environments?: { compose?: { composeId?: string }[] }[] }[]
+  const composeIds: string[] = []
+  for (const project of projects) {
+    for (const environment of project.environments || []) {
+      for (const composeSummary of environment.compose || []) {
+        const composeId = String(composeSummary.composeId || '').trim()
+        if (composeId && !composeAppNameCache.has(composeId)) composeIds.push(composeId)
+      }
+    }
+  }
+  await Promise.all(
+    composeIds.map(async (composeId) => {
+      const compose = await dokployFetch(`/api/compose.one?composeId=${composeId}`)
+      const appName = String(compose?.appName || '').trim()
+      if (appName) composeAppNameCache.set(composeId, { appName, at: Date.now() })
+    }),
+  )
+}
+
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /**
@@ -529,13 +552,10 @@ const renderPresetComposeForUpdate = async (
   return template.replace(/\{\{DEPLOY_SUFFIX\}\}/g, suffix)
 }
 
-// includeSize=false skips Docker's per-container disk usage computation (size=1 walks the
-// filesystem layers — expensive). The overview batch polls for many services and doesn't show
-// storage; the details view (one service, less often) keeps it.
-const getServiceInsightsFromDokploy = async (
-  composeId: string,
-  includeSize = true,
-): Promise<ServiceInsightsResponse> => {
+// Disk usage is NOT part of the live insights poll: SizeRw only counts container writable layers
+// (volumes excluded — which is where service data lives) and computing it requires expensive du
+// walks. Real per-service disk (volumes + layers) lives in the storage insights snapshot instead.
+const getServiceInsightsFromDokploy = async (composeId: string): Promise<ServiceInsightsResponse> => {
   try {
     await fs.access(DOCKER_SOCKET_PATH)
   } catch {
@@ -547,7 +567,7 @@ const getServiceInsightsFromDokploy = async (
 
   const appName = await loadComposeAppName(composeId)
   const filters = encodeURIComponent(JSON.stringify({ label: [`com.docker.compose.project=${appName}`] }))
-  const containers = await dockerSocketGetJson(`/containers/json?all=0&size=${includeSize ? 1 : 0}&filters=${filters}`)
+  const containers = await dockerSocketGetJson(`/containers/json?all=0&size=0&filters=${filters}`)
 
   if (!Array.isArray(containers) || containers.length === 0) {
     throw new TRPCError({
@@ -567,11 +587,9 @@ const getServiceInsightsFromDokploy = async (
   let networkOutBytes = 0
   let blockReadBytes = 0
   let blockWriteBytes = 0
-  let storageUsedBytes = 0
 
   for (let i = 0; i < statsList.length; i += 1) {
     const stats = statsList[i]
-    const container = containers[i]
     cpuPct += getCpuPctFromStats(stats)
     const memUsed = toFiniteNumber(stats?.memory_stats?.usage)
     const memTotal = toFiniteNumber(stats?.memory_stats?.limit)
@@ -583,9 +601,7 @@ const getServiceInsightsFromDokploy = async (
     const io = getBlockIoTotals(stats)
     blockReadBytes += io.readBytes
     blockWriteBytes += io.writeBytes
-    if (includeSize) storageUsedBytes += toFiniteNumber(container?.SizeRw)
   }
-
   const ts = Date.now()
   const current = {
     ts,
@@ -593,7 +609,6 @@ const getServiceInsightsFromDokploy = async (
     memoryUsedPct: memoryTotalBytes > 0 ? toOneDecimal((memoryUsedBytes / memoryTotalBytes) * 100) : 0,
     memoryUsedBytes: Math.max(0, Math.round(memoryUsedBytes)),
     memoryTotalBytes: Math.max(0, Math.round(memoryTotalBytes)),
-    storageUsedBytes: Math.max(0, Math.round(storageUsedBytes)),
     networkInBytes: Math.max(0, Math.round(networkInBytes)),
     networkOutBytes: Math.max(0, Math.round(networkOutBytes)),
     blockReadBytes: Math.max(0, Math.round(blockReadBytes)),
@@ -1439,6 +1454,33 @@ export const appRouter = router({
     .input(z.void())
     .query(async () => getRuntimeContainersFromDocker()),
 
+  // Disk accounting (volumes, images, build cache, container layers, host totals). Expensive du
+  // walks on the daemon — TTL-cached 5min; `refresh` bypasses for an explicit user action.
+  getStorageInsights: protectedProcedure
+    .input(z.object({ refresh: z.boolean().optional() }).optional())
+    .query(async ({ input }) => {
+      const snapshot = await getStorageSnapshot(input?.refresh === true)
+      // Join composeIds onto per-service rows so cards/modals can look themselves up. Normally a
+      // pure in-memory reversal of the appName cache; if the cache is cold (fresh backend, first
+      // load) resolve the misses once via a parallel Dokploy fan-out instead of showing '—'.
+      const joinComposeIds = () => {
+        const composeIdByAppName = new Map<string, string>()
+        for (const [composeId, cached] of composeAppNameCache) {
+          composeIdByAppName.set(cached.appName, composeId)
+        }
+        return snapshot.services.map((svc) => ({
+          ...svc,
+          composeId: svc.project ? composeIdByAppName.get(svc.project) ?? null : null,
+        }))
+      }
+      let services = joinComposeIds()
+      if (services.some((svc) => svc.project && !svc.composeId)) {
+        await refreshComposeAppNameCache()
+        services = joinComposeIds()
+      }
+      return { ...snapshot, services }
+    }),
+
   killRuntimeContainer: protectedProcedure
     .input(
       z.object({
@@ -1507,7 +1549,7 @@ export const appRouter = router({
       await Promise.all(
         input.composeIds.map(async (composeId) => {
           try {
-            out[composeId] = await getServiceInsightsFromDokploy(composeId, false)
+            out[composeId] = await getServiceInsightsFromDokploy(composeId)
           } catch {
             out[composeId] = null
           }

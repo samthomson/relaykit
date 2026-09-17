@@ -3,6 +3,7 @@ import { Stack, Paper, Group, Text, Button, Badge, Table, ActionIcon, Tooltip } 
 import { IconRefresh, IconSkull, IconChevronDown, IconChevronUp } from '@tabler/icons-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getIdentityKeys } from '../lib/identityKeys'
+import { formatBytes, type StorageSnapshot } from '../../../shared/insights'
 import { trpc } from '../trpc'
 
 type RoutingHealthHost = {
@@ -16,6 +17,7 @@ type RoutingHealthHost = {
 type RoutingHealth = { checkedAt: number; hosts: RoutingHealthHost[]; unhealthy: RoutingHealthHost[] }
 
 
+
 export const DebugPage = () => {
   const { npub, token } = useAuth()
   const { hex, npub: encodedNpub } = getIdentityKeys(npub)
@@ -27,6 +29,9 @@ export const DebugPage = () => {
   const [expandedServiceIds, setExpandedServiceIds] = useState<string[]>([])
   const [routingHealth, setRoutingHealth] = useState<RoutingHealth | null>(null)
   const [healthLoading, setHealthLoading] = useState(false)
+  const [storage, setStorage] = useState<StorageSnapshot | null>(null)
+  const [storageLoading, setStorageLoading] = useState(false)
+  const [storageError, setStorageError] = useState<string | null>(null)
 
   const loadRuntime = async () => {
     try {
@@ -46,6 +51,7 @@ export const DebugPage = () => {
 
   useEffect(() => {
     void loadRuntime()
+    void loadStorage(false)
   }, [])
 
   const serviceRows = useMemo(() => {
@@ -114,6 +120,17 @@ export const DebugPage = () => {
       setBusyKey(null)
     }
   }
+  // compose project (appName) → human service name, from the runtime containers query
+  const serviceNameByProject = useMemo(() => {
+    const map = new Map<string, string>()
+    if (!runtime) return map
+    for (const container of runtime.containers) {
+      if (container.composeProject && container.composeName && !map.has(container.composeProject)) {
+        map.set(container.composeProject, container.composeName)
+      }
+    }
+    return map
+  }, [runtime])
   const ghostRouters = useMemo(() => {
     if (!runtime) return []
     return runtime.containers
@@ -136,6 +153,18 @@ export const DebugPage = () => {
       await loadRuntime()
     } finally {
       setBusyKey(null)
+    }
+  }
+
+  const loadStorage = async (refresh: boolean) => {
+    setStorageLoading(true)
+    try {
+      setStorage(await trpc.getStorageInsights.query({ refresh }))
+      setStorageError(null)
+    } catch (error: any) {
+      setStorageError(error?.message || 'could not load disk usage')
+    } finally {
+      setStorageLoading(false)
     }
   }
 
@@ -494,6 +523,89 @@ export const DebugPage = () => {
                           <Badge variant="light" color="green">ok</Badge>
                         )}
                       </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Stack>
+          ) : null}
+        </Stack>
+      </Paper>
+
+      <Paper withBorder p="md">
+        <Stack gap="md">
+          <Group justify="space-between" align="center">
+            <Text fw={500}>disk usage</Text>
+            <Button size="xs" variant="light" loading={storageLoading} onClick={() => void loadStorage(true)}>
+              refresh
+            </Button>
+          </Group>
+          <Text size="xs" c="dimmed">
+            volumes are where service data lives (databases, blobs). images and build cache accumulate with redeploys. the residual — host disk used minus everything docker attributes — is mostly container logs. computed every 5 minutes, or on refresh.
+          </Text>
+
+          {storageError ? <Text c="red" size="sm">{storageError}</Text> : null}
+
+          {storage ? (
+            <Stack gap="xs">
+              <Group gap="xs">
+                <Badge variant="light" color={storage.diskTotalBytes > 0 && storage.diskUsedBytes / storage.diskTotalBytes > 0.85 ? 'red' : storage.diskTotalBytes > 0 && storage.diskUsedBytes / storage.diskTotalBytes > 0.7 ? 'orange' : 'green'}>
+                  disk {formatBytes(storage.diskUsedBytes)} / {formatBytes(storage.diskTotalBytes)}
+                </Badge>
+                <Badge variant="light" color="indigo">volumes {formatBytes(storage.volumesTotalBytes)}</Badge>
+                <Badge variant="light" color="cyan">images {formatBytes(storage.imagesBytes)}</Badge>
+                <Badge variant="light" color="grape">build cache {formatBytes(storage.buildCacheBytes)}</Badge>
+                <Badge variant="light" color="gray">layers {formatBytes(storage.containersRwBytes)}</Badge>
+                <Badge variant="light" color={storage.residualBytes > storage.diskTotalBytes * 0.1 ? 'orange' : 'gray'}>
+                  logs & other ~{formatBytes(storage.residualBytes)}
+                </Badge>
+              </Group>
+
+              <div style={{ display: 'flex', height: 10, borderRadius: 4, overflow: 'hidden' }}>
+                {([
+                  [storage.volumesTotalBytes, 'indigo'],
+                  [storage.imagesBytes, 'cyan'],
+                  [storage.buildCacheBytes, 'grape'],
+                  [storage.containersRwBytes, 'gray'],
+                  [storage.residualBytes, 'orange'],
+                ] as [number, string][])
+                  .filter(([bytes]) => storage.diskTotalBytes > 0 && bytes / storage.diskTotalBytes > 0.005)
+                  .map(([bytes, color]) => (
+                    <div
+                      key={color}
+                      title={color}
+                      style={{ width: `${(bytes / storage.diskTotalBytes) * 100}%`, background: `var(--mantine-color-${color}-filled)` }}
+                    />
+                  ))}
+              </div>
+
+              <Text size="sm" fw={500} mt="xs">top consumers</Text>
+              <Table striped highlightOnHover withTableBorder>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>service</Table.Th>
+                    <Table.Th>data</Table.Th>
+                    <Table.Th>image</Table.Th>
+                    <Table.Th>footprint</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {storage.services.slice(0, 10).map((svc) => (
+                    <Table.Tr key={svc.project ?? 'unlabeled'}>
+                      <Table.Td>
+                        <Text size="sm" ff="monospace">
+                          {svc.project ? serviceNameByProject.get(svc.project) || svc.project : 'unlabeled (infra)'}
+                        </Text>
+                        {svc.project && !serviceNameByProject.has(svc.project) ? (
+                          <Text size="xs" c="dimmed" ff="monospace">{svc.project}</Text>
+                        ) : null}
+                      </Table.Td>
+                      <Table.Td>{formatBytes(svc.volumesBytes + svc.rwBytes)}</Table.Td>
+                      <Table.Td>
+                        {formatBytes(svc.imageBytes)}
+                        {svc.sharedImage ? <Text size="xs" c="dimmed" component="span"> shared</Text> : null}
+                      </Table.Td>
+                      <Table.Td><Text size="sm" fw={500}>{formatBytes(svc.footprintBytes)}</Text></Table.Td>
                     </Table.Tr>
                   ))}
                 </Table.Tbody>

@@ -36,3 +36,6 @@ export const SERVICE_INSIGHTS = {
     memory: { warn: 70, critical: 85 },
   },
 } as const
+
+/** Disk accounting (docker /system/df + statfs) does du walks on the daemon — cache, don't poll. */
+export const STORAGE_INSIGHTS_TTL_MS = 5 * 60 * 1000

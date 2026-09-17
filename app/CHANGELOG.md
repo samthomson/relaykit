@@ -1,5 +1,7 @@
 # changelog
 
+## 0.3.4 — 2026-09-04
+real disk accounting: per-service data (exclusive) vs footprint (incl. shared image) on cards/details, debug disk breakdown + top consumers. mit license
 
 ## 0.3.3 — 2026-09-04
 perf: insights polling backed off (60s/30s) with cached app names and details-only disk-size — dashboard stops hammering the box. npanel app relay queries bounded (8s max wait, 1 retry) so slow relays can't hang site opens

@@ -15,7 +15,7 @@ import { ServiceConfigEditor } from './ServiceConfigEditor';
 import { prepareNsiteConfigForSave } from './NsiteDeployFields';
 import { trpc } from '../trpc';
 import { serviceTypeToRubixLoaderColor } from '../lib/serviceTypeColor';
-import { formatBytes, formatBytesPerSecond, formatPercent, formatWindow, getInsightSeverity, getOverallSeverity, getSeverityColor } from '../../../shared/insights';
+import { formatBytes, formatBytesPerSecond, formatPercent, formatWindow, getInsightSeverity, getOverallSeverity, getSeverityColor, type StorageServiceUsage } from '../../../shared/insights';
 
 /** Set by `Provider` in App only for the details `Modal` (inline expanded card stays default `false`). */
 export const ServiceDetailsModalContext = createContext(false);
@@ -580,6 +580,25 @@ const ServiceDetailsInsights = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loaderColor = serviceTypeToRubixLoaderColor(serviceType, presetId);
+  // Real disk usage comes from the 5-min TTL-cached storage snapshot, not the live stats poll —
+  // fetched once on mount; it changes slowly.
+  const [storage, setStorage] = useState<StorageServiceUsage | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadStorage = async () => {
+      try {
+        const snap = await trpc.getStorageInsights.query();
+        if (!mounted) return;
+        const svc = snap.services.find((s) => s.composeId === composeId);
+        if (svc) setStorage(svc);
+      } catch {
+      // storage is supplementary to the live stats — a failure leaves the placeholder
+      }
+    };
+    void loadStorage();
+    return () => { mounted = false; };
+  }, [composeId]);
 
   useEffect(() => {
     let mounted = true;
@@ -674,7 +693,7 @@ const ServiceDetailsInsights = ({
         <Text size="xs" c="dimmed">Last refresh error: {error}</Text>
       )}
 
-      <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
+      <SimpleGrid cols={{ base: 1, md: 4 }} spacing="lg">
         <Paper withBorder p="lg">
           <Group justify="space-between" mb={6}>
             <Text fw={600}>cpu</Text>
@@ -699,6 +718,21 @@ const ServiceDetailsInsights = ({
           <Text size="xs" c="dimmed" mt={8}>
             Disk read {formatBytesPerSecond(latest?.ioRead || 0)} | write {formatBytesPerSecond(latest?.ioWrite || 0)}
           </Text>
+        </Paper>
+        <Paper withBorder p="lg">
+          <Text fw={600}>storage</Text>
+          {storage ? (
+            <>
+              <Text size="xl" fw={700}>{formatBytes(storage.footprintBytes)}</Text>
+              <Text size="xs" c="dimmed" mt={4}>
+                {formatBytes(storage.volumesBytes + storage.rwBytes)} data · {formatBytes(storage.imageBytes)} image{storage.sharedImage ? ' (shared)' : ''}
+              </Text>
+            </>
+          ) : (
+            <Stack align="center" gap={4} mt="xs">
+              <RubixLoader size={36} colors={[loaderColor]} speed={1.35} />
+            </Stack>
+          )}
         </Paper>
       </SimpleGrid>
 

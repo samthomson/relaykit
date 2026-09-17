@@ -49,6 +49,7 @@ import {
   IconPencil,
   IconCpu,
   IconDatabase,
+  IconFolder,
   IconServer,
   IconKey,
   IconAlertTriangle,
@@ -465,6 +466,7 @@ const ServiceCard = ({
     memoryUsedBytes: number | null;
     memoryTotalBytes: number | null;
     storageUsedBytes: number | null;
+    storageFootprintBytes: number | null;
     networkInBps: number | null;
     networkOutBps: number | null;
     blockReadBps: number | null;
@@ -579,6 +581,7 @@ const ServiceCard = ({
     memoryUsedBytes: null,
     memoryTotalBytes: null,
     storageUsedBytes: null,
+    storageFootprintBytes: null,
     networkInBps: null,
     networkOutBps: null,
     blockReadBps: null,
@@ -759,23 +762,26 @@ const ServiceCard = ({
                     )}
                     {statusNorm === 'running' && (
                       <Stack gap={4}>
-                        <Group gap={8} wrap="nowrap">
+                        <Group gap={8} wrap="wrap">
                           <InlineMetric
                             label={`CPU usage: ${formatPercentRounded(summaryView.cpuPct)}`}
                             value={formatPercentRounded(summaryView.cpuPct)}
                             icon={<IconCpu size={12} />}
                           />
-                          <Text size="xs" c="gray.5">•</Text>
                           <InlineMetric
                             label={`Memory used: ${formatBytesRounded(summaryView.memoryUsedBytes)} / ${formatBytesRounded(summaryView.memoryTotalBytes)} (${formatPercentRounded(summaryView.memoryUsedPct)})`}
                             value={formatBytesRounded(summaryView.memoryUsedBytes)}
                             icon={<IconServer size={12} />}
                           />
-                          <Text size="xs" c="gray.5">•</Text>
                           <InlineMetric
-                            label={`Storage used on disk: ${formatBytesRounded(summaryView.storageUsedBytes)} (writable layer)`}
+                            label={`Data stored (volumes + layers, exclusive): ${formatBytesRounded(summaryView.storageUsedBytes)}`}
                             value={formatBytesRounded(summaryView.storageUsedBytes)}
                             icon={<IconDatabase size={12} />}
+                          />
+                          <InlineMetric
+                            label={`Disk footprint (data + image${summaryView.storageFootprintBytes !== null && summaryView.storageUsedBytes !== null && summaryView.storageFootprintBytes > summaryView.storageUsedBytes ? ', image shared' : ''}): ${formatBytesRounded(summaryView.storageFootprintBytes)}`}
+                            value={formatBytesRounded(summaryView.storageFootprintBytes)}
+                            icon={<IconFolder size={12} />}
                           />
                         </Group>
                         <Group gap={7} wrap="nowrap">
@@ -996,6 +1002,7 @@ export const ServiceList = () => {
       memoryUsedBytes: number | null;
       memoryTotalBytes: number | null;
       storageUsedBytes: number | null;
+      storageFootprintBytes: number | null;
       networkInBps: number | null;
       networkOutBps: number | null;
       blockReadBps: number | null;
@@ -1084,14 +1091,24 @@ export const ServiceList = () => {
     let mounted = true;
     const loadSummaries = async () => {
       try {
-        const result = await trpc.getServicesInsights.query({ composeIds: runningComposeIds });
+        // Live stats batch + the 5-min TTL-cached storage snapshot (volumes + layers) in parallel;
+        // storage is a du walk on the daemon, so it's never part of the live batch itself.
+        const [result, storageSnap] = await Promise.all([
+          trpc.getServicesInsights.query({ composeIds: runningComposeIds }),
+          trpc.getStorageInsights.query(),
+        ]);
         if (!mounted) return;
+        const storageByComposeId: Record<string, { dataBytes: number; footprintBytes: number }> = {};
+        for (const svc of storageSnap.services || []) {
+          if (svc.composeId) storageByComposeId[svc.composeId] = { dataBytes: svc.totalBytes, footprintBytes: svc.footprintBytes };
+        }
         const next: Record<string, {
           cpuPct: number | null;
           memoryUsedPct: number | null;
           memoryUsedBytes: number | null;
           memoryTotalBytes: number | null;
           storageUsedBytes: number | null;
+          storageFootprintBytes: number | null;
           networkInBps: number | null;
           networkOutBps: number | null;
           blockReadBps: number | null;
@@ -1104,6 +1121,7 @@ export const ServiceList = () => {
             memoryUsedBytes: null,
             memoryTotalBytes: null,
             storageUsedBytes: null,
+          storageFootprintBytes: null,
             networkInBps: null,
             networkOutBps: null,
             blockReadBps: null,
@@ -1124,7 +1142,8 @@ export const ServiceList = () => {
             memoryUsedPct: curr.memoryUsedPct,
             memoryUsedBytes: curr.memoryUsedBytes,
             memoryTotalBytes: curr.memoryTotalBytes,
-            storageUsedBytes: curr.storageUsedBytes,
+            storageUsedBytes: storageByComposeId[composeId]?.dataBytes ?? null,
+            storageFootprintBytes: storageByComposeId[composeId]?.footprintBytes ?? null,
             networkInBps,
             networkOutBps,
             blockReadBps,

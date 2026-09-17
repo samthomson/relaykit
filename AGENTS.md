@@ -30,3 +30,11 @@
 - **Surface errors, never cover them up.** When something breaks, find and fix the root cause. Do NOT add `onError` fallbacks, try/catch that swallows, default/placeholder values, retries, or graceful-degradation UI to hide a failure. Masking a bug is worse than the bug — let it fail loudly so it's visible and fixable. If you can't determine the cause, say so and ask for the concrete error (logs, network status, stack trace) rather than guessing or papering over it.
 - Put shared constants, enums, and config values in `app/backend/src/constants.ts` rather than scattering them in trpc or other modules.
 - Production runtime requires Playwright + Chromium for setup automation. Do not remove browser runtime dependencies from the prod image during optimizations.
+
+# Programming style (enforced)
+- **async/await, not promise chains.** No `.then().catch()` ladders. Async work in effects follows the existing pattern: `mounted` flag + `const load = async () => {...}` + `void load()`.
+- **Consistent layout, no conditional layout.** Grid/columns/sections must not depend on whether data has loaded. Render placeholders (`—`) instead of conditionally adding or removing layout elements.
+- **Shared types, one home.** API/response shapes live as named types in `app/shared/` (e.g. `insights.ts`); backend and frontend import them. No local re-declarations, no `Awaited<ReturnType<typeof trpc.x>>` for new code.
+- **Self-contained feature modules.** A new capability (e.g. `storageInsights.ts`) is its own file with thin wiring elsewhere (procedure + UI section), so it can be deleted in one piece. No scattering logic across trpc/frontend.
+- **Expensive computations are cached, never polled.** Anything du-walk/fan-out-ish uses the TTL-cache-then-serve pattern (`getStorageSnapshot` style) and explicit refresh; polling intervals stay lazy (60s+), and nothing polls for data a surface doesn't show.
+- **Honest metrics.** A displayed number must be labeled by what it actually measures (e.g. exclusive "data" vs shared "footprint"); never show a value that reads as something it isn't.

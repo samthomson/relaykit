@@ -112,7 +112,6 @@ export type ServiceInsightPoint = {
   memoryUsedPct: number
   memoryUsedBytes: number
   memoryTotalBytes: number
-  storageUsedBytes: number
   networkInBytes: number
   networkOutBytes: number
   blockReadBytes: number
@@ -129,6 +128,36 @@ export type ServiceInsightsResponse = {
   }
   current: ServiceInsightPoint
   history: ServiceInsightPoint[]
+}
+
+export type StorageVolumeUsage = { name: string; sizeBytes: number; project: string | null }
+
+/** Per-service disk accounting. "data" (volumes + writable layer) is what the service owns
+ * exclusively — what deleting it frees. Images are stored once and shared, so they are listed
+ * separately and only folded into footprintBytes (the service's total disk presence). */
+export type StorageServiceUsage = {
+  project: string | null
+  composeId: string | null
+  volumesBytes: number
+  rwBytes: number
+  totalBytes: number
+  imageBytes: number
+  sharedImage: boolean
+  footprintBytes: number
+  volumeCount: number
+}
+
+export type StorageSnapshot = {
+  ts: number
+  diskTotalBytes: number
+  diskUsedBytes: number
+  imagesBytes: number
+  buildCacheBytes: number
+  containersRwBytes: number
+  volumesTotalBytes: number
+  residualBytes: number
+  services: StorageServiceUsage[]
+  volumes: StorageVolumeUsage[]
 }
 
 /** Keep samples whose timestamp is within `windowMs` of `nowMs` (rolling window, not a max count). */
