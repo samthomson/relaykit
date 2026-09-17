@@ -73,6 +73,20 @@ export const getOwnImageRef = async (): Promise<string | null> => {
   }
 }
 
+/** True while a detached update helper container is running — the authoritative "update in
+ * progress" signal. The helper's lifecycle is the update's lifecycle (AutoRemove cleans it up),
+ * so this is derived from the daemon rather than stored anywhere. */
+export const isSelfUpdateRunning = async (): Promise<boolean> => {
+  try {
+    const filters = encodeURIComponent(JSON.stringify({ label: ['relaykit.role=update-helper'] }))
+    const containers = await dockerSocketGetJson(`/containers/json?all=0&filters=${filters}`)
+    return Array.isArray(containers) && containers.length > 0
+  } catch {
+    // no socket / daemon unreachable — same soft-fail as getOwnImageRef; the nav stays quiet
+    return false
+  }
+}
+
 const parseImageRef = (ref: string): { registry: string; repo: string; tag: string } | null => {
   const [nameAndDigest] = ref.split('@')
   const firstSlash = nameAndDigest.indexOf('/')
@@ -226,6 +240,7 @@ export const startSelfUpdate = async (
 
   const helperConfig = {
     Image: RELAYKIT_UPDATE_HELPER_IMAGE,
+    Labels: { 'relaykit.role': 'update-helper' },
     Cmd: ['docker', 'compose', '-p', project, '-f', '/release/release.yml', '--profile', 'prod', 'up', '-d', '--pull', 'always'],
     Env: [
       `RELAYKIT_IMAGE=${updateRef}`,

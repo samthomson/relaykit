@@ -1,5 +1,5 @@
 {
-  "version": "0.3.4",
+  "version": "0.3.5",
   "dokployVersion": "0.30.2",
-  "notes": "real disk accounting: per-service storage now shows honest numbers — data (volumes + layers, exclusive) and disk footprint (data + shared image) — on cards, details and a new debug disk section with a full breakdown (volumes / images / build cache / logs residual) and top consumers. mit license added."
+  "notes": "self-update is now race-proof: while an update is running, the navbar shows an 'updating' state instead of the update button — in every tab, even after a mid-update refresh — and the page recovers and reloads itself when the update finishes. the signal is the running update helper container itself, nothing stored."
 }

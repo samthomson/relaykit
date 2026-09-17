@@ -1,5 +1,9 @@
 # changelog
 
+
+## 0.3.5 — 2026-09-04
+self-update race-proofed: 'updating' state in every tab (survives mid-update refresh), page self-heals and reloads when the helper exits; update button can't double-fire
+
 ## 0.3.4 — 2026-09-04
 real disk accounting: per-service data (exclusive) vs footprint (incl. shared image) on cards/details, debug disk breakdown + top consumers. mit license
 

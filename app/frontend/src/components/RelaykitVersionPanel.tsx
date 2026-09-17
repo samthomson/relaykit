@@ -39,6 +39,23 @@ export const RelaykitVersionPanel = () => {
     }
   }, [loadCheck])
 
+  // An update may already be running (page refreshed mid-update, or started in another tab):
+  // the backend flags it via the running helper container. Show the updating state and poll
+  // until the helper exits, then reload to pick up the new stack + assets.
+  useEffect(() => {
+    if (!check?.updating) return
+    setUpdating(true)
+    const timer = setInterval(async () => {
+      try {
+        const next = await trpc.checkRelaykitUpdate.query()
+        if (!next.updating) window.location.assign('/')
+      } catch {
+      // stack mid-swap — keep polling
+      }
+    }, 2500)
+    return () => clearInterval(timer)
+  }, [check?.updating])
+
   // After the update starts the old backend dies mid-recreate; poll until the whole stack is
   // actually serving again — the new backend reports the target version, dokploy answers, and
   // the frontend itself loads (traefik + frontend container are also recreated; navigating
@@ -69,7 +86,7 @@ export const RelaykitVersionPanel = () => {
   }, [])
 
   const startUpdate = useCallback(async () => {
-    if (updating || !check?.latest) return
+  if (updating || check?.updating || !check?.latest) return
     // Optimistic: the updating state must appear instantly so a slow response never invites a second click.
     setUpdating(true)
     setUpdateError(null)
@@ -98,7 +115,11 @@ export const RelaykitVersionPanel = () => {
               <Text size="xs" fw={600}>relaykit</Text>
               <Text size="xs" c="dimmed">v{check.current.version}</Text>
             </Group>
-            {check.updateAvailable ? (
+            {check.updating ? (
+              <Badge size="xs" variant="light" color="orange">
+                updating
+              </Badge>
+            ) : check.updateAvailable ? (
               <Badge size="xs" variant="light" color="green" leftSection={<IconArrowUp size={10} />}>
                 update
               </Badge>

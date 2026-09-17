@@ -27,6 +27,7 @@ import {
   readChangelog,
   fetchRemoteImageVersion,
   getOwnImageRef,
+  isSelfUpdateRunning,
   isRegistryRef,
   readRelaykitVersion,
   readUpdateChannel,
@@ -1650,6 +1651,7 @@ export const appRouter = router({
         latest,
         updateAvailable: !!latest && compareVersions(latest.version, current.version) > 0,
         updateCheckSupported,
+        updating: await isSelfUpdateRunning(),
         changelog: await readChangelog(),
         error,
       }
