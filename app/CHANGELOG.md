@@ -1,5 +1,8 @@
 # changelog
 
+## 0.3.6 — 2026-09-28
+deleting a service now frees its data from disk too (it used to linger). new 'clear data' action wipes a service's data and restarts it fresh — config and domains kept, sizes shown before you confirm.
+
 
 ## 0.3.5 — 2026-09-04
 self-update race-proofed: 'updating' state in every tab (survives mid-update refresh), page self-heals and reloads when the helper exits; update button can't double-fire
