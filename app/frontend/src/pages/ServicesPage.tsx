@@ -5,6 +5,7 @@ import { trpc } from '../trpc';
 import { useAuth } from '../contexts/AuthContext';
 import { useDokploy } from '../contexts/DokployContext';
 import { useRefreshServices } from '../contexts/RefreshServicesContext';
+import { useInsights } from '../contexts/InsightsContext';
 import {
   SERVICE_TYPE,
   isNpanelType,
@@ -998,6 +999,7 @@ export const ServiceList = () => {
   const { refreshTrigger, triggerRefresh, services, servicesLoading, servicesError } = useRefreshServices();
   const { setDokployConnectionError, setDokployReady } = useDokploy();
   const { logout } = useAuth();
+  const { refreshInsights } = useInsights();
   const [projects, setProjects] = useState<any[]>([]);
   const [serverIp, setServerIp] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -1189,7 +1191,7 @@ export const ServiceList = () => {
       mounted = false;
       window.clearInterval(poll);
     };
-  }, [services, showDetails]);
+  }, [services, showDetails, refreshTrigger]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -1363,6 +1365,8 @@ export const ServiceList = () => {
         await trpc.deleteProject.mutate({ projectId: confirmModal.projectId });
         toast.success('Group deleted');
         await loadData();
+        triggerRefresh();
+        refreshInsights();
       } catch (error: any) {
         toast.error(`Failed to delete group: ${error.message}`);
       }
@@ -1371,6 +1375,8 @@ export const ServiceList = () => {
         await trpc.deleteEnvironment.mutate({ environmentId: confirmModal.environmentId });
         toast.success('Environment deleted');
         await loadData();
+        triggerRefresh();
+        refreshInsights();
       } catch (error: any) {
         toast.error(`Failed to delete environment: ${error.message}`);
       }
@@ -1378,7 +1384,8 @@ export const ServiceList = () => {
       try {
         await trpc.deleteService.mutate({ composeId: confirmModal.composeId });
         toast.success('Service deleted');
-        await loadData();
+        triggerRefresh();
+        refreshInsights();
       } catch (error: any) {
         toast.error(`Failed to delete service: ${error.message}`);
       }
@@ -1390,7 +1397,8 @@ export const ServiceList = () => {
             ? `Data cleared — ${result.removedVolumeCount} volume${result.removedVolumeCount === 1 ? '' : 's'} deleted`
             : 'Data cleared'
         );
-        await loadData();
+        triggerRefresh();
+        refreshInsights();
       } catch (error: any) {
         toast.error(`Failed to clear data: ${error.message}`);
       }

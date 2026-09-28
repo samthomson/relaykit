@@ -567,6 +567,45 @@ const deleteProjectVolumes = async (appName: string): Promise<string[]> => {
   return removed
 }
 
+/** Post-dokploy-delete cleanup shared by every delete path (service, environment, group): the
+ * dokploy row is gone by now, so sweep each compose project's leftover containers and volumes
+ * directly (volumes are where the data lives — compose down alone orphans them) and drop the
+ * per-compose caches so nothing reads a deleted service as still present. */
+const sweepDeletedComposes = async (composeIds: string[], appNames: string[]): Promise<number> => {
+  let removedVolumeCount = 0
+  for (const appName of appNames) {
+    await removeProjectContainers(appName)
+    removedVolumeCount += (await deleteProjectVolumes(appName)).length
+  }
+  for (const composeId of composeIds) {
+    composeAppNameCache.delete(composeId)
+    serviceInsightsHistory.delete(composeId)
+  }
+  if (appNames.length > 0) invalidateStorageSnapshot()
+  return removedVolumeCount
+}
+
+/** Resolve every compose under a group (or a single environment) to its appName before the dokploy
+ * rows are removed, so cascading deletes can still sweep each service's containers + volumes.
+ * Unreadable rows are skipped — dokploy still removes them, they just don't get swept. */
+const resolveComposeRefs = async (where: { projectId?: string; environmentId?: string }): Promise<{ composeId: string; appName: string }[]> => {
+  const projects = (await dokployFetch('/api/project.all')) as { projectId?: string; environments?: { environmentId?: string; compose?: { composeId?: string }[] }[] }[]
+  const refs: { composeId: string; appName: string }[] = []
+  for (const project of projects) {
+    if (where.projectId && project.projectId !== where.projectId) continue
+    for (const environment of project.environments || []) {
+      if (where.environmentId && environment.environmentId !== where.environmentId) continue
+      for (const composeSummary of environment.compose || []) {
+        const composeId = String(composeSummary.composeId || '').trim()
+        if (!composeId) continue
+        const appName = await loadComposeAppName(composeId).catch(() => null)
+        if (appName) refs.push({ composeId, appName })
+      }
+    }
+  }
+  return refs
+}
+
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /**
@@ -1035,20 +1074,26 @@ export const appRouter = router({
   deleteProject: protectedProcedure
     .input(z.object({ projectId: z.string() }))
     .mutation(async ({ input }) => {
+      await assertDockerSocketAvailable()
+      const refs = await resolveComposeRefs({ projectId: input.projectId })
       await dokployFetch('/api/project.remove', {
         method: 'POST',
         body: JSON.stringify({ projectId: input.projectId }),
       })
+      await sweepDeletedComposes(refs.map((ref) => ref.composeId), refs.map((ref) => ref.appName))
       return { success: true }
     }),
 
   deleteEnvironment: protectedProcedure
     .input(z.object({ environmentId: z.string() }))
     .mutation(async ({ input }) => {
+      await assertDockerSocketAvailable()
+      const refs = await resolveComposeRefs({ environmentId: input.environmentId })
       await dokployFetch('/api/environment.remove', {
         method: 'POST',
         body: JSON.stringify({ environmentId: input.environmentId }),
       })
+      await sweepDeletedComposes(refs.map((ref) => ref.composeId), refs.map((ref) => ref.appName))
       return { success: true }
     }),
 
@@ -1185,17 +1230,12 @@ export const appRouter = router({
           composeId: input.composeId
         })
       })
-      await removeProjectContainers(appName)
-      const removedVolumes = await deleteProjectVolumes(appName)
-
-      composeAppNameCache.delete(input.composeId)
-      serviceInsightsHistory.delete(input.composeId)
-      invalidateStorageSnapshot()
+      const removedVolumeCount = await sweepDeletedComposes([input.composeId], [appName])
 
       return {
         success: true,
         message: 'Service deleted successfully',
-        removedVolumeCount: removedVolumes.length
+        removedVolumeCount
       }
     }),
 

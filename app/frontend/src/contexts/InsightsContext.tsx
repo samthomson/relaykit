@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { trpc } from '../trpc';
 import { useAuth } from './AuthContext';
 import type { ServerInsightsResponse } from '../../../shared/insights';
@@ -10,6 +10,8 @@ const INSIGHTS_POLL_MS = 30000;
 interface InsightsContextType {
   insights: ServerInsights | null;
   error: string | null;
+  /** Refetch server insights now instead of waiting for the 30s poll (e.g. after a delete freed disk). */
+  refreshInsights: () => void;
 }
 
 const InsightsContext = createContext<InsightsContextType | null>(null);
@@ -18,7 +20,8 @@ export function InsightsProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   const [insights, setInsights] = useState<ServerInsights | null>(null);
   const [error, setError] = useState<string | null>(null);
-
+  const [refreshTick, setRefreshTick] = useState(0);
+  const refreshInsights = useCallback(() => setRefreshTick((n) => n + 1), []);
   useEffect(() => {
     if (!isAuthenticated) return;
     let mounted = true;
@@ -42,10 +45,10 @@ export function InsightsProvider({ children }: { children: ReactNode }) {
       mounted = false;
       window.clearInterval(poll);
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, refreshTick]);
 
   return (
-    <InsightsContext.Provider value={{ insights, error }}>
+    <InsightsContext.Provider value={{ insights, error, refreshInsights }}>
       {children}
     </InsightsContext.Provider>
   );

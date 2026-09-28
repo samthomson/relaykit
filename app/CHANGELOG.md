@@ -1,5 +1,8 @@
 # changelog
 
+## 0.3.7 — 2026-09-28
+storage sizes and server stats now update immediately after you delete something, no waiting. deleting a group or environment also frees its services' data from disk.
+
 ## 0.3.6 — 2026-09-28
 deleting a service now frees its data from disk too (it used to linger). new 'clear data' action wipes a service's data and restarts it fresh — config and domains kept, sizes shown before you confirm.
 
