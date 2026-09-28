@@ -1,5 +1,5 @@
 {
-  "version": "0.3.5",
+  "version": "0.3.6",
   "dokployVersion": "0.30.2",
-  "notes": "self-update is now race-proof: while an update is running, the navbar shows an 'updating' state instead of the update button — in every tab, even after a mid-update refresh — and the page recovers and reloads itself when the update finishes. the signal is the running update helper container itself, nothing stored."
+  "notes": "deleting a service now frees its data from disk too (it used to linger). new 'clear data' action wipes a service's data and restarts it fresh — config and domains kept, sizes shown before you confirm."
 }

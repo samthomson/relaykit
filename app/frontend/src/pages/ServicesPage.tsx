@@ -10,6 +10,7 @@ import {
   isNpanelType,
   isRelayType,
 } from '../../../shared/serviceType';
+import type { ServiceInsightsResponse } from '../../../shared/insights';
 import { EmbeddedAppModal } from '../embedded/EmbeddedAppModal';
 import { AddServicePresetModal } from '../components/AddServicePresetModal';
 import { NsiteDeployFields, buildNsiteDeployDefaults, prepareNsiteConfigForSave } from '../components/NsiteDeployFields';
@@ -19,6 +20,7 @@ import { ServiceDetailsContent, ServiceDetailsModalContext } from '../components
 import { InlineTextEditRow, INLINE_TITLE_ROW_H } from '../components/InlineTextEditRow';
 import { ServiceHostTitleView } from '../components/ServiceHostTitleView';
 import { CopyControl } from '../components/CopyControl';
+import { ServiceDataConfirmModal, isServiceConfirm, type ServiceConfirmState } from '../components/ServiceDataConfirmModal';
 import { serviceTypeToRubixLoaderColor } from '../lib/serviceTypeColor';
 import {
   Button,
@@ -178,6 +180,7 @@ const ConfirmModal = ({
     </Group>
   </Modal>
 );
+
 
 const InlineMetric = ({ label, value, icon }: { label: string; value: string; icon: ReactNode }) => (
   <Tooltip label={label} withArrow>
@@ -432,6 +435,7 @@ const ServiceCard = ({
   onStart,
   onStop,
   onDelete,
+  onClearData,
   onConfigSaved,
   onRefreshNsite,
   onRedeploy,
@@ -453,6 +457,7 @@ const ServiceCard = ({
   onStart: (composeId: string) => void;
   onStop: (composeId: string) => void;
   onDelete: (composeId: string, name: string) => void;
+  onClearData: (composeId: string, name: string, presetId: string) => void;
   onConfigSaved: () => void;
   onRefreshNsite: (composeId: string) => void;
   onRedeploy: (composeId: string) => void;
@@ -532,6 +537,7 @@ const ServiceCard = ({
   if (moveTargets.length > 0) {
     manageItems.push({ label: 'move service…', onClick: () => setShowMoveModal(true) });
   }
+  manageItems.push({ label: 'clear data…', onClick: () => onClearData(service.composeId, service.name, service.presetId), danger: true });
   manageItems.push({ label: 'delete', onClick: () => onDelete(service.composeId, service.name), danger: true });
 
   const statusColor = statusNorm === 'running' ? 'green' : statusNorm === 'error' ? 'red' : 'gray';
@@ -1010,6 +1016,8 @@ export const ServiceList = () => {
     }>
   >({});
 
+  const [storageBytesByComposeId, setStorageBytesByComposeId] = useState<Record<string, number>>({});
+
   const [editingDomain, setEditingDomain] = useState<{ composeId: string; domainId: string; currentHost: string } | null>(null);
   const [newDomainHost, setNewDomainHost] = useState('');
   const [tlsRestarting, setTlsRestarting] = useState(false);
@@ -1022,7 +1030,12 @@ export const ServiceList = () => {
   const [renameEnvValue, setRenameEnvValue] = useState('');
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameProjectValue, setRenameProjectValue] = useState('');
-  const [confirmModal, setConfirmModal] = useState<{ type: 'deleteGroup'; projectId: string; name: string } | { type: 'deleteEnv'; environmentId: string; name: string } | { type: 'deleteService'; composeId: string; name: string } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<
+    | { type: 'deleteGroup'; projectId: string; name: string }
+    | { type: 'deleteEnv'; environmentId: string; name: string }
+    | ServiceConfirmState
+    | null
+  >(null);
   const [listLoaded, setListLoaded] = useState(false);
 
   const allEnvironments: { environmentId: string; label: string }[] = projects.flatMap((p: any) =>
@@ -1083,8 +1096,12 @@ export const ServiceList = () => {
     const runningComposeIds = services
       .filter((s: any) => s.status === 'running' && s.composeId)
       .map((s: any) => s.composeId);
-    if (runningComposeIds.length === 0) {
+    const allComposeIds = services
+      .filter((s: any) => s.composeId)
+      .map((s: any) => s.composeId);
+    if (allComposeIds.length === 0) {
       setServiceOverviewSummaries({});
+      setStorageBytesByComposeId({});
       return;
     }
 
@@ -1094,14 +1111,22 @@ export const ServiceList = () => {
         // Live stats batch + the 5-min TTL-cached storage snapshot (volumes + layers) in parallel;
         // storage is a du walk on the daemon, so it's never part of the live batch itself.
         const [result, storageSnap] = await Promise.all([
-          trpc.getServicesInsights.query({ composeIds: runningComposeIds }),
+          runningComposeIds.length > 0
+            ? trpc.getServicesInsights.query({ composeIds: runningComposeIds })
+            : Promise.resolve<Record<string, ServiceInsightsResponse | null>>({}),
           trpc.getStorageInsights.query(),
         ]);
         if (!mounted) return;
         const storageByComposeId: Record<string, { dataBytes: number; footprintBytes: number }> = {};
+        const storageBytes: Record<string, number> = {};
         for (const svc of storageSnap.services || []) {
-          if (svc.composeId) storageByComposeId[svc.composeId] = { dataBytes: svc.totalBytes, footprintBytes: svc.footprintBytes };
+          if (!svc.composeId) continue;
+          storageByComposeId[svc.composeId] = { dataBytes: svc.totalBytes, footprintBytes: svc.footprintBytes };
+          storageBytes[svc.composeId] = svc.totalBytes;
         }
+        // Covers every service, not just running ones (stopped services keep their volumes on
+        // disk) — the delete/clear-data confirm modals quote these sizes.
+        setStorageBytesByComposeId(storageBytes);
         const next: Record<string, {
           cpuPct: number | null;
           memoryUsedPct: number | null;
@@ -1173,6 +1198,10 @@ export const ServiceList = () => {
 
   const openDeleteServiceConfirm = (composeId: string, serviceName: string) => {
     setConfirmModal({ type: 'deleteService', composeId, name: serviceName });
+  };
+
+  const openClearDataConfirm = (composeId: string, serviceName: string, presetId: string) => {
+    setConfirmModal({ type: 'clearData', composeId, name: serviceName, presetId });
   };
 
   const handleStopService = async (composeId: string) => {
@@ -1345,13 +1374,25 @@ export const ServiceList = () => {
       } catch (error: any) {
         toast.error(`Failed to delete environment: ${error.message}`);
       }
-    } else {
+    } else if (confirmModal.type === 'deleteService') {
       try {
         await trpc.deleteService.mutate({ composeId: confirmModal.composeId });
         toast.success('Service deleted');
         await loadData();
       } catch (error: any) {
         toast.error(`Failed to delete service: ${error.message}`);
+      }
+    } else {
+      try {
+        const result = await trpc.clearServiceData.mutate({ composeId: confirmModal.composeId });
+        toast.success(
+          result.removedVolumeCount > 0
+            ? `Data cleared — ${result.removedVolumeCount} volume${result.removedVolumeCount === 1 ? '' : 's'} deleted`
+            : 'Data cleared'
+        );
+        await loadData();
+      } catch (error: any) {
+        toast.error(`Failed to clear data: ${error.message}`);
       }
     }
     setConfirmModal(null);
@@ -1564,6 +1605,7 @@ export const ServiceList = () => {
                                   onStart={handleStartService}
                                   onStop={handleStopService}
                                   onDelete={openDeleteServiceConfirm}
+                                  onClearData={openClearDataConfirm}
                                   onConfigSaved={loadData}
                                   onRefreshNsite={handleRefreshNsite}
                                   onRedeploy={handleRedeployService}
@@ -1647,6 +1689,7 @@ export const ServiceList = () => {
                                       onStart={handleStartService}
                                       onStop={handleStopService}
                                       onDelete={openDeleteServiceConfirm}
+                                      onClearData={openClearDataConfirm}
                                       onConfigSaved={loadData}
                                       onRefreshNsite={handleRefreshNsite}
                                       onRedeploy={handleRedeployService}
@@ -1735,18 +1778,25 @@ export const ServiceList = () => {
       </Stack>
 
       {confirmModal && (
-        <ConfirmModal
-          title={confirmModal.type === 'deleteGroup' ? 'Delete group?' : confirmModal.type === 'deleteEnv' ? 'Delete environment?' : 'Delete service?'}
-          message={confirmModal.type === 'deleteGroup'
-            ? `Delete group "${confirmModal.name}" and all its environments and services?`
-            : confirmModal.type === 'deleteEnv'
-              ? `Delete environment "${confirmModal.name}" and all its services?`
-              : `Delete service "${confirmModal.name}"?`}
-          confirmLabel={confirmModal.type === 'deleteGroup' ? 'Delete group' : confirmModal.type === 'deleteEnv' ? 'Delete environment' : 'Delete service'}
-          danger
-          onConfirm={handleConfirmDelete}
-          onCancel={() => setConfirmModal(null)}
-        />
+        isServiceConfirm(confirmModal) ? (
+          <ServiceDataConfirmModal
+            confirm={confirmModal}
+            dataBytes={storageBytesByComposeId[confirmModal.composeId] ?? null}
+            onConfirm={handleConfirmDelete}
+            onCancel={() => setConfirmModal(null)}
+          />
+        ) : (
+          <ConfirmModal
+            title={confirmModal.type === 'deleteGroup' ? 'Delete group?' : 'Delete environment?'}
+            message={confirmModal.type === 'deleteGroup'
+              ? `Delete group "${confirmModal.name}" and all its environments and services?`
+              : `Delete environment "${confirmModal.name}" and all its services?`}
+            confirmLabel={confirmModal.type === 'deleteGroup' ? 'Delete group' : 'Delete environment'}
+            danger
+            onConfirm={handleConfirmDelete}
+            onCancel={() => setConfirmModal(null)}
+          />
+        )
       )}
 
       <Modal

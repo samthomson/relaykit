@@ -1,6 +1,6 @@
 import fs from 'fs/promises'
 import { dockerSocketGetJson } from './dockerSocket'
-import { STORAGE_INSIGHTS_TTL_MS } from './constants'
+import { COMPOSE_PROJECT_LABEL, STORAGE_INSIGHTS_TTL_MS } from './constants'
 import type { StorageSnapshot, StorageServiceUsage, StorageVolumeUsage } from '../../shared/insights'
 
 /**
@@ -35,7 +35,7 @@ const toBytes = (value: unknown): number => {
 }
 
 const projectOf = (labels: Record<string, string> | null | undefined): string | null => {
-  const project = String(labels?.['com.docker.compose.project'] || '').trim()
+  const project = String(labels?.[COMPOSE_PROJECT_LABEL] || '').trim()
   return project || null
 }
 
@@ -155,4 +155,10 @@ export const getStorageSnapshot = async (refresh = false): Promise<StorageSnapsh
   const snapshot = await getStorageSnapshotUncached()
   cachedSnapshot = snapshot
   return snapshot
+}
+
+/** Drop the cached snapshot so the next read recomputes — e.g. after deleting volumes, so freed
+ * space doesn't read as still-used for up to the TTL. */
+export const invalidateStorageSnapshot = () => {
+  cachedSnapshot = null
 }

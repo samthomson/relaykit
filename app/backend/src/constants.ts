@@ -14,6 +14,9 @@ export const RELAYKIT_UPDATE_CHANNEL_DEFAULT: RelaykitUpdateChannel = 'stable'
 
 /** One-shot container that performs `docker compose up` during self-update; must ship the compose plugin. */
 export const RELAYKIT_UPDATE_HELPER_IMAGE = 'docker:28-cli'
+/** Docker Compose puts this label on every container/volume a compose project owns — the stable
+ * key for finding a service's runtime footprint (containers + data volumes) over the Docker socket. */
+export const COMPOSE_PROJECT_LABEL = 'com.docker.compose.project'
 
 /** Rolling charts: keep samples from the last N minutes (by timestamp), not a fixed count. */
 export const INSIGHTS_HISTORY_WINDOW_MS = 21 * 60 * 1000

@@ -13,6 +13,7 @@ import {
   DEFAULT_PROJECT_NAME,
   SERVER_INSIGHTS,
   SERVICE_INSIGHTS,
+  COMPOSE_PROJECT_LABEL,
   VERSION_FILE_PATH,
 } from './constants'
 import {
@@ -21,7 +22,7 @@ import {
   dockerSocketGetJson,
   dockerSocketMutate,
 } from './dockerSocket'
-import { getStorageSnapshot } from './storageInsights'
+import { getStorageSnapshot, invalidateStorageSnapshot } from './storageInsights'
 import {
   compareVersions,
   readChangelog,
@@ -471,7 +472,7 @@ const getRunningComposeProjects = async (): Promise<Set<string> | null> => {
     if (!Array.isArray(containers)) return null
     const runningProjects = new Set<string>()
     for (const container of containers) {
-      const project = String(container?.Labels?.['com.docker.compose.project'] || '').trim()
+      const project = String(container?.Labels?.[COMPOSE_PROJECT_LABEL] || '').trim()
       if (project) runningProjects.add(project)
     }
     return runningProjects
@@ -523,6 +524,49 @@ const refreshComposeAppNameCache = async () => {
   )
 }
 
+/** Guard for mutations that act on the Docker socket — one failure mode, one place. */
+const assertDockerSocketAvailable = async (): Promise<void> => {
+  try {
+    await fs.access(DOCKER_SOCKET_PATH)
+  } catch {
+    throw new TRPCError({
+      code: 'PRECONDITION_FAILED',
+      message: 'Container runtime is unavailable: Docker socket access is not configured.',
+    })
+  }
+}
+
+const composeProjectFilters = (appName: string): string =>
+  encodeURIComponent(JSON.stringify({ label: [`${COMPOSE_PROJECT_LABEL}=${appName}`] }))
+
+const removeProjectContainers = async (appName: string): Promise<string[]> => {
+  const containers = await dockerSocketGetJson(`/containers/json?all=1&size=0&filters=${composeProjectFilters(appName)}`)
+  const normalized = Array.isArray(containers) ? containers : []
+  const removed: string[] = []
+  for (const container of normalized) {
+    const id = String(container?.Id || '').trim()
+    if (!id) continue
+    await dockerSocketMutate(`/containers/${id}?force=1&v=1`, 'DELETE')
+    removed.push(id)
+  }
+  return removed
+}
+
+/** Delete every volume the compose project owns. Volumes can't be removed while mounted, so the
+ * project's containers must be gone first (Dokploy's compose down, or removeProjectContainers). */
+const deleteProjectVolumes = async (appName: string): Promise<string[]> => {
+  const result = await dockerSocketGetJson(`/volumes?filters=${composeProjectFilters(appName)}`)
+  const normalized = Array.isArray(result?.Volumes) ? result.Volumes : []
+  const removed: string[] = []
+  for (const volume of normalized) {
+    const name = String(volume?.Name || '').trim()
+    if (!name) continue
+    await dockerSocketMutate(`/volumes/${encodeURIComponent(name)}?force=1`, 'DELETE')
+    removed.push(name)
+  }
+  return removed
+}
+
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /**
@@ -567,7 +611,7 @@ const getServiceInsightsFromDokploy = async (composeId: string): Promise<Service
   }
 
   const appName = await loadComposeAppName(composeId)
-  const filters = encodeURIComponent(JSON.stringify({ label: [`com.docker.compose.project=${appName}`] }))
+  const filters = composeProjectFilters(appName)
   const containers = await dockerSocketGetJson(`/containers/json?all=0&size=0&filters=${filters}`)
 
   if (!Array.isArray(containers) || containers.length === 0) {
@@ -646,7 +690,7 @@ const getServiceLogsFromDocker = async (input: {
   }
 
   const appName = await loadComposeAppName(input.composeId)
-  const filters = encodeURIComponent(JSON.stringify({ label: [`com.docker.compose.project=${appName}`] }))
+  const filters = composeProjectFilters(appName)
   const containers = await dockerSocketGetJson(`/containers/json?all=1&size=0&filters=${filters}`)
 
   if (!Array.isArray(containers) || containers.length === 0) {
@@ -752,7 +796,7 @@ const getRuntimeContainersFromDocker = async () => {
     const labels = container?.Labels || {}
     const containerId = String(container?.Id || '').trim()
     const name = String(container?.Names?.[0] || containerId).replace(/^\//, '')
-    const composeProject = String(labels['com.docker.compose.project'] || '').trim() || null
+    const composeProject = String(labels[COMPOSE_PROJECT_LABEL] || '').trim() || null
     const composeService = String(labels['com.docker.compose.service'] || '').trim() || null
     const compose = composeProject ? composeByAppName.get(composeProject) || null : null
     const hasComposeLabel = !!composeProject
@@ -1123,22 +1167,66 @@ export const appRouter = router({
     return services
   }),
 
-  // Delete a service
+  // Delete a service AND its data. Dokploy's compose.delete only runs `compose down` — volumes,
+  // where all service data lives, survive it and orphan on disk. So the app name is resolved
+  // first (the Dokploy row is gone after compose.delete), then the project's leftover containers
+  // and volumes are swept over the Docker socket to actually free the space.
   deleteService: protectedProcedure
     .input(z.object({
       composeId: z.string()
     }))
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
+      await assertDockerSocketAvailable()
+
+      const appName = await loadComposeAppName(input.composeId)
       await dokployFetch('/api/compose.delete', {
         method: 'POST',
         body: JSON.stringify({
           composeId: input.composeId
         })
       })
-      
+      await removeProjectContainers(appName)
+      const removedVolumes = await deleteProjectVolumes(appName)
+
+      composeAppNameCache.delete(input.composeId)
+      serviceInsightsHistory.delete(input.composeId)
+      invalidateStorageSnapshot()
+
       return {
         success: true,
-        message: 'Service deleted successfully'
+        message: 'Service deleted successfully',
+        removedVolumeCount: removedVolumes.length
+      }
+    }),
+
+  // Wipe a service's data volumes and redeploy it empty — env/config/domains live in Dokploy, not
+  // in volumes, so they're untouched. Containers are force-removed first (volumes can't be deleted
+  // while mounted); compose.redeploy then recreates containers and fresh empty volumes.
+  clearServiceData: protectedProcedure
+    .input(z.object({
+      composeId: z.string()
+    }))
+    .mutation(async ({ input }) => {
+      await assertDockerSocketAvailable()
+
+      const appName = await loadComposeAppName(input.composeId)
+      const removedContainers = await removeProjectContainers(appName)
+      const removedVolumes = await deleteProjectVolumes(appName)
+      await dokployFetch('/api/compose.redeploy', {
+        method: 'POST',
+        body: JSON.stringify({
+          composeId: input.composeId
+        })
+      })
+
+      invalidateStorageSnapshot()
+
+      return {
+        success: true,
+        composeId: input.composeId,
+        appName,
+        removedContainerCount: removedContainers.length,
+        removedVolumeCount: removedVolumes.length
       }
     }),
 
@@ -1489,14 +1577,7 @@ export const appRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      try {
-        await fs.access(DOCKER_SOCKET_PATH)
-      } catch {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: 'Container runtime is unavailable: Docker socket access is not configured.',
-        })
-      }
+      await assertDockerSocketAvailable()
       await dockerSocketMutate(`/containers/${input.containerId}?force=1&v=1`, 'DELETE')
       return { success: true, containerId: input.containerId }
     }),
@@ -1508,27 +1589,10 @@ export const appRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      try {
-        await fs.access(DOCKER_SOCKET_PATH)
-      } catch {
-        throw new TRPCError({
-          code: 'PRECONDITION_FAILED',
-          message: 'Container runtime is unavailable: Docker socket access is not configured.',
-        })
-      }
+      await assertDockerSocketAvailable()
 
       const appName = await loadComposeAppName(input.composeId)
-      const filters = encodeURIComponent(JSON.stringify({ label: [`com.docker.compose.project=${appName}`] }))
-      const containers = await dockerSocketGetJson(`/containers/json?all=1&size=0&filters=${filters}`)
-      const normalized = Array.isArray(containers) ? containers : []
-      const removed: string[] = []
-
-      for (const container of normalized) {
-        const id = String(container?.Id || '').trim()
-        if (!id) continue
-        await dockerSocketMutate(`/containers/${id}?force=1&v=1`, 'DELETE')
-        removed.push(id)
-      }
+      const removed = await removeProjectContainers(appName)
 
       await dokployFetch('/api/compose.redeploy', {
         method: 'POST',
